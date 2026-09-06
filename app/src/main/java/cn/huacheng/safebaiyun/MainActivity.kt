@@ -27,10 +27,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 初始化 ConfigManager
         ConfigManager.init(this)
-
-        // 初始化 UnlockRepo（传入 lifecycleScope）
         UnlockRepo.init(lifecycleScope)
 
         setContent {
@@ -45,62 +42,42 @@ class MainActivity : ComponentActivity() {
                         startDestination = "main",
                     ) {
                         composable("main", enterTransition = {
-                            slideIn {
-                                IntOffset(-it.width, 0)
-                            }
+                            slideIn { IntOffset(-it.width, 0) }
                         }, exitTransition = {
-                            slideOut {
-                                IntOffset(-it.width, 0)
-                            }
+                            slideOut { IntOffset(-it.width, 0) }
                         }) {
                             MainView(navController)
                         }
 
                         composable("helper", enterTransition = {
-                            slideIn {
-                                IntOffset(it.width, 0)
-                            }
+                            slideIn { IntOffset(it.width, 0) }
                         }, exitTransition = {
-                            slideOut {
-                                IntOffset(it.width, 0)
-                            }
+                            slideOut { IntOffset(it.width, 0) }
                         }) {
                             HelpView(navController)
                         }
 
                         composable("qr_export", enterTransition = {
-                            slideIn {
-                                IntOffset(-it.width, 0)
-                            }
+                            slideIn { IntOffset(-it.width, 0) }
                         }, exitTransition = {
-                            slideOut {
-                                IntOffset(-it.width, 0)
-                            }
+                            slideOut { IntOffset(-it.width, 0) }
                         }) {
                             QRExportView(navController)
                         }
 
                         composable("qr_import", enterTransition = {
-                            slideIn {
-                                IntOffset(-it.width, 0)
-                            }
+                            slideIn { IntOffset(-it.width, 0) }
                         }, exitTransition = {
-                            slideOut {
-                                IntOffset(-it.width, 0)
-                            }
+                            slideOut { IntOffset(-it.width, 0) }
                         }) {
                             QRImportView(navController)
                         }
 
-                        // 新增设置页面路由
+                        // 设置页面路由
                         composable("settings", enterTransition = {
-                            slideIn {
-                                IntOffset(it.width, 0)
-                            }
+                            slideIn { IntOffset(it.width, 0) }
                         }, exitTransition = {
-                            slideOut {
-                                IntOffset(it.width, 0)
-                            }
+                            slideOut { IntOffset(it.width, 0) }
                         }) {
                             SettingsView(navController)
                         }
