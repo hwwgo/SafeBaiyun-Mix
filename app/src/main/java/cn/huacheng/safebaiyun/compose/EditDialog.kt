@@ -31,23 +31,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import cn.huacheng.safebaiyun.R
 import cn.huacheng.safebaiyun.unlock.DataRepo
 import cn.huacheng.safebaiyun.unlock.DoorDevice
 import java.util.UUID
 
-/**
- * 多门禁管理弹窗（替代原来的单组 MAC/Key 编辑弹窗）
- *
- * 支持展开/折叠每项、新增、修改、删除门禁。
- *
- * @param state        控制弹窗显示/隐藏
- * @param initialDoors 初始门禁列表
- * @param onSaved      保存后的回调
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ManageDoorDialog(
@@ -55,14 +44,9 @@ fun ManageDoorDialog(
     initialDoors: List<DoorDevice>,
     onSaved: () -> Unit,
 ) {
-    // 工作副本，不直接操作源数据
     var doors by remember { mutableStateOf(initialDoors.map { it.copy() }.toMutableList()) }
-
-    // 记录当前正在编辑的门的 id（null 表示折叠）
-    // 修改为 String? 类型，与 door.id 匹配
     var editingId by remember { mutableStateOf<String?>(null) }
 
-    // 每个门的临时编辑态
     val editName = remember { mutableStateOf("") }
     val editMac = remember { mutableStateOf("") }
     val editKey = remember { mutableStateOf("") }
@@ -73,7 +57,6 @@ fun ManageDoorDialog(
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 24.dp)
         ) {
-            // 标题行
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -85,7 +68,6 @@ fun ManageDoorDialog(
                     modifier = Modifier.weight(1f)
                 )
                 TextButton(onClick = {
-                    // 保存所有变更
                     DataRepo.saveDoors(doors.toList())
                     onSaved()
                     state.value = false
@@ -105,7 +87,6 @@ fun ManageDoorDialog(
                 )
             }
 
-            // 门禁列表
             doors.forEachIndexed { index, door ->
                 DoorEditItem(
                     door = door,
@@ -115,9 +96,8 @@ fun ManageDoorDialog(
                     editKey = editKey,
                     onToggleExpand = {
                         if (editingId == door.id) {
-                            editingId = null // 折叠
+                            editingId = null
                         } else {
-                            // 展开并加载当前值到输入框
                             editingId = door.id
                             editName.value = door.name
                             editMac.value = door.mac
@@ -125,31 +105,34 @@ fun ManageDoorDialog(
                         }
                     },
                     onSaveEdit = {
-                        // 验证
                         val name = editName.value.trim()
                         val mac = editMac.value.trim()
                         val key = editKey.value.trim()
                         if (name.isEmpty()) return@DoorEditItem
 
-                        doors[index] = door.copy(name = name, mac = mac, key = key)
-                        editingId = null // 折叠
+                        val newList = doors.toMutableList()
+                        newList[index] = door.copy(name = name, mac = mac, key = key)
+                        doors = newList
+                        editingId = null
                     },
                     onDelete = {
-                        doors.removeAt(index)
+                        // ✅ 立即删除，刷新 UI
+                        val newList = doors.toMutableList()
+                        newList.removeAt(index)
+                        doors = newList
                         if (editingId == door.id) editingId = null
-                    },
+                    }
                 )
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 新增按钮
             OutlinedButton(
                 onClick = {
-                    // 生成唯一的字符串 ID（使用 UUID）
                     val newId = UUID.randomUUID().toString()
                     val newName = "门禁${doors.size + 1}"
-                    doors.add(
+                    val newList = doors.toMutableList()
+                    newList.add(
                         DoorDevice(
                             id = newId,
                             name = newName,
@@ -157,7 +140,7 @@ fun ManageDoorDialog(
                             key = ""
                         )
                     )
-                    // 自动展开新项
+                    doors = newList
                     editingId = newId
                     editName.value = newName
                     editMac.value = ""
@@ -175,9 +158,6 @@ fun ManageDoorDialog(
     }
 }
 
-/**
- * 单个门禁的编辑条目（可折叠/展开）
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DoorEditItem(
@@ -196,7 +176,6 @@ private fun DoorEditItem(
 
     CardEditorContent {
         Column(modifier = Modifier.padding(8.dp)) {
-            // 折叠状态：只显示名称 + 操作按钮
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -232,7 +211,6 @@ private fun DoorEditItem(
                 }
             }
 
-            // 展开状态：显示编辑字段
             if (isEditing) {
                 Spacer(modifier = Modifier.height(6.dp))
                 OutlinedTextField(
@@ -262,9 +240,6 @@ private fun DoorEditItem(
     }
 }
 
-/**
- * 简单卡片容器，用于每个门禁条的背景
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CardEditorContent(content: @Composable () -> Unit) {
