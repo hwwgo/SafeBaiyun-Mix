@@ -11,7 +11,6 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,6 +57,7 @@ import cn.huacheng.safebaiyun.util.showToast
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
+import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -374,14 +374,17 @@ private fun ImportConfirmDialog(
     )
 }
 
+/**
+ * 导入门禁配置（ID 类型已改为 String）
+ */
 private fun importDoors(newDoors: List<DoorDevice>, replaceAll: Boolean) {
     if (replaceAll) {
         DataRepo.saveDoors(newDoors)
     } else {
-        val existingDoors = DataRepo.getDoors()
-        val maxId = existingDoors.maxOfOrNull { it.id } ?: 0
-        val renumberedDoors = newDoors.mapIndexed { index, door ->
-            door.copy(id = maxId + index + 1)
+        val existingDoors = DataRepo.getDoors().toMutableList()
+        // 使用 UUID 生成新的唯一 ID
+        val renumberedDoors = newDoors.map { door ->
+            door.copy(id = UUID.randomUUID().toString())
         }
         existingDoors.addAll(renumberedDoors)
         DataRepo.saveDoors(existingDoors)
