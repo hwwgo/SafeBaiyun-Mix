@@ -29,41 +29,41 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compute.material.icons.filled.Settings
-import androidx.compute.material3.Button
-import androidx.compute.material3.ButtonDefaults
-import androidx.compute.material3.Card
-import androidx.compute.material3.CardDefaults
-import androidx.compute.material3.Checkbox
-import androidx.compute.material3.CircularProgressIndicator
-import androidx.compute.material3.ExperimentalMaterial3Api
-import androidx.compute.material3.FloatingActionButton
-import androidx.compute.material3.FloatingActionButtonDefaults
-import androidx.compute.material3.Icon
-import androidx.compute.material3.IconButton
-import androidx.compute.material3.LinearProgressIndicator
-import androidx.compute.material3.MaterialTheme
-import androidx.compute.material3.OutlinedButton
-import androidx.compute.material3.Text
-import androidx.compute.material3.TopAppBar
-import androidx.compute.material3.TopAppBarDefaults
-import androidx.compute.runtime.Composable
-import androidx.compute.runtime.MutableState
-import androidx.compute.runtime.SideEffect
-import androidx.compute.runtime.getValue
-import androidx.compute.runtime.mutableStateOf
-import androidx.compute.runtime.remember
-import androidx.compute.runtime.rememberCoroutineScope
-import androidx.compute.runtime.setValue
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compute.ui.text.font.FontWeight
-import androidx.compute.ui.text.style.TextOverflow
-import androidx.compute.ui.unit.dp
-import androidx.compute.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import cn.huacheng.safebaiyun.R
 import cn.huacheng.safebaiyun.unlock.DataRepo
@@ -92,7 +92,6 @@ fun MainView(navController: NavHostController) {
     var pollingCurrentIndex by remember { mutableStateOf(0) }
     var pollingTotal by remember { mutableStateOf(0) }
 
-    // 是否已经执行过自动轮询（防止重复执行）
     var autoPollExecuted by remember { mutableStateOf(false) }
 
     SideEffect {
@@ -103,20 +102,14 @@ fun MainView(navController: NavHostController) {
         }
     }
 
-    // ============================================================
-    //  自动轮询逻辑：在首次加载且开启自动轮询且未执行过时触发
-    // ============================================================
     LaunchedEffect(Unit) {
-        // 等待权限和门禁数据加载完成
         if (hasPermission.value && doors.value.isNotEmpty() && !autoPollExecuted) {
             val autoPoll = ConfigManager.getAutoPollOnStart()
             if (autoPoll) {
                 val selectedDoors = doors.value.filter { it.isSelected }
                 if (selectedDoors.isNotEmpty()) {
                     autoPollExecuted = true
-                    // 延迟 500ms 执行，确保 UI 完全加载
                     delay(500)
-                    // 触发轮询
                     isPolling = true
                     pollingCurrentIndex = 0
                     pollingTotal = selectedDoors.size
@@ -329,7 +322,6 @@ private fun DoorCard(
     val stepState = UnlockRepo.unlockStep
     val interactionSource = remember { MutableInteractionSource() }
 
-    // 动态字号：名称超过15个字符时缩小
     val nameFontSize = if (door.name.length > 15) 15.sp else 18.sp
 
     Card(
@@ -339,7 +331,7 @@ private fun DoorCard(
             .clickable(
                 interactionSource = interactionSource,
                 indication = null
-            ) { /* 可选：点击卡片选中效果，目前无操作 */ },
+            ) { },
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(
