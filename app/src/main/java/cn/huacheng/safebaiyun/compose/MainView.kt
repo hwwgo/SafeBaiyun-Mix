@@ -22,6 +22,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AppSettingsAlt
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
@@ -29,6 +31,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -101,18 +104,26 @@ fun MainView(navController: NavHostController) {
         Box(modifier = Modifier.weight(1f).padding(8.dp), contentAlignment = Alignment.Center) {
             if (hasPermission.value) {
                 Column(modifier = Modifier.fillMaxSize()) {
+                    // 轮询按钮（显示已选/总数）
+                    val selectedCount = doors.value.count { it.isSelected }
                     PollButton(
                         doors = doors.value,
+                        selectedCount = selectedCount,
                         isPolling = isPolling,
                         pollingProgress = pollingProgress,
                         onPollStart = {
+                            val selectedDoors = doors.value.filter { it.isSelected }
+                            if (selectedDoors.isEmpty()) {
+                                showToast("请至少选择一个门禁")
+                                return@PollButton
+                            }
                             isPolling = true
                             pollingCurrentIndex = 0
-                            pollingTotal = doors.value.size
+                            pollingTotal = selectedDoors.size
                             pollingProgress = "准备轮询..."
                             scope.launch {
                                 val result = UnlockRepo.pollAllDoors(
-                                    doors = doors.value,
+                                    doors = selectedDoors,
                                     onProgress = { index, total, name ->
                                         withContext(Dispatchers.Main) {
                                             pollingCurrentIndex = index
@@ -128,6 +139,7 @@ fun MainView(navController: NavHostController) {
                         }
                     )
 
+                    // 轮询进度条
                     if (isPolling && pollingTotal > 0) {
                         LinearProgressIndicator(
                             progress = pollingCurrentIndex.toFloat() / pollingTotal,
@@ -136,6 +148,7 @@ fun MainView(navController: NavHostController) {
                         Spacer(modifier = Modifier.height(4.dp))
                     }
 
+                    // 门禁列表
                     DoorListContent(doors = doors, onRefresh = { doors.value = DataRepo.getDoors() })
                 }
             } else {
@@ -143,6 +156,7 @@ fun MainView(navController: NavHostController) {
             }
         }
 
+        // 底部按钮
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
@@ -193,6 +207,7 @@ private fun MainTopBar(
 @Composable
 private fun PollButton(
     doors: List<DoorDevice>,
+    selectedCount: Int,
     isPolling: Boolean,
     pollingProgress: String,
     onPollStart: () -> Unit
@@ -214,7 +229,12 @@ private fun PollButton(
         } else {
             Icon(Icons.Default.PlayArrow, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
-            Text(text = "🔄 一键轮询开锁 (${doors.size})", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+            Text(
+                text = "🔄 一键轮询开锁 ($selectedCount/${doors.size})",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White
+            )
         }
     }
 }
@@ -233,14 +253,33 @@ private fun DoorListContent(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         items(doors.value, key = { it.id }) { door ->
-            DoorCard(door)
+            DoorCard(
+                door = door,
+                onToggleSelected = { id ->
+                    DataRepo.toggleSelected(id)
+                    doors.value = DataRepo.getDoors()
+                },
+                onMoveUp = { id ->
+                    DataRepo.moveDoor(id, -1)
+                    doors.value = DataRepo.getDoors()
+                },
+                onMoveDown = { id ->
+                    DataRepo.moveDoor(id, 1)
+                    doors.value = DataRepo.getDoors()
+                }
+            )
         }
         item { Spacer(modifier = Modifier.size(60.dp)) }
     }
 }
 
 @Composable
-private fun DoorCard(door: DoorDevice) {
+private fun DoorCard(
+    door: DoorDevice,
+    onToggleSelected: (String) -> Unit = {},
+    onMoveUp: (String) -> Unit = {},
+    onMoveDown: (String) -> Unit = {}
+) {
     val scope = rememberCoroutineScope()
     var isUnlocking by remember { mutableStateOf(false) }
     var unlockStep by remember { mutableStateOf("") }
@@ -250,20 +289,30 @@ private fun DoorCard(door: DoorDevice) {
         modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(
+            containerColor = if (door.isSelected) MaterialTheme.colorScheme.surface
+                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // 复选框
+            Checkbox(
+                checked = door.isSelected,
+                onCheckedChange = { onToggleSelected(door.id) }
+            )
+            // 名称 + MAC + 进度
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = door.name,
                     style = MaterialTheme.typography.titleMedium,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = if (door.isSelected) MaterialTheme.colorScheme.onSurface
+                        else MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 if (door.mac.isNotEmpty()) {
                     Text(
@@ -287,58 +336,61 @@ private fun DoorCard(door: DoorDevice) {
                     )
                 }
             }
-
-            Button(
-                onClick = {
-                    if (door.mac.isEmpty() || door.key.isEmpty()) {
-                        showToast("请先配置该门禁的 MAC 和 Key")
-                        return@Button
+            // 排序按钮 + 开锁按钮
+            Column(horizontalAlignment = Alignment.End) {
+                Row {
+                    IconButton(onClick = { onMoveUp(door.id) }, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.ArrowUpward, contentDescription = "上移", modifier = Modifier.size(18.dp))
                     }
-                    if (!isUnlocking) {
-                        isUnlocking = true
-                        unlockStep = "准备开锁..."
-                        scope.launch {
-                            val job = launch {
-                                stepState.collectLatest { step ->
-                                    if (step.isNotEmpty()) unlockStep = step
-                                }
-                            }
-                            val success = UnlockRepo.tryUnlock(door.mac, door.key)
-                            delay(ConfigManager.getResultDelay())
-                            job.cancel()
-                            if (!unlockStep.contains("成功") && !unlockStep.contains("失败") && !unlockStep.contains("超时")) {
-                                unlockStep = if (success) "✅ 开锁成功" else "❌ 开锁失败"
-                            }
-                            delay(ConfigManager.getResetDelay())
-                            isUnlocking = false
-                            unlockStep = ""
+                    IconButton(onClick = { onMoveDown(door.id) }, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.ArrowDownward, contentDescription = "下移", modifier = Modifier.size(18.dp))
+                    }
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Button(
+                    onClick = {
+                        if (door.mac.isEmpty() || door.key.isEmpty()) {
+                            showToast("请先配置该门禁的 MAC 和 Key")
+                            return@Button
                         }
-                    }
-                },
-                enabled = !isUnlocking,
-                shape = RoundedCornerShape(24.dp),
-                modifier = Modifier.height(40.dp).width(if (isUnlocking) 100.dp else 80.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = when {
-                        isUnlocking -> MaterialTheme.colorScheme.primary
-                        unlockStep.contains("成功") -> Color(0xFF4CAF50)
-                        unlockStep.contains("失败") || unlockStep.contains("超时") -> Color(0xFFF44336)
-                        else -> MaterialTheme.colorScheme.primary
-                    }
-                )
-            ) {
-                when {
-                    isUnlocking -> {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
-                    }
-                    unlockStep.contains("成功") -> {
-                        Text(text = "✅", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                    }
-                    unlockStep.contains("失败") || unlockStep.contains("超时") -> {
-                        Text(text = "❌", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                    }
-                    else -> {
-                        Text(text = stringResource(id = R.string.unlock_door), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        if (!isUnlocking) {
+                            isUnlocking = true
+                            unlockStep = "准备开锁..."
+                            scope.launch {
+                                val job = launch {
+                                    stepState.collectLatest { step ->
+                                        if (step.isNotEmpty()) unlockStep = step
+                                    }
+                                }
+                                val success = UnlockRepo.tryUnlock(door.mac, door.key)
+                                delay(ConfigManager.getResultDelay())
+                                job.cancel()
+                                if (!unlockStep.contains("成功") && !unlockStep.contains("失败") && !unlockStep.contains("超时")) {
+                                    unlockStep = if (success) "✅ 开锁成功" else "❌ 开锁失败"
+                                }
+                                delay(ConfigManager.getResetDelay())
+                                isUnlocking = false
+                                unlockStep = ""
+                            }
+                        }
+                    },
+                    enabled = !isUnlocking && door.isSelected,
+                    shape = RoundedCornerShape(24.dp),
+                    modifier = Modifier.height(36.dp).width(72.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = when {
+                            isUnlocking -> MaterialTheme.colorScheme.primary
+                            unlockStep.contains("成功") -> Color(0xFF4CAF50)
+                            unlockStep.contains("失败") || unlockStep.contains("超时") -> Color(0xFFF44336)
+                            else -> MaterialTheme.colorScheme.primary
+                        }
+                    )
+                ) {
+                    when {
+                        isUnlocking -> CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
+                        unlockStep.contains("成功") -> Text("✅", fontSize = 16.sp)
+                        unlockStep.contains("失败") || unlockStep.contains("超时") -> Text("❌", fontSize = 16.sp)
+                        else -> Text("开锁", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 }
             }
