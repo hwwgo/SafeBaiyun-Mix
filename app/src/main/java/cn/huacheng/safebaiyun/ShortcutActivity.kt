@@ -71,12 +71,12 @@ class ShortcutActivity : ComponentActivity() {
             return
         }
 
-        // 优先从 Intent 取指定门禁 id
-        val targetDoorId = intent.getIntExtra(EXTRA_DOOR_ID, -1)
+        // 优先从 Intent 取指定门禁 id（改为 String）
+        val targetDoorId = intent.getStringExtra(EXTRA_DOOR_ID)
 
         val doors = DataRepo.getDoors()
 
-        val doorToUnlock = if (targetDoorId > 0) {
+        val doorToUnlock = if (targetDoorId != null) {
             doors.find { it.id == targetDoorId }
         } else {
             // 兼容旧逻辑：取第一个有效门禁
