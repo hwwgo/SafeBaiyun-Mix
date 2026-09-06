@@ -11,6 +11,7 @@ import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.os.Build
+import cn.huacheng.safebaiyun.util.ConfigManager
 import cn.huacheng.safebaiyun.util.ContextHolder
 import cn.huacheng.safebaiyun.util.LockBiz
 import cn.huacheng.safebaiyun.util.showToast
@@ -32,7 +33,7 @@ import kotlin.coroutines.resumeWithException
 object UnlockRepo {
 
     private const val MAGIC_SERVICE = "14839ac4-7d7e-415c-9a42-167340cf2339"
-    private const val TIMEOUT_MS = 10000L
+    // TIMEOUT_MS 已删除，改用 ConfigManager.getUnlockTimeout()
 
     // ---------- 原有成员变量 ----------
     private lateinit var gatt: BluetoothGatt
@@ -76,9 +77,9 @@ object UnlockRepo {
 
         val scope = repoScope ?: GlobalScope
         autoDisconnectJob = scope.launch {
-            delay(TIMEOUT_MS)
+            delay(ConfigManager.getUnlockTimeout())
             if (isActive) {
-                log("10s超时，自动断开")
+                log("${ConfigManager.getUnlockTimeout()}ms超时，自动断开")
                 gatt.disconnect()
                 gatt.close()
             }
@@ -244,7 +245,7 @@ object UnlockRepo {
             showToast("Mac地址格式错误")
             return false
         }
-        val result = withTimeoutOrNull(TIMEOUT_MS) {
+        val result = withTimeoutOrNull(ConfigManager.getUnlockTimeout()) {
             doUnlockSuspend(bluetoothAdapter, mac, key)
         } ?: false.also { _unlockStep.value = "❌ 开锁超时" }
         if (result) {
@@ -434,8 +435,8 @@ object UnlockRepo {
                 return door
             } else {
                 log("❌ 第 ${index + 1} 个门禁开门失败，继续尝试下一个...")
-                // 两个门禁之间稍微延迟，避免蓝牙切换太快
-                delay(500)
+                // 轮询间隔使用用户自定义值
+                delay(ConfigManager.getPollInterval())
             }
         }
 
