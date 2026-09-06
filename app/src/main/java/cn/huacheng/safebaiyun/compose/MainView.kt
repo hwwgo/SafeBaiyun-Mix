@@ -71,24 +71,13 @@ import kotlinx.coroutines.withContext
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainView(navController: NavHostController) {
-
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    val hasPermission = remember {
-        mutableStateOf(false)
-    }
+    val hasPermission = remember { mutableStateOf(false) }
+    val showManageDialog = remember { mutableStateOf(false) }
+    val doors = remember { mutableStateOf<List<DoorDevice>>(DataRepo.getDoors()) }
 
-    val showManageDialog = remember {
-        mutableStateOf(false)
-    }
-
-    // 门禁列表状态（响应式刷新）
-    val doors = remember {
-        mutableStateOf<List<DoorDevice>>(DataRepo.getDoors())
-    }
-
-    // 轮询状态
     var isPolling by remember { mutableStateOf(false) }
     var pollingProgress by remember { mutableStateOf("") }
     var pollingCurrentIndex by remember { mutableStateOf(0) }
@@ -96,8 +85,7 @@ fun MainView(navController: NavHostController) {
 
     SideEffect {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            hasPermission.value =
-                context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
+            hasPermission.value = context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
         } else {
             hasPermission.value = true
         }
@@ -105,22 +93,12 @@ fun MainView(navController: NavHostController) {
 
     Column {
         MainTopBar(
-            onEditClick = {
-                showManageDialog.value = true
-            },
-            onHelperClick = {
-                navController.navigate("helper")
-            },
-            onSettingsClick = {
-                navController.navigate("settings")
-            }
+            onEditClick = { showManageDialog.value = true },
+            onHelperClick = { navController.navigate("helper") },
+            onSettingsClick = { navController.navigate("settings") }
         )
 
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .padding(8.dp), contentAlignment = Alignment.Center
-        ) {
+        Box(modifier = Modifier.weight(1f).padding(8.dp), contentAlignment = Alignment.Center) {
             if (hasPermission.value) {
                 Column(modifier = Modifier.fillMaxSize()) {
                     PollButton(
@@ -153,16 +131,12 @@ fun MainView(navController: NavHostController) {
                     if (isPolling && pollingTotal > 0) {
                         LinearProgressIndicator(
                             progress = pollingCurrentIndex.toFloat() / pollingTotal,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                     }
 
-                    DoorListContent(doors = doors, onRefresh = {
-                        doors.value = DataRepo.getDoors()
-                    })
+                    DoorListContent(doors = doors, onRefresh = { doors.value = DataRepo.getDoors() })
                 }
             } else {
                 PermissionView(hasPermission)
@@ -170,26 +144,16 @@ fun MainView(navController: NavHostController) {
         }
 
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            OutlinedButton(
-                onClick = { navController.navigate("qr_export") },
-                modifier = Modifier.weight(1f)
-            ) {
+            OutlinedButton(onClick = { navController.navigate("qr_export") }, modifier = Modifier.weight(1f)) {
                 Icon(Icons.Default.AppSettingsAlt, contentDescription = null)
                 Spacer(modifier = Modifier.size(4.dp))
                 Text("导出配置")
             }
-
             Spacer(modifier = Modifier.size(8.dp))
-
-            OutlinedButton(
-                onClick = { navController.navigate("qr_import") },
-                modifier = Modifier.weight(1f)
-            ) {
+            OutlinedButton(onClick = { navController.navigate("qr_import") }, modifier = Modifier.weight(1f)) {
                 Icon(Icons.Default.HelpOutline, contentDescription = null)
                 Spacer(modifier = Modifier.size(4.dp))
                 Text("扫描导入")
@@ -200,9 +164,7 @@ fun MainView(navController: NavHostController) {
             ManageDoorDialog(
                 state = showManageDialog,
                 initialDoors = doors.value,
-                onSaved = {
-                    doors.value = DataRepo.getDoors()
-                }
+                onSaved = { doors.value = DataRepo.getDoors() }
             )
         }
     }
@@ -216,23 +178,11 @@ private fun MainTopBar(
     onSettingsClick: () -> Unit
 ) {
     TopAppBar(
-        title = {
-            Text(
-                text = "🔓 智能门禁",
-                fontWeight = FontWeight.Bold,
-                fontSize = 20.sp
-            )
-        },
+        title = { Text("🔓 智能门禁", fontWeight = FontWeight.Bold, fontSize = 20.sp) },
         actions = {
-            IconButton(onClick = onEditClick) {
-                Icon(Icons.Default.Add, contentDescription = "添加门禁")
-            }
-            IconButton(onClick = onSettingsClick) {
-                Icon(Icons.Default.Settings, contentDescription = "设置")
-            }
-            IconButton(onClick = onHelperClick) {
-                Icon(Icons.Default.HelpOutline, contentDescription = "帮助")
-            }
+            IconButton(onClick = onEditClick) { Icon(Icons.Default.Add, contentDescription = "添加门禁") }
+            IconButton(onClick = onSettingsClick) { Icon(Icons.Default.Settings, contentDescription = "设置") }
+            IconButton(onClick = onHelperClick) { Icon(Icons.Default.HelpOutline, contentDescription = "帮助") }
         },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer
@@ -248,49 +198,23 @@ private fun PollButton(
     onPollStart: () -> Unit
 ) {
     val hasDoors = doors.isNotEmpty()
-
     Button(
-        onClick = {
-            if (!isPolling && hasDoors) {
-                onPollStart()
-            }
-        },
+        onClick = { if (!isPolling && hasDoors) onPollStart() },
         enabled = !isPolling && hasDoors,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp)
-            .padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().height(56.dp).padding(vertical = 4.dp),
         shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (isPolling) MaterialTheme.colorScheme.secondaryContainer
-            else MaterialTheme.colorScheme.primary
+            containerColor = if (isPolling) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.primary
         )
     ) {
         if (isPolling) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(20.dp),
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                strokeWidth = 2.dp
-            )
+            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onSecondaryContainer, strokeWidth = 2.dp)
             Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = pollingProgress,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
-            )
+            Text(text = pollingProgress, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSecondaryContainer)
         } else {
-            Icon(
-                imageVector = Icons.Default.PlayArrow,
-                contentDescription = null
-            )
+            Icon(Icons.Default.PlayArrow, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "🔄 一键轮询开锁 (${doors.size})",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color.White
-            )
+            Text(text = "🔄 一键轮询开锁 (${doors.size})", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
         }
     }
 }
@@ -304,7 +228,6 @@ private fun DoorListContent(
         Text(text = "暂无门禁，请点击右上角添加", color = MaterialTheme.colorScheme.onSurfaceVariant)
         return
     }
-
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -312,9 +235,7 @@ private fun DoorListContent(
         items(doors.value, key = { it.id }) { door ->
             DoorCard(door)
         }
-        item {
-            Spacer(modifier = Modifier.size(60.dp))
-        }
+        item { Spacer(modifier = Modifier.size(60.dp)) }
     }
 }
 
@@ -323,29 +244,20 @@ private fun DoorCard(door: DoorDevice) {
     val scope = rememberCoroutineScope()
     var isUnlocking by remember { mutableStateOf(false) }
     var unlockStep by remember { mutableStateOf("") }
-
     val stepState = UnlockRepo.unlockStep
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = door.name,
                     style = MaterialTheme.typography.titleMedium,
@@ -388,9 +300,7 @@ private fun DoorCard(door: DoorDevice) {
                         scope.launch {
                             val job = launch {
                                 stepState.collectLatest { step ->
-                                    if (step.isNotEmpty()) {
-                                        unlockStep = step
-                                    }
+                                    if (step.isNotEmpty()) unlockStep = step
                                 }
                             }
                             val success = UnlockRepo.tryUnlock(door.mac, door.key)
@@ -407,9 +317,7 @@ private fun DoorCard(door: DoorDevice) {
                 },
                 enabled = !isUnlocking,
                 shape = RoundedCornerShape(24.dp),
-                modifier = Modifier
-                    .height(40.dp)
-                    .width(if (isUnlocking) 100.dp else 80.dp),
+                modifier = Modifier.height(40.dp).width(if (isUnlocking) 100.dp else 80.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = when {
                         isUnlocking -> MaterialTheme.colorScheme.primary
@@ -421,35 +329,16 @@ private fun DoorCard(door: DoorDevice) {
             ) {
                 when {
                     isUnlocking -> {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = Color.White,
-                            strokeWidth = 2.dp
-                        )
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
                     }
                     unlockStep.contains("成功") -> {
-                        Text(
-                            text = "✅",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
+                        Text(text = "✅", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
                     unlockStep.contains("失败") || unlockStep.contains("超时") -> {
-                        Text(
-                            text = "❌",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
+                        Text(text = "❌", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
                     else -> {
-                        Text(
-                            text = stringResource(id = R.string.unlock_door),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
+                        Text(text = stringResource(id = R.string.unlock_door), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 }
             }
@@ -460,17 +349,17 @@ private fun DoorCard(door: DoorDevice) {
 @Composable
 private fun PermissionView(hasPermission: MutableState<Boolean>) {
     val requestPermissionLauncher =
-        rememberLauncherForActivityResult(contract = ActivityResultContracts.RequestPermission()) { isGranted ->
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
             hasPermission.value = isGranted
         }
-
     Button(
         modifier = Modifier.size(144.dp, 56.dp),
         onClick = {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 requestPermissionLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT)
             }
-        }) {
+        }
+    ) {
         Text(text = stringResource(id = R.string.request_permission), fontSize = 18.sp)
     }
 }
