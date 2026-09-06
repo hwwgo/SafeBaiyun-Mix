@@ -34,6 +34,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -104,7 +106,6 @@ fun MainView(navController: NavHostController) {
         Box(modifier = Modifier.weight(1f).padding(8.dp), contentAlignment = Alignment.Center) {
             if (hasPermission.value) {
                 Column(modifier = Modifier.fillMaxSize()) {
-                    // 轮询按钮（显示已选/总数）
                     val selectedCount = doors.value.count { it.isSelected }
                     PollButton(
                         doors = doors.value,
@@ -139,7 +140,6 @@ fun MainView(navController: NavHostController) {
                         }
                     )
 
-                    // 轮询进度条
                     if (isPolling && pollingTotal > 0) {
                         LinearProgressIndicator(
                             progress = pollingCurrentIndex.toFloat() / pollingTotal,
@@ -148,7 +148,6 @@ fun MainView(navController: NavHostController) {
                         Spacer(modifier = Modifier.height(4.dp))
                     }
 
-                    // 门禁列表
                     DoorListContent(doors = doors, onRefresh = { doors.value = DataRepo.getDoors() })
                 }
             } else {
@@ -156,7 +155,6 @@ fun MainView(navController: NavHostController) {
             }
         }
 
-        // 底部按钮
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
@@ -299,12 +297,10 @@ private fun DoorCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 复选框
             Checkbox(
                 checked = door.isSelected,
                 onCheckedChange = { onToggleSelected(door.id) }
             )
-            // 名称 + MAC + 进度
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = door.name,
@@ -336,7 +332,6 @@ private fun DoorCard(
                     )
                 }
             }
-            // 排序按钮 + 开锁按钮
             Column(horizontalAlignment = Alignment.End) {
                 Row {
                     IconButton(onClick = { onMoveUp(door.id) }, modifier = Modifier.size(32.dp)) {
