@@ -14,6 +14,7 @@ import android.os.Build
 import cn.huacheng.safebaiyun.util.ContextHolder
 import cn.huacheng.safebaiyun.util.LockBiz
 import cn.huacheng.safebaiyun.util.showToast
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
@@ -38,6 +39,13 @@ object UnlockRepo {
 
     private val _logFlow = MutableStateFlow<List<String>>(emptyList())
     val logFlow: StateFlow<List<String>> = _logFlow
+
+    /**
+     * 空方法，仅用于兼容 MainActivity 中的调用（不执行任何操作）
+     */
+    fun init(scope: CoroutineScope) {
+        // 什么都不做，只是为了兼容旧代码
+    }
 
     /**
      * 解锁指定门禁
