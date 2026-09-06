@@ -83,6 +83,7 @@ dependencies {
     implementation(libs.camerax.view)
     implementation(libs.mlkit.barcode.scanning)
 
+    implementation 'com.google.code.gson:gson:2.10.1'
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
