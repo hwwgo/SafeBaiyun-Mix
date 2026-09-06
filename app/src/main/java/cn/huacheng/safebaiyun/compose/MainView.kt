@@ -9,7 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compute.foundation.layout.Column
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,46 +23,46 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compute.material.icons.filled.AppSettingsAlt
-import androidx.compute.material.icons.filled.ArrowDownward
-import androidx.compute.material.icons.filled.ArrowUpward
-import androidx.compute.material.icons.filled.HelpOutline
-import androidx.compute.material.icons.filled.PlayArrow
-import androidx.compute.material.icons.filled.Settings
-import androidx.compute.material3.Button
-import androidx.compute.material3.ButtonDefaults
-import androidx.compute.material3.Card
-import androidx.compute.material3.CardDefaults
-import androidx.compute.material3.Checkbox
-import androidx.compute.material3.CircularProgressIndicator
-import androidx.compute.material3.ExperimentalMaterial3Api
-import androidx.compute.material3.FloatingActionButton
-import androidx.compute.material3.FloatingActionButtonDefaults
-import androidx.compute.material3.Icon
-import androidx.compute.material3.IconButton
-import androidx.compute.material3.LinearProgressIndicator
-import androidx.compute.material3.MaterialTheme
-import androidx.compute.material3.OutlinedButton
-import androidx.compute.material3.Text
-import androidx.compute.material3.TopAppBar
-import androidx.compute.material3.TopAppBarDefaults
-import androidx.compute.runtime.Composable
-import androidx.compute.runtime.MutableState
-import androidx.compute.runtime.SideEffect
-import androidx.compute.runtime.getValue
-import androidx.compute.runtime.mutableStateOf
-import androidx.compute.runtime.remember
-import androidx.compute.runtime.rememberCoroutineScope
-import androidx.compute.runtime.setValue
+import androidx.compose.material.icons.filled.AppSettingsAlt
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compute.ui.text.style.TextOverflow
-import androidx.compute.ui.unit.dp
-import androidx.compute.ui.unit.sp
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import cn.huacheng.safebaiyun.R
 import cn.huacheng.safebaiyun.unlock.DataRepo
@@ -75,9 +75,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.withContext
-
-// 注意：上面的导入中包含了错误的 "androidx.compute" 包，请全局替换为 "androidx.compose"
-// 但由于你之前已经修复过，请确保最终版本所有导入都是正确的。
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -254,7 +251,7 @@ private fun DoorListContent(
     }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(8.dp) // 减小间距，更紧凑
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(doors.value, key = { it.id }) { door ->
             DoorCard(
