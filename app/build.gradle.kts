@@ -41,19 +41,24 @@ android {
             signingConfig = signingConfigs.getByName("release")
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }
+
     kotlinOptions {
         jvmTarget = "1.8"
     }
+
     buildFeatures {
         compose = true
     }
+
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.9"
     }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -62,7 +67,6 @@ android {
 }
 
 dependencies {
-
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -83,7 +87,8 @@ dependencies {
     implementation(libs.camerax.view)
     implementation(libs.mlkit.barcode.scanning)
 
-    implementation 'com.google.code.gson:gson:2.10.1'
+    // 新增 Gson 依赖（Kotlin DSL 语法）
+    implementation("com.google.code.gson:gson:2.10.1")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
