@@ -386,3 +386,47 @@ object UnlockRepo {
         _logFlow.value = _logFlow.value + msg
     }
 }
+// ============================================================
+//  一键轮询功能
+// ============================================================
+
+/**
+ * 一键轮询所有门禁，依次尝试开锁
+ * @param doors 门禁列表
+ * @param onProgress 进度回调（当前索引，总数，当前门禁名称）
+ * @return 成功开启的门禁，如果全部失败则返回 null
+ */
+suspend fun pollAllDoors(
+    doors: List<DoorDevice>,
+    onProgress: suspend (index: Int, total: Int, doorName: String) -> Unit = { _, _, _ -> }
+): DoorDevice? {
+    if (doors.isEmpty()) {
+        showToast("门禁列表为空")
+        return null
+    }
+
+    log("开始轮询 ${doors.size} 个门禁...")
+
+    for ((index, door) in doors.withIndex()) {
+        // 报告进度
+        onProgress(index + 1, doors.size, door.name)
+
+        log("正在尝试第 ${index + 1}/${doors.size} 个门禁: ${door.name} (${door.mac})")
+
+        val success = tryUnlock(door.mac, door.key)
+
+        if (success) {
+            log("✅ 成功开启门禁: ${door.name}")
+            showToast("✅ 已成功开门！")
+            return door
+        } else {
+            log("❌ 第 ${index + 1} 个门禁开门失败，继续尝试下一个...")
+            // 两个门禁之间稍微延迟，避免蓝牙切换太快
+            delay(500)
+        }
+    }
+
+    log("所有门禁均尝试失败")
+    showToast("未找到可开启的门禁")
+    return null
+}
