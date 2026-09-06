@@ -371,7 +371,7 @@ private fun DoorCard(
                     },
                     enabled = !isUnlocking && door.isSelected,
                     shape = RoundedCornerShape(24.dp),
-                    modifier = Modifier.height(36.dp).width(72.dp),
+                    modifier = Modifier.height(36.dp).width(80.dp),  // ✅ 宽度改为 80dp
                     colors = ButtonDefaults.buttonColors(
                         containerColor = when {
                             isUnlocking -> MaterialTheme.colorScheme.primary
@@ -385,7 +385,7 @@ private fun DoorCard(
                         isUnlocking -> CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
                         unlockStep.contains("成功") -> Text("✅", fontSize = 16.sp)
                         unlockStep.contains("失败") || unlockStep.contains("超时") -> Text("❌", fontSize = 16.sp)
-                        else -> Text("开锁", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        else -> Text("开锁", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)  // ✅ 字体调整为 13sp
                     }
                 }
             }
