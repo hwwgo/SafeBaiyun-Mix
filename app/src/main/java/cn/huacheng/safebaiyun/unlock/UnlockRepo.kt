@@ -14,7 +14,6 @@ import android.os.Build
 import cn.huacheng.safebaiyun.util.ContextHolder
 import cn.huacheng.safebaiyun.util.LockBiz
 import cn.huacheng.safebaiyun.util.showToast
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
@@ -39,17 +38,6 @@ object UnlockRepo {
 
     private val _logFlow = MutableStateFlow<List<String>>(emptyList())
     val logFlow: StateFlow<List<String>> = _logFlow
-
-    // ========== 新增：协程作用域管理 ==========
-    private var repoScope: CoroutineScope? = null
-
-    /**
-     * 初始化，传入 LifecycleScope 或 ViewModelScope
-     * 建议在 MainActivity.onCreate 中调用
-     */
-    fun init(scope: CoroutineScope) {
-        repoScope = scope
-    }
 
     /**
      * 解锁指定门禁
@@ -77,9 +65,7 @@ object UnlockRepo {
         }
         connect(bluetoothAdapter, mac, key)
 
-        // ========== 使用传入的 scope 替代 GlobalScope ==========
-        val scope = repoScope ?: GlobalScope  // 未调用 init 时降级
-        autoDisconnectJob = scope.launch {
+        autoDisconnectJob = GlobalScope.launch {
             delay(10000)
             if (isActive) {
                 log("10s超时，自动断开链接")
@@ -99,7 +85,6 @@ object UnlockRepo {
 
     private fun connect(bluetoothAdapter: BluetoothAdapter, mac: String, key: String) {
         val remoteDevice = bluetoothAdapter.getRemoteDevice(mac)
-        // 将 config 存为成员供 callback 使用
         _pendingConfig = mac to key
         gatt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             remoteDevice.connectGatt(
@@ -147,7 +132,6 @@ object UnlockRepo {
             value: ByteArray,
             status: Int
         ) {
-            //android13以上走这里
             log("特征码读取回调 $status,${value.size}")
             handleCharacteristicWrite(value)
         }
@@ -159,7 +143,6 @@ object UnlockRepo {
             status: Int
         ) {
             super.onCharacteristicRead(gatt, characteristic, status)
-            //android12及以下走这里
             val value = characteristic?.value ?: return
             log("特征码读取回调 $status,${value.size}")
             handleCharacteristicWrite(value)
@@ -181,18 +164,12 @@ object UnlockRepo {
         }
     }
 
-    /**
-     * 找到对应的characteristic
-     */
     private fun handleService(service: BluetoothGattService?) {
-
         if (service == null) {
             return
         }
-
         log("开始处理服务，共${service.characteristics.size}个特征")
         val propCharacteristics = mutableListOf<BluetoothGattCharacteristic>()
-
         service.characteristics?.forEach {
             log("特征${it.uuid},prop:${it.properties}")
             val properties = it.properties
@@ -209,7 +186,6 @@ object UnlockRepo {
                 propCharacteristics.add(it)
             }
         }
-
         handleCharacteristics(propCharacteristics)
     }
 
@@ -223,11 +199,9 @@ object UnlockRepo {
                 } else if ((characteristic.properties and 32) != 0) {
                     characteristic.setValue(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE)
                 }
-
                 gatt.writeDescriptor(it)
             }
         }
-
         val result = gatt.readCharacteristic(readableCharacteristic)
         log("特征写入结果 $result")
     }
