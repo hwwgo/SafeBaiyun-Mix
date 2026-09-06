@@ -14,6 +14,9 @@ object DataRepo {
     }
     private val gson = Gson()
 
+    /** 迁移标记（只执行一次） */
+    private var migrated = false
+
     // ---------- 兼容旧版单门禁 ----------
     fun readData(): Pair<String, String> {
         val mac = preferences.getString("mac", "") ?: ""
@@ -35,7 +38,14 @@ object DataRepo {
         return try {
             gson.fromJson(json, type) ?: emptyList()
         } catch (e: Exception) {
-            emptyList()
+            // 解析失败时尝试迁移旧数据
+            migrateIfNeeded()
+            // 重新尝试读取
+            try {
+                gson.fromJson(json, type) ?: emptyList()
+            } catch (e2: Exception) {
+                emptyList()
+            }
         }
     }
 
@@ -90,4 +100,46 @@ object DataRepo {
         list.add(newIndex, item)
         saveDoors(list)
     }
+
+    // ---------- 数据迁移：将旧格式（id 为 Int）转换为新格式（id 为 String） ----------
+    fun migrateIfNeeded() {
+        if (migrated) return
+        val json = preferences.getString("doors", null) ?: run {
+            migrated = true
+            return
+        }
+        // 尝试解析为旧格式（id 为 Int）
+        val oldType = object : TypeToken<List<OldDoorDevice>>() {}.type
+        val oldList: List<OldDoorDevice>? = try {
+            gson.fromJson(json, oldType)
+        } catch (e: Exception) {
+            null
+        }
+        if (oldList != null && oldList.isNotEmpty()) {
+            // 转换为新格式（id 为 String）
+            val newList = oldList.map { old ->
+                DoorDevice(
+                    id = old.id.toString(),
+                    name = old.name,
+                    mac = old.mac,
+                    key = old.key,
+                    isSelected = old.isSelected ?: true
+                )
+            }
+            saveDoors(newList)
+            migrated = true
+        } else {
+            // 如果解析失败，可能是新格式或无数据，标记已完成
+            migrated = true
+        }
+    }
+
+    // ---------- 旧门禁数据类，仅用于迁移 ----------
+    private data class OldDoorDevice(
+        val id: Int,
+        val name: String,
+        val mac: String,
+        val key: String,
+        val isSelected: Boolean? = true
+    )
 }
