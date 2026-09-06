@@ -33,20 +33,44 @@ object DataRepo {
 
     // ---------- 多门禁管理 ----------
     fun getDoors(): List<DoorDevice> {
-        val json = preferences.getString("doors", "[]") ?: "[]"
-        val type = object : TypeToken<List<DoorDevice>>() {}.type
-        return try {
-            gson.fromJson(json, type) ?: emptyList()
-        } catch (e: Exception) {
-            // 解析失败时尝试迁移旧数据
-            migrateIfNeeded()
-            // 重新尝试读取
-            try {
+        // 先尝试从新键读取
+        val json = preferences.getString("doors", null)
+        if (json != null) {
+            val type = object : TypeToken<List<DoorDevice>>() {}.type
+            return try {
                 gson.fromJson(json, type) ?: emptyList()
-            } catch (e2: Exception) {
+            } catch (e: Exception) {
                 emptyList()
             }
         }
+        
+        // 如果新键没有数据，尝试从旧键 "doors_json" 读取并迁移
+        val oldJson = preferences.getString("doors_json", null)
+        if (oldJson != null) {
+            val oldType = object : TypeToken<List<OldDoorDevice>>() {}.type
+            val oldList: List<OldDoorDevice>? = try {
+                gson.fromJson(oldJson, oldType)
+            } catch (e: Exception) {
+                null
+            }
+            if (oldList != null && oldList.isNotEmpty()) {
+                val newList = oldList.map { old ->
+                    DoorDevice(
+                        id = old.id.toString(),
+                        name = old.name,
+                        mac = old.mac,
+                        key = old.key,
+                        isSelected = true
+                    )
+                }
+                saveDoors(newList)
+                // 迁移后删除旧键
+                preferences.edit { remove("doors_json") }
+                return newList
+            }
+        }
+        
+        return emptyList()
     }
 
     fun saveDoors(doors: List<DoorDevice>) {
@@ -101,45 +125,11 @@ object DataRepo {
         saveDoors(list)
     }
 
-    // ---------- 数据迁移：将旧格式（id 为 Int）转换为新格式（id 为 String） ----------
-    fun migrateIfNeeded() {
-        if (migrated) return
-        val json = preferences.getString("doors", null) ?: run {
-            migrated = true
-            return
-        }
-        // 尝试解析为旧格式（id 为 Int）
-        val oldType = object : TypeToken<List<OldDoorDevice>>() {}.type
-        val oldList: List<OldDoorDevice>? = try {
-            gson.fromJson(json, oldType)
-        } catch (e: Exception) {
-            null
-        }
-        if (oldList != null && oldList.isNotEmpty()) {
-            // 转换为新格式（id 为 String）
-            val newList = oldList.map { old ->
-                DoorDevice(
-                    id = old.id.toString(),
-                    name = old.name,
-                    mac = old.mac,
-                    key = old.key,
-                    isSelected = old.isSelected ?: true
-                )
-            }
-            saveDoors(newList)
-            migrated = true
-        } else {
-            // 如果解析失败，可能是新格式或无数据，标记已完成
-            migrated = true
-        }
-    }
-
     // ---------- 旧门禁数据类，仅用于迁移 ----------
     private data class OldDoorDevice(
         val id: Int,
         val name: String,
         val mac: String,
-        val key: String,
-        val isSelected: Boolean? = true
+        val key: String
     )
 }
