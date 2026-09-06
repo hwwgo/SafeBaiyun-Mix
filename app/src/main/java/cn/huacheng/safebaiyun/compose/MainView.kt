@@ -21,39 +21,40 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compute.material.icons.filled.AppSettingsAlt
+import androidx.compose.material.icons.filled.AppSettingsAlt
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
-import androidx.compute.material3.ButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
-import androidx.compute.material3.CardDefaults
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compute.material3.Icon
-import androidx.compute.material3.IconButton
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compute.material3.OutlinedButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compute.material3.TopAppBar
-import androidx.compute.material3.TopAppBarDefaults
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
-import androidx.compute.runtime.mutableStateOf
-import androidx.compute.runtime.remember
-import androidx.compute.runtime.rememberCoroutineScope
-import androidx.compute.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compute.ui.res.stringResource
-import androidx.compute.ui.text.font.FontWeight
-import androidx.compute.ui.unit.dp
-import androidx.compute.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import cn.huacheng.safebaiyun.R
 import cn.huacheng.safebaiyun.unlock.DataRepo
@@ -67,6 +68,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.withContext
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainView(navController: NavHostController) {
 
@@ -102,7 +104,6 @@ fun MainView(navController: NavHostController) {
     }
 
     Column {
-        // 使用独立的 TopBar 组件
         MainTopBar(
             onEditClick = {
                 showManageDialog.value = true
@@ -122,7 +123,6 @@ fun MainView(navController: NavHostController) {
         ) {
             if (hasPermission.value) {
                 Column(modifier = Modifier.fillMaxSize()) {
-                    // ---- 轮询按钮和进度条 ----
                     PollButton(
                         doors = doors.value,
                         isPolling = isPolling,
@@ -143,16 +143,13 @@ fun MainView(navController: NavHostController) {
                                         }
                                     }
                                 )
-                                // 轮询结束
                                 isPolling = false
                                 pollingProgress = if (result != null) "✅ 已开启: ${result.name}" else "❌ 未找到可开门禁"
-                                // 刷新列表（如果有变化）
                                 doors.value = DataRepo.getDoors()
                             }
                         }
                     )
 
-                    // 轮询进度条（仅在轮询时显示）
                     if (isPolling && pollingTotal > 0) {
                         LinearProgressIndicator(
                             progress = pollingCurrentIndex.toFloat() / pollingTotal,
@@ -163,7 +160,6 @@ fun MainView(navController: NavHostController) {
                         Spacer(modifier = Modifier.height(4.dp))
                     }
 
-                    // ---- 门禁列表 ----
                     DoorListContent(doors = doors, onRefresh = {
                         doors.value = DataRepo.getDoors()
                     })
@@ -173,7 +169,6 @@ fun MainView(navController: NavHostController) {
             }
         }
 
-        // 底部二维码操作按钮
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -213,6 +208,7 @@ fun MainView(navController: NavHostController) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MainTopBar(
     onEditClick: () -> Unit,
@@ -328,7 +324,6 @@ private fun DoorCard(door: DoorDevice) {
     var isUnlocking by remember { mutableStateOf(false) }
     var unlockStep by remember { mutableStateOf("") }
 
-    // 监听 UnlockRepo 的步骤状态
     val stepState = UnlockRepo.unlockStep
 
     Card(
@@ -348,7 +343,6 @@ private fun DoorCard(door: DoorDevice) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 左侧：名称 + MAC + 步骤
             Column(
                 modifier = Modifier.weight(1f)
             ) {
@@ -367,7 +361,6 @@ private fun DoorCard(door: DoorDevice) {
                         modifier = Modifier.padding(top = 4.dp)
                     )
                 }
-                // 显示当前开锁步骤（仅当正在解锁时）
                 if (isUnlocking && unlockStep.isNotEmpty()) {
                     Text(
                         text = unlockStep,
@@ -383,7 +376,6 @@ private fun DoorCard(door: DoorDevice) {
                 }
             }
 
-            // 右侧：开锁按钮
             Button(
                 onClick = {
                     if (door.mac.isEmpty() || door.key.isEmpty()) {
@@ -394,7 +386,6 @@ private fun DoorCard(door: DoorDevice) {
                         isUnlocking = true
                         unlockStep = "准备开锁..."
                         scope.launch {
-                            // 监听步骤更新
                             val job = launch {
                                 stepState.collectLatest { step ->
                                     if (step.isNotEmpty()) {
@@ -403,14 +394,11 @@ private fun DoorCard(door: DoorDevice) {
                                 }
                             }
                             val success = UnlockRepo.tryUnlock(door.mac, door.key)
-                            // 等待最终状态显示（使用用户自定义延迟）
                             delay(ConfigManager.getResultDelay())
                             job.cancel()
-                            // 如果最终步骤没有包含成功/失败，补充显示
                             if (!unlockStep.contains("成功") && !unlockStep.contains("失败") && !unlockStep.contains("超时")) {
                                 unlockStep = if (success) "✅ 开锁成功" else "❌ 开锁失败"
                             }
-                            // 延迟后重置状态，让用户看到结果（使用用户自定义延迟）
                             delay(ConfigManager.getResetDelay())
                             isUnlocking = false
                             unlockStep = ""
