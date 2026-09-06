@@ -23,10 +23,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AppSettingsAlt
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compute.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -47,13 +48,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
+import androidx.compute.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import cn.huacheng.safebaiyun.R
 import cn.huacheng.safebaiyun.unlock.DataRepo
 import cn.huacheng.safebaiyun.unlock.DoorDevice
 import cn.huacheng.safebaiyun.unlock.UnlockRepo
+import cn.huacheng.safebaiyun.util.ConfigManager
 import cn.huacheng.safebaiyun.util.showToast
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -96,11 +98,17 @@ fun MainView(navController: NavHostController) {
     }
 
     Column {
-        MainTopBar(onEditClick = {
-            showManageDialog.value = true
-        }, onHelperClick = {
-            navController.navigate("helper")
-        })
+        MainTopBar(
+            onEditClick = {
+                showManageDialog.value = true
+            },
+            onHelperClick = {
+                navController.navigate("helper")
+            },
+            onSettingsClick = {
+                navController.navigate("settings")
+            }
+        )
 
         Box(
             modifier = Modifier
@@ -198,6 +206,37 @@ fun MainView(navController: NavHostController) {
             )
         }
     }
+}
+
+@Composable
+private fun MainTopBar(
+    onEditClick: () -> Unit,
+    onHelperClick: () -> Unit,
+    onSettingsClick: () -> Unit
+) {
+    androidx.compose.material3.TopAppBar(
+        title = {
+            Text(
+                text = "🔓 智能门禁",
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp
+            )
+        },
+        actions = {
+            IconButton(onClick = onEditClick) {
+                Icon(Icons.Default.Add, contentDescription = "添加门禁")
+            }
+            IconButton(onClick = onSettingsClick) {
+                Icon(Icons.Default.Settings, contentDescription = "设置")
+            }
+            IconButton(onClick = onHelperClick) {
+                Icon(Icons.Default.HelpOutline, contentDescription = "帮助")
+            }
+        },
+        colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp)
+        )
+    )
 }
 
 @Composable
@@ -359,15 +398,15 @@ private fun DoorCard(door: DoorDevice) {
                                 }
                             }
                             val success = UnlockRepo.tryUnlock(door.mac, door.key)
-                            // 等待最终状态显示
-                            delay(1500)
+                            // 等待最终状态显示（使用用户自定义延迟）
+                            delay(ConfigManager.getResultDelay())
                             job.cancel()
                             // 如果最终步骤没有包含成功/失败，补充显示
                             if (!unlockStep.contains("成功") && !unlockStep.contains("失败") && !unlockStep.contains("超时")) {
                                 unlockStep = if (success) "✅ 开锁成功" else "❌ 开锁失败"
                             }
-                            // 延迟后重置状态，让用户看到结果
-                            delay(2000)
+                            // 延迟后重置状态，让用户看到结果（使用用户自定义延迟）
+                            delay(ConfigManager.getResetDelay())
                             isUnlocking = false
                             unlockStep = ""
                         }
