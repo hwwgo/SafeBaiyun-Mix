@@ -18,21 +18,18 @@ import cn.huacheng.safebaiyun.compose.MainView
 import cn.huacheng.safebaiyun.compose.QRExportView
 import cn.huacheng.safebaiyun.compose.QRImportView
 import cn.huacheng.safebaiyun.theme.SafeBaiyunTheme
-import cn.huacheng.safebaiyun.unlock.UnlockRepo
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // ========== 新增：传入 lifecycleScope 给 UnlockRepo ==========
-        UnlockRepo.init(lifecycleScope)
+        // 删除 UnlockRepo.init(lifecycleScope) 这行，因为 UnlockRepo 内部已自动检查蓝牙
 
         setContent {
             SafeBaiyunTheme {
                 val navController = rememberNavController()
-                // A surface container using the 'background' color from the theme
                 Surface(
-                    modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
                 ) {
                     NavHost(
                         navController = navController,
