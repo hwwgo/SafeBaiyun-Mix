@@ -45,6 +45,10 @@ object UnlockRepo {
     private val _logFlow = MutableStateFlow<List<String>>(emptyList())
     val logFlow: StateFlow<List<String>> = _logFlow
 
+    // 单门禁开锁步骤状态流
+    private val _unlockStep = MutableStateFlow("")
+    val unlockStep: StateFlow<String> = _unlockStep
+
     private var _pendingConfig: Pair<String, String> = "" to ""
 
     // ---------- 初始化 ----------
@@ -222,24 +226,35 @@ object UnlockRepo {
     }
 
     // ============================================================
-    //  新增挂起函数 tryUnlock（供 UI 调用）
+    //  新增挂起函数 tryUnlock（供 UI 调用，包含进度反馈）
     // ============================================================
 
     suspend fun tryUnlock(mac: String, key: String): Boolean {
+        _unlockStep.value = "准备开锁..."
         val bluetoothManager = ContextHolder.get()
             .getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         val bluetoothAdapter = bluetoothManager.adapter
         if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled) {
+            _unlockStep.value = "蓝牙未开启"
             showToast("蓝牙未开启")
             return false
         }
         if (!BluetoothAdapter.checkBluetoothAddress(mac)) {
+            _unlockStep.value = "MAC地址错误"
             showToast("Mac地址格式错误")
             return false
         }
-        return withTimeoutOrNull(TIMEOUT_MS) {
+        val result = withTimeoutOrNull(TIMEOUT_MS) {
             doUnlockSuspend(bluetoothAdapter, mac, key)
-        } ?: false
+        } ?: false.also { _unlockStep.value = "❌ 开锁超时" }
+        if (result) {
+            _unlockStep.value = "✅ 开锁成功"
+        } else {
+            if (_unlockStep.value != "❌ 开锁超时") {
+                _unlockStep.value = "❌ 开锁失败"
+            }
+        }
+        return result
     }
 
     /**
@@ -259,20 +274,21 @@ object UnlockRepo {
 
             override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
                 if (newState == BluetoothGatt.STATE_CONNECTED) {
-                    log("已连接，开始发现服务")
+                    _unlockStep.value = "已连接，正在发现服务..."
                     gatt?.discoverServices()
                 }
             }
 
             override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
                 if (status != BluetoothGatt.GATT_SUCCESS) {
-                    log("服务发现失败")
+                    _unlockStep.value = "服务发现失败"
                     finish(false)
                     return
                 }
+                _unlockStep.value = "服务发现成功，查找特征..."
                 val service = gatt?.services?.find { it.uuid.toString() == MAGIC_SERVICE }
                 if (service == null) {
-                    log("未找到门禁服务")
+                    _unlockStep.value = "未找到门禁服务"
                     finish(false)
                     return
                 }
@@ -283,10 +299,11 @@ object UnlockRepo {
                     if (props and BluetoothGattCharacteristic.PROPERTY_WRITE != 0) writeChar = ch
                 }
                 if (readChar == null || writeChar == null) {
-                    log("未找到读/写特征")
+                    _unlockStep.value = "未找到读/写特征"
                     finish(false)
                     return
                 }
+                _unlockStep.value = "正在读取挑战码..."
                 // 读取挑战码
                 gatt?.readCharacteristic(readChar)
             }
@@ -298,7 +315,7 @@ object UnlockRepo {
                 status: Int
             ) {
                 if (status == BluetoothGatt.GATT_SUCCESS) {
-                    log("读取挑战码成功: ${value.size} 字节")
+                    _unlockStep.value = "读取挑战码成功，正在生成指令..."
                     // 加密并写入
                     val macBytes = LockBiz.hexToByteArray(mac)
                     val command = LockBiz.encryptData(value, macBytes, key)
@@ -308,7 +325,7 @@ object UnlockRepo {
                         gatt.writeCharacteristic(it)
                     } ?: finish(false)
                 } else {
-                    log("读取挑战码失败")
+                    _unlockStep.value = "读取挑战码失败"
                     finish(false)
                 }
             }
@@ -321,7 +338,7 @@ object UnlockRepo {
             ) {
                 if (status == BluetoothGatt.GATT_SUCCESS && characteristic != null) {
                     val value = characteristic.value ?: ByteArray(0)
-                    log("读取挑战码成功 (旧API): ${value.size} 字节")
+                    _unlockStep.value = "读取挑战码成功 (旧API)，正在生成指令..."
                     val macBytes = LockBiz.hexToByteArray(mac)
                     val command = LockBiz.encryptData(value, macBytes, key)
                     writeChar?.let {
@@ -330,7 +347,7 @@ object UnlockRepo {
                         gatt?.writeCharacteristic(it)
                     } ?: finish(false)
                 } else {
-                    log("读取挑战码失败 (旧API)")
+                    _unlockStep.value = "读取挑战码失败 (旧API)"
                     finish(false)
                 }
             }
@@ -341,10 +358,10 @@ object UnlockRepo {
                 status: Int
             ) {
                 if (status == BluetoothGatt.GATT_SUCCESS) {
-                    log("写入指令成功")
+                    _unlockStep.value = "指令写入成功，正在开门..."
                     finish(true)
                 } else {
-                    log("写入指令失败")
+                    _unlockStep.value = "指令写入失败"
                     finish(false)
                 }
                 gatt?.close()
@@ -353,6 +370,11 @@ object UnlockRepo {
             private fun finish(success: Boolean) {
                 if (!isCompleted) {
                     isCompleted = true
+                    if (success) {
+                        _unlockStep.value = "✅ 开锁成功"
+                    } else {
+                        _unlockStep.value = "❌ 开锁失败"
+                    }
                     gattInstance?.close()
                     continuation.resume(success)
                 }
@@ -370,6 +392,7 @@ object UnlockRepo {
         continuation.invokeOnCancellation {
             if (!isCompleted) {
                 isCompleted = true
+                _unlockStep.value = "已取消"
                 gattInstance?.close()
                 continuation.resume(false)
             }
@@ -377,7 +400,7 @@ object UnlockRepo {
     }
 
     // ============================================================
-    //  一键轮询功能（移入 object 内部）
+    //  一键轮询功能
     // ============================================================
 
     /**
