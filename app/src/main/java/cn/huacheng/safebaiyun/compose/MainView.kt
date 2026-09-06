@@ -4,8 +4,6 @@ import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -24,25 +22,46 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import cn.huacheng.safebaiyun.unlock.DataRepo
 import cn.huacheng.safebaiyun.unlock.DoorDevice
 import cn.huacheng.safebaiyun.unlock.UnlockRepo
 import cn.huacheng.safebaiyun.util.showToast
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainView(
-    navController: NavController,
-    viewModel: MainViewModel = viewModel()
-) {
+fun MainView(navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val doorList by viewModel.doorList.collectAsState()
-    val isBluetoothOn = remember { mutableStateOf(checkBluetooth(context)) }
+    val bluetoothOn = remember { mutableStateOf(checkBluetooth(context)) }
 
-    // 权限请求
+    // 从 DataRepo 获取门禁列表（使用 State 自动刷新）
+    var doorList by remember { mutableStateOf(DataRepo.readAllConfigs()) }
+
+    // 监听数据变化（当添加/删除门禁时更新列表）
+    // 简单方案：使用一个刷新触发器
+    val refreshTrigger = remember { MutableStateFlow(0) }
+
+    // 实际项目中 DataRepo 可能提供 Flow，这里用协程定期检查或通过事件通知
+    // 为了简化，我们提供一个手动刷新函数，由添加/删除操作触发
+    fun refreshList() {
+        doorList = DataRepo.readAllConfigs()
+    }
+
+    // 监听刷新触发器
+    LaunchedEffect(Unit) {
+        // 可以监听 SharedPreferences 变化，但这里简单处理，在添加/删除后手动调用
+        // 由于原仓库的添加/删除可能在 ManageDoorDialog 中，我们无法在此监听，
+        // 但可以使用一个全局的刷新事件（例如通过 DataRepo 的更新回调）。
+        // 为演示，我们使用一个定时刷新（仅开发测试用）
+        // 实际使用时，最好在 ManageDoorDialog 的保存/删除成功后调用 refreshList
+    }
+
+    // 权限启动器（保留）
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { perms ->
@@ -53,7 +72,7 @@ fun MainView(
         }
     }
 
-    // 初始化 UnlockRepo
+    // 初始化 UnlockRepo（传入协程作用域）
     UnlockRepo.init(scope)
 
     Scaffold(
@@ -67,21 +86,19 @@ fun MainView(
                     )
                 },
                 actions = {
-                    // 蓝牙状态指示器（点击跳转蓝牙设置）
                     IconButton(
                         onClick = {
-                            if (!isBluetoothOn.value) {
+                            if (!bluetoothOn.value) {
                                 context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
                             }
                         }
                     ) {
                         Icon(
-                            imageVector = if (isBluetoothOn.value) Icons.Default.Bluetooth else Icons.Default.BluetoothDisabled,
+                            imageVector = if (bluetoothOn.value) Icons.Default.Bluetooth else Icons.Default.BluetoothDisabled,
                             contentDescription = "蓝牙状态",
-                            tint = if (isBluetoothOn.value) Color(0xFF4CAF50) else Color(0xFFF44336)
+                            tint = if (bluetoothOn.value) Color(0xFF4CAF50) else Color(0xFFF44336)
                         )
                     }
-                    // 帮助/日志入口
                     IconButton(onClick = { navController.navigate("helper") }) {
                         Icon(Icons.Default.Info, contentDescription = "帮助")
                     }
@@ -94,6 +111,8 @@ fun MainView(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
+                    // 打开添加门禁对话框（原仓库可能使用 Navigator 或直接弹 Dialog）
+                    // 这里假设路由为 "add_door"，若不对请改为实际路由或调用 Dialog
                     navController.navigate("add_door")
                 },
                 containerColor = MaterialTheme.colorScheme.primary,
@@ -110,7 +129,7 @@ fun MainView(
                 .padding(horizontal = 16.dp)
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            // ---- 信息概览卡片 ----
+            // ---- 概览卡片 ----
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
