@@ -8,32 +8,41 @@ import cn.huacheng.safebaiyun.unlock.DoorDevice
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 object QRCodeUtils {
 
-    private val json = Json { ignoreUnknownKeys = true }
+    private val json = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = true  // 确保 isSelected 也被序列化
+    }
 
     private const val PREFIX = "SBY|"
 
     fun encodeDoorsToQR(doors: List<DoorDevice>): String {
-        val jsonStr = json.encodeToString(doors)
-        val encoded = Base64.encodeToString(jsonStr.toByteArray(), Base64.NO_WRAP)
-        return "$PREFIX$encoded"
+        return try {
+            val jsonStr = json.encodeToString(doors)
+            val encoded = Base64.encodeToString(jsonStr.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
+            "$PREFIX$encoded"
+        } catch (e: Exception) {
+            e.printStackTrace()
+            throw IllegalStateException("序列化门禁数据失败: ${e.message}", e)
+        }
     }
 
     fun decodeQRTodoors(data: String): List<DoorDevice>? {
         if (!data.startsWith(PREFIX)) {
             return null
         }
-        try {
+        return try {
             val base64Data = data.removePrefix(PREFIX)
-            val jsonString = String(Base64.decode(base64Data, Base64.DEFAULT))
-            return json.decodeFromString<List<DoorDevice>>(jsonString)
+            val jsonString = String(Base64.decode(base64Data, Base64.DEFAULT), Charsets.UTF_8)
+            json.decodeFromString<List<DoorDevice>>(jsonString)
         } catch (e: Exception) {
             e.printStackTrace()
-            return null
+            null
         }
     }
 
@@ -41,7 +50,7 @@ object QRCodeUtils {
         val hints = mapOf<EncodeHintType, Any>(
             EncodeHintType.CHARACTER_SET to "UTF-8",
             EncodeHintType.MARGIN to 1,
-            EncodeHintType.ERROR_CORRECTION to com.google.zxing.qrcode.decoder.ErrorCorrectionLevel.H
+            EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.H
         )
 
         val writer = QRCodeWriter()
