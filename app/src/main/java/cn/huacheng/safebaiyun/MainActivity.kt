@@ -20,6 +20,7 @@ import cn.huacheng.safebaiyun.compose.QRExportView
 import cn.huacheng.safebaiyun.compose.QRImportView
 import cn.huacheng.safebaiyun.compose.SettingsView
 import cn.huacheng.safebaiyun.theme.SafeBaiyunTheme
+import cn.huacheng.safebaiyun.unlock.DataRepo
 import cn.huacheng.safebaiyun.unlock.UnlockRepo
 import cn.huacheng.safebaiyun.util.ConfigManager
 
@@ -28,6 +29,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         ConfigManager.init(this)
+        DataRepo.migrateIfNeeded()  // 添加数据迁移
         UnlockRepo.init(lifecycleScope)
 
         setContent {
@@ -73,7 +75,6 @@ class MainActivity : ComponentActivity() {
                             QRImportView(navController)
                         }
 
-                        // 设置页面路由
                         composable("settings", enterTransition = {
                             slideIn { IntOffset(it.width, 0) }
                         }, exitTransition = {
