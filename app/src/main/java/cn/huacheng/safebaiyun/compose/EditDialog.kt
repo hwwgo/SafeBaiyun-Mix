@@ -26,7 +26,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -38,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import cn.huacheng.safebaiyun.R
 import cn.huacheng.safebaiyun.unlock.DataRepo
 import cn.huacheng.safebaiyun.unlock.DoorDevice
+import java.util.UUID
 
 /**
  * 多门禁管理弹窗（替代原来的单组 MAC/Key 编辑弹窗）
@@ -59,7 +59,8 @@ fun ManageDoorDialog(
     var doors by remember { mutableStateOf(initialDoors.map { it.copy() }.toMutableList()) }
 
     // 记录当前正在编辑的门的 id（null 表示折叠）
-    var editingId by remember { mutableIntStateOf(-1) }
+    // 修改为 String? 类型，与 door.id 匹配
+    var editingId by remember { mutableStateOf<String?>(null) }
 
     // 每个门的临时编辑态
     val editName = remember { mutableStateOf("") }
@@ -114,7 +115,7 @@ fun ManageDoorDialog(
                     editKey = editKey,
                     onToggleExpand = {
                         if (editingId == door.id) {
-                            editingId = -1 // 折叠
+                            editingId = null // 折叠
                         } else {
                             // 展开并加载当前值到输入框
                             editingId = door.id
@@ -131,11 +132,11 @@ fun ManageDoorDialog(
                         if (name.isEmpty()) return@DoorEditItem
 
                         doors[index] = door.copy(name = name, mac = mac, key = key)
-                        editingId = -1 // 折叠
+                        editingId = null // 折叠
                     },
                     onDelete = {
                         doors.removeAt(index)
-                        if (editingId == door.id) editingId = -1
+                        if (editingId == door.id) editingId = null
                     },
                 )
             }
@@ -145,18 +146,20 @@ fun ManageDoorDialog(
             // 新增按钮
             OutlinedButton(
                 onClick = {
-                    val nextId = (doors.maxOfOrNull { it.id } ?: 0) + 1
+                    // 生成唯一的字符串 ID（使用 UUID）
+                    val newId = UUID.randomUUID().toString()
+                    val newName = "门禁${doors.size + 1}"
                     doors.add(
                         DoorDevice(
-                            id = nextId,
-                            name = "门禁${doors.size + 1}",
+                            id = newId,
+                            name = newName,
                             mac = "",
                             key = ""
                         )
                     )
                     // 自动展开新项
-                    editingId = nextId
-                    editName.value = "门禁${doors.size}"
+                    editingId = newId
+                    editName.value = newName
                     editMac.value = ""
                     editKey.value = ""
                 },
