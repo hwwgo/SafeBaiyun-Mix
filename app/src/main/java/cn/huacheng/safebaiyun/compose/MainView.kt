@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -32,8 +33,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -47,6 +50,10 @@ import cn.huacheng.safebaiyun.unlock.DataRepo
 import cn.huacheng.safebaiyun.unlock.DoorDevice
 import cn.huacheng.safebaiyun.unlock.UnlockRepo
 import cn.huacheng.safebaiyun.util.showToast
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * 主页面 —— 门禁列表 + 开门操作
@@ -55,6 +62,7 @@ import cn.huacheng.safebaiyun.util.showToast
 fun MainView(navController: NavHostController) {
 
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     val hasPermission = remember {
         mutableStateOf(false)
@@ -68,6 +76,10 @@ fun MainView(navController: NavHostController) {
     val doors = remember {
         mutableStateOf<List<DoorDevice>>(DataRepo.getDoors())
     }
+
+    // 轮询状态
+    var isPolling by remember { mutableStateOf(false) }
+    var pollingProgress by remember { mutableStateOf("") }
 
     SideEffect {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -91,9 +103,40 @@ fun MainView(navController: NavHostController) {
                 .padding(8.dp), contentAlignment = Alignment.Center
         ) {
             if (hasPermission.value) {
-                DoorListContent(doors = doors, onRefresh = {
-                    doors.value = DataRepo.getDoors()
-                })
+                Column(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    // ---- 一键轮询按钮 ----
+                    PollButton(
+                        doors = doors.value,
+                        isPolling = isPolling,
+                        pollingProgress = pollingProgress,
+                        onPollStart = { onProgress ->
+                            isPolling = true
+                            pollingProgress = "准备轮询..."
+                            scope.launch {
+                                val result = UnlockRepo.pollAllDoors(
+                                    doors = doors.value,
+                                    onProgress = { index, total, name ->
+                                        withContext(Dispatchers.Main) {
+                                            pollingProgress = "正在尝试 $index/$total: $name"
+                                        }
+                                    }
+                                )
+                                // 轮询结束，重置状态
+                                isPolling = false
+                                pollingProgress = if (result != null) "✅ 已开启: ${result.name}" else "❌ 未找到可开门禁"
+                                // 刷新列表（如果有变化）
+                                doors.value = DataRepo.getDoors()
+                            }
+                        }
+                    )
+
+                    // ---- 门禁列表 ----
+                    DoorListContent(doors = doors, onRefresh = {
+                        doors.value = DataRepo.getDoors()
+                    })
+                }
             } else {
                 PermissionView(hasPermission)
             }
@@ -139,9 +182,69 @@ fun MainView(navController: NavHostController) {
     }
 }
 
-/**
- * 门禁列表区域
- */
+// ============================================================
+//  轮询按钮组件
+// ============================================================
+
+@Composable
+private fun PollButton(
+    doors: List<DoorDevice>,
+    isPolling: Boolean,
+    pollingProgress: String,
+    onPollStart: (suspend (Int, Int, String) -> Unit) -> Unit
+) {
+    val hasDoors = doors.isNotEmpty()
+
+    Button(
+        onClick = {
+            if (!isPolling && hasDoors) {
+                onPollStart { _, _, _ -> }
+            }
+        },
+        enabled = !isPolling && hasDoors,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .padding(vertical = 4.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (isPolling) MaterialTheme.colorScheme.secondaryContainer
+                else MaterialTheme.colorScheme.primary
+        )
+    ) {
+        if (isPolling) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(20.dp),
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                strokeWidth = 2.dp
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = pollingProgress,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.PlayArrow,
+                contentDescription = null
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "🔄 一键轮询开锁 (${doors.size})",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White
+            )
+        }
+    }
+}
+
+// ============================================================
+//  门禁列表区域（保持不变）
+// ============================================================
+
 @Composable
 private fun DoorListContent(
     doors: MutableState<List<DoorDevice>>,
@@ -166,12 +269,9 @@ private fun DoorListContent(
 }
 
 // ============================================================
-//  👇 以下是美化的 DoorCard（只改布局样式，无协程）
+//  门禁卡片（之前美化好的版本）
 // ============================================================
 
-/**
- * 单个门禁卡片 - 横向布局，增加圆角和阴影
- */
 @Composable
 private fun DoorCard(door: DoorDevice) {
     Card(
@@ -191,7 +291,6 @@ private fun DoorCard(door: DoorDevice) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 左侧：名称 + MAC
             Column(
                 modifier = Modifier.weight(1f)
             ) {
@@ -212,7 +311,6 @@ private fun DoorCard(door: DoorDevice) {
                 }
             }
 
-            // 右侧：开锁按钮（胶囊形状）
             Button(
                 onClick = {
                     if (door.mac.isEmpty() || door.key.isEmpty()) {
@@ -251,7 +349,6 @@ private fun PermissionView(hasPermission: MutableState<Boolean>) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 requestPermissionLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT)
             }
-
         }) {
         Text(text = stringResource(id = R.string.request_permission), fontSize = 18.sp)
     }
