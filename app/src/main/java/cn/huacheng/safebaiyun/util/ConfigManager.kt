@@ -17,12 +17,14 @@ object ConfigManager {
     private const val DEFAULT_POLL_INTERVAL = 500L         // 轮询间隔：0.5秒
     private const val DEFAULT_RESULT_DELAY = 1500L         // 结果展示延迟：1.5秒
     private const val DEFAULT_RESET_DELAY = 2000L          // 状态复位延迟：2秒
+    private const val DEFAULT_AUTO_POLL = false            // 默认不开启自动轮询
 
     // ---------- Key 定义 ----------
     private const val KEY_UNLOCK_TIMEOUT = "unlock_timeout"
     private const val KEY_POLL_INTERVAL = "poll_interval"
     private const val KEY_RESULT_DELAY = "result_delay"
     private const val KEY_RESET_DELAY = "reset_delay"
+    private const val KEY_AUTO_POLL = "auto_poll"
 
     /** 初始化，在 Application 或 MainActivity 中调用 */
     fun init(context: Context) {
@@ -47,6 +49,10 @@ object ConfigManager {
         return prefs.getLong(KEY_RESET_DELAY, DEFAULT_RESET_DELAY)
     }
 
+    fun getAutoPollOnStart(): Boolean {
+        return prefs.getBoolean(KEY_AUTO_POLL, DEFAULT_AUTO_POLL)
+    }
+
     // ---------- Setter（保存用户自定义值） ----------
 
     fun setUnlockTimeout(value: Long) {
@@ -65,13 +71,18 @@ object ConfigManager {
         prefs.edit().putLong(KEY_RESET_DELAY, value).apply()
     }
 
+    fun setAutoPollOnStart(value: Boolean) {
+        prefs.edit().putBoolean(KEY_AUTO_POLL, value).apply()
+    }
+
     // ---------- 获取当前所有配置（用于 UI 展示） ----------
 
     data class ConfigValues(
         val unlockTimeout: Long,
         val pollInterval: Long,
         val resultDelay: Long,
-        val resetDelay: Long
+        val resetDelay: Long,
+        val autoPollOnStart: Boolean
     )
 
     fun getAllValues(): ConfigValues {
@@ -79,7 +90,8 @@ object ConfigManager {
             unlockTimeout = getUnlockTimeout(),
             pollInterval = getPollInterval(),
             resultDelay = getResultDelay(),
-            resetDelay = getResetDelay()
+            resetDelay = getResetDelay(),
+            autoPollOnStart = getAutoPollOnStart()
         )
     }
 
@@ -91,6 +103,7 @@ object ConfigManager {
             .remove(KEY_POLL_INTERVAL)
             .remove(KEY_RESULT_DELAY)
             .remove(KEY_RESET_DELAY)
+            .remove(KEY_AUTO_POLL)
             .apply()
     }
 
@@ -100,4 +113,5 @@ object ConfigManager {
     fun getDefaultPollInterval(): Long = DEFAULT_POLL_INTERVAL
     fun getDefaultResultDelay(): Long = DEFAULT_RESULT_DELAY
     fun getDefaultResetDelay(): Long = DEFAULT_RESET_DELAY
+    fun getDefaultAutoPoll(): Boolean = DEFAULT_AUTO_POLL
 }
