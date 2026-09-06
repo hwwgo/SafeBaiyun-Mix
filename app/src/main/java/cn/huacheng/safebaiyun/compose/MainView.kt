@@ -252,7 +252,7 @@ private fun DoorListContent(
     }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp) // 适中间距
     ) {
         items(doors.value, key = { it.id }) { door ->
             DoorCard(
@@ -320,35 +320,17 @@ private fun DoorCard(
             )
 
             Column(modifier = Modifier.weight(1f).padding(start = 4.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = door.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontSize = nameFontSize,
-                        fontWeight = FontWeight.Medium,
-                        color = if (door.isSelected) MaterialTheme.colorScheme.onSurface
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    // 在线状态标签
-                    Box(
-                        modifier = Modifier
-                            .background(
-                                color = Color(0xFF4CAF50).copy(alpha = 0.15f),
-                                shape = RoundedCornerShape(4.dp)
-                            )
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = "在线",
-                            fontSize = 10.sp,
-                            color = Color(0xFF4CAF50),
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
+                // 名称（不带在线标签）
+                Text(
+                    text = door.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontSize = nameFontSize,
+                    fontWeight = FontWeight.Medium,
+                    color = if (door.isSelected) MaterialTheme.colorScheme.onSurface
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
                 if (door.mac.isNotEmpty()) {
                     Text(
                         text = door.mac,
@@ -374,15 +356,17 @@ private fun DoorCard(
             }
 
             Column(horizontalAlignment = Alignment.End) {
+                // 上下箭头按钮缩小
                 Row {
-                    IconButton(onClick = { onMoveUp(door.id) }, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Default.ArrowUpward, contentDescription = "上移", modifier = Modifier.size(16.dp))
+                    IconButton(onClick = { onMoveUp(door.id) }, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.ArrowUpward, contentDescription = "上移", modifier = Modifier.size(14.dp))
                     }
-                    IconButton(onClick = { onMoveDown(door.id) }, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Default.ArrowDownward, contentDescription = "下移", modifier = Modifier.size(16.dp))
+                    IconButton(onClick = { onMoveDown(door.id) }, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.ArrowDownward, contentDescription = "下移", modifier = Modifier.size(14.dp))
                     }
                 }
                 Spacer(modifier = Modifier.height(2.dp))
+                // 开锁按钮宽度增加到 88dp，确保显示完整
                 Button(
                     onClick = {
                         if (door.mac.isEmpty() || door.key.isEmpty()) {
@@ -413,8 +397,8 @@ private fun DoorCard(
                     enabled = !isUnlocking && door.isSelected,
                     shape = RoundedCornerShape(20.dp),
                     modifier = Modifier
-                        .height(32.dp)
-                        .width(72.dp),
+                        .height(34.dp)  // 略微增高
+                        .width(88.dp),  // 宽度 88dp 确保显示 "开锁"
                     colors = ButtonDefaults.buttonColors(
                         containerColor = when {
                             isUnlocking -> MaterialTheme.colorScheme.primary
@@ -428,7 +412,7 @@ private fun DoorCard(
                         isUnlocking -> CircularProgressIndicator(modifier = Modifier.size(14.dp), color = Color.White, strokeWidth = 2.dp)
                         unlockStep.contains("成功") -> Text("✅", fontSize = 14.sp)
                         unlockStep.contains("失败") || unlockStep.contains("超时") -> Text("❌", fontSize = 14.sp)
-                        else -> Text("开锁", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        else -> Text("开锁", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 }
             }
