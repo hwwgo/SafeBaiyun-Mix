@@ -16,28 +16,28 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compute.material3.CardDefaults
-import androidx.compute.material3.ExperimentalMaterial3Api
-import androidx.compute.material3.Icon
-import androidx.compute.material3.IconButton
-import androidx.compute.material3.MaterialTheme
-import androidx.compute.material3.OutlinedTextField
-import androidx.compute.material3.Scaffold
-import androidx.compute.material3.Switch
-import androidx.compute.material3.Text
-import androidx.compute.material3.TopAppBar
-import androidx.compute.material3.TopAppBarDefaults
-import androidx.compute.runtime.Composable
-import androidx.compute.runtime.getValue
-import androidx.compute.runtime.mutableStateOf
-import androidx.compute.runtime.remember
-import androidx.compute.runtime.setValue
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compute.ui.text.font.FontWeight
-import androidx.compute.ui.unit.dp
-import androidx.compute.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import cn.huacheng.safebaiyun.util.ConfigManager
 import cn.huacheng.safebaiyun.util.showToast
@@ -93,7 +93,7 @@ fun SettingsView(navController: NavController) {
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // ---- 说明卡片 ----
+            // 说明卡片
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -111,7 +111,7 @@ fun SettingsView(navController: NavController) {
                 }
             }
 
-            // ---- 自动轮询开关 ----
+            // 自动轮询开关
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
@@ -146,7 +146,7 @@ fun SettingsView(navController: NavController) {
                 }
             }
 
-            // ---- 配置项 1：单次开锁超时 ----
+            // 配置项
             ConfigItem(
                 label = "单次开锁超时",
                 description = "单次开锁允许的最大时间，超时则判定失败",
@@ -159,7 +159,6 @@ fun SettingsView(navController: NavController) {
                 unit = "毫秒"
             )
 
-            // ---- 配置项 2：轮询间隔 ----
             ConfigItem(
                 label = "轮询间隔",
                 description = "轮询时，尝试两个门禁之间的等待时间",
@@ -172,7 +171,6 @@ fun SettingsView(navController: NavController) {
                 unit = "毫秒"
             )
 
-            // ---- 配置项 3：结果展示延迟 ----
             ConfigItem(
                 label = "结果展示延迟",
                 description = "开锁完成后，显示成功/失败图标的时间",
@@ -185,7 +183,6 @@ fun SettingsView(navController: NavController) {
                 unit = "毫秒"
             )
 
-            // ---- 配置项 4：状态复位延迟 ----
             ConfigItem(
                 label = "状态复位延迟",
                 description = "显示开锁结果后，自动复位到空闲状态的时间",
@@ -198,7 +195,7 @@ fun SettingsView(navController: NavController) {
                 unit = "毫秒"
             )
 
-            // ---- 保存按钮 ----
+            // 保存按钮
             Button(
                 onClick = {
                     try {
