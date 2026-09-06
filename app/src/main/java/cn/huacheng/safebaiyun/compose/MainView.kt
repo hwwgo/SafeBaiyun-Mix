@@ -1,239 +1,287 @@
 package cn.huacheng.safebaiyun.compose
 
-import android.Manifest
-import android.content.pm.PackageManager
-import android.os.Build
+import android.bluetooth.BluetoothManager
+import android.content.Context
+import android.content.Intent
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.animation.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AppSettingsAlt
-import androidx.compose.material.icons.filled.HelpOutline
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavHostController
-import cn.huacheng.safebaiyun.R
-import cn.huacheng.safebaiyun.unlock.DataRepo
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import cn.huacheng.safebaiyun.unlock.DoorDevice
 import cn.huacheng.safebaiyun.unlock.UnlockRepo
 import cn.huacheng.safebaiyun.util.showToast
+import kotlinx.coroutines.launch
 
-/**
- * 主页面 —— 门禁列表 + 开门操作
- */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainView(navController: NavHostController) {
-
-    val context = LocalContext.current
-
-    val hasPermission = remember {
-        mutableStateOf(false)
-    }
-
-    val showManageDialog = remember {
-        mutableStateOf(false)
-    }
-
-    // 门禁列表状态（响应式刷新）
-    val doors = remember {
-        mutableStateOf<List<DoorDevice>>(DataRepo.getDoors())
-    }
-
-    SideEffect {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            hasPermission.value =
-                context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
-        } else {
-            hasPermission.value = true
-        }
-    }
-
-    Column {
-        MainTopBar(onEditClick = {
-            showManageDialog.value = true
-        }, onHelperClick = {
-            navController.navigate("helper")
-        })
-        
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .padding(8.dp), contentAlignment = Alignment.Center
-        ) {
-            if (hasPermission.value) {
-                DoorListContent(doors = doors, onRefresh = {
-                    doors.value = DataRepo.getDoors()
-                })
-            } else {
-                PermissionView(hasPermission)
-            }
-        }
-
-        // 底部二维码操作按钮
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            OutlinedButton(
-                onClick = { navController.navigate("qr_export") },
-                modifier = Modifier.weight(1f)
-            ) {
-                Icon(Icons.Default.AppSettingsAlt, contentDescription = null)
-                Spacer(modifier = Modifier.size(4.dp))
-                Text("导出配置")
-            }
-
-            Spacer(modifier = Modifier.size(8.dp))
-
-            OutlinedButton(
-                onClick = { navController.navigate("qr_import") },
-                modifier = Modifier.weight(1f)
-            ) {
-                Icon(Icons.Default.HelpOutline, contentDescription = null)
-                Spacer(modifier = Modifier.size(4.dp))
-                Text("扫描导入")
-            }
-        }
-
-        if (showManageDialog.value) {
-            ManageDoorDialog(
-                state = showManageDialog,
-                initialDoors = doors.value,
-                onSaved = {
-                    doors.value = DataRepo.getDoors()
-                }
-            )
-        }
-    }
-}
-
-/**
- * 门禁列表区域
- */
-@Composable
-private fun DoorListContent(
-    doors: MutableState<List<DoorDevice>>,
-    onRefresh: () -> Unit,
+fun MainView(
+    navController: NavController,
+    viewModel: MainViewModel = viewModel()
 ) {
-    if (doors.value.isEmpty()) {
-        Text(text = "暂无门禁，请点击右上角添加", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        return
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val doorList by viewModel.doorList.collectAsState()
+    val isBluetoothOn = remember { mutableStateOf(checkBluetooth(context)) }
+
+    // 权限请求
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { perms ->
+        if (perms.values.all { it }) {
+            showToast("权限已授予")
+        } else {
+            showToast("需要蓝牙权限才能开锁")
+        }
     }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        items(doors.value, key = { it.id }) { door ->
-            DoorCard(door)
+    // 初始化 UnlockRepo
+    UnlockRepo.init(scope)
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "🔓 智能门禁",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp
+                    )
+                },
+                actions = {
+                    // 蓝牙状态指示器（点击跳转蓝牙设置）
+                    IconButton(
+                        onClick = {
+                            if (!isBluetoothOn.value) {
+                                context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = if (isBluetoothOn.value) Icons.Default.Bluetooth else Icons.Default.BluetoothDisabled,
+                            contentDescription = "蓝牙状态",
+                            tint = if (isBluetoothOn.value) Color(0xFF4CAF50) else Color(0xFFF44336)
+                        )
+                    }
+                    // 帮助/日志入口
+                    IconButton(onClick = { navController.navigate("helper") }) {
+                        Icon(Icons.Default.Info, contentDescription = "帮助")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp)
+                )
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    navController.navigate("add_door")
+                },
+                containerColor = MaterialTheme.colorScheme.primary,
+                elevation = FloatingActionButtonDefaults.elevation(6.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "添加门禁")
+            }
         }
-        item {
-            Spacer(modifier = Modifier.size(60.dp)) // 底部留白，不遮挡 FAB
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp)
+                .background(MaterialTheme.colorScheme.background)
+        ) {
+            // ---- 信息概览卡片 ----
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = "${doorList.size}", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                        Text(text = "门禁总数", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = "2", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF4CAF50))
+                        Text(text = "在线", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = "1", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF9E9E9E))
+                        Text(text = "离线", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+
+            // ---- 门禁列表 ----
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                if (doorList.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = Icons.Default.DoorFront,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(64.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = "还没有门禁配置",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "点击右下角的 + 添加你的门禁",
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    items(doorList) { door ->
+                        EnhancedDoorCard(door = door)
+                    }
+                }
+            }
         }
     }
 }
 
 /**
- * 单个门禁卡片
+ * 增强版门禁卡片
  */
 @Composable
-private fun DoorCard(door: DoorDevice) {
+fun EnhancedDoorCard(door: DoorDevice) {
+    val scope = rememberCoroutineScope()
+    var isUnlocking by remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp),
+            .animateContentSize(),
+        shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = door.name,
-                style = MaterialTheme.typography.titleMedium,
-                fontSize = 18.sp
-            )
-            Spacer(modifier = Modifier.size(8.dp))
-            Button(
-                onClick = {
-                    if (door.mac.isEmpty() || door.key.isEmpty()) {
-                        showToast("请先配置该门禁的 MAC 和 Key")
-                        return@Button
-                    }
-                    showToast("正在解锁 ${door.name}")
-                    UnlockRepo.unlock(door.mac, door.key)
-                },
-                modifier = Modifier.size(144.dp, 48.dp)
-            ) {
-                Text(text = stringResource(id = R.string.unlock_door), fontSize = 16.sp)
-            }
-            // 显示 MAC 前缀便于识别（脱敏）
-            if (door.mac.isNotEmpty()) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = door.name.ifEmpty { "未命名设备" },
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(Color(0xFF4CAF50))
+                    )
+                }
                 Text(
-                    text = formatMacShort(door.mac),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.outline,
-                    modifier = Modifier.padding(top = 4.dp)
+                    text = door.mac,
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-        }
-    }
-}
 
-/** 将 AA:BB:CC:DD:EE:FF 显示为 AA:BB:CC:... */
-private fun formatMacShort(mac: String): String {
-    val parts = mac.split(":")
-    return if (parts.size >= 3) "${parts[0]}:${parts[1]}:${parts[2]}..." else mac
-}
-
-// ── 权限请求视图（保持不变） ──
-
-@Composable
-private fun PermissionView(hasPermission: MutableState<Boolean>) {
-    val requestPermissionLauncher =
-        rememberLauncherForActivityResult(contract = ActivityResultContracts.RequestPermission()) { isGranted ->
-            hasPermission.value = isGranted
-        }
-
-    Button(modifier = Modifier.size(144.dp, 56.dp),
-        onClick = {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                requestPermissionLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT)
+            Button(
+                onClick = {
+                    if (!isUnlocking) {
+                        isUnlocking = true
+                        scope.launch {
+                            val success = UnlockRepo.tryUnlock(door.mac, door.key)
+                            if (success) {
+                                showToast("✅ ${door.name} 开门成功")
+                            } else {
+                                showToast("❌ ${door.name} 开门失败")
+                            }
+                            isUnlocking = false
+                        }
+                    }
+                },
+                enabled = !isUnlocking,
+                shape = RoundedCornerShape(24.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                ),
+                modifier = Modifier
+                    .height(40.dp)
+                    .width(80.dp)
+            ) {
+                if (isUnlocking) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(
+                        text = "开锁",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
             }
-
-        }) {
-        Text(text = stringResource(id = R.string.request_permission), fontSize = 18.sp)
-
+        }
     }
+}
+
+/**
+ * 检查蓝牙是否开启
+ */
+private fun checkBluetooth(context: Context): Boolean {
+    val manager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+    val adapter = manager?.adapter
+    return adapter?.isEnabled == true
 }
