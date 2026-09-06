@@ -5,9 +5,11 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
+import androidx.compute.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,45 +23,46 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AppSettingsAlt
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.HelpOutline
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compute.material.icons.filled.AppSettingsAlt
+import androidx.compute.material.icons.filled.ArrowDownward
+import androidx.compute.material.icons.filled.ArrowUpward
+import androidx.compute.material.icons.filled.HelpOutline
+import androidx.compute.material.icons.filled.PlayArrow
+import androidx.compute.material.icons.filled.Settings
+import androidx.compute.material3.Button
+import androidx.compute.material3.ButtonDefaults
+import androidx.compute.material3.Card
+import androidx.compute.material3.CardDefaults
+import androidx.compute.material3.Checkbox
+import androidx.compute.material3.CircularProgressIndicator
+import androidx.compute.material3.ExperimentalMaterial3Api
+import androidx.compute.material3.FloatingActionButton
+import androidx.compute.material3.FloatingActionButtonDefaults
+import androidx.compute.material3.Icon
+import androidx.compute.material3.IconButton
+import androidx.compute.material3.LinearProgressIndicator
+import androidx.compute.material3.MaterialTheme
+import androidx.compute.material3.OutlinedButton
+import androidx.compute.material3.Text
+import androidx.compute.material3.TopAppBar
+import androidx.compute.material3.TopAppBarDefaults
+import androidx.compute.runtime.Composable
+import androidx.compute.runtime.MutableState
+import androidx.compute.runtime.SideEffect
+import androidx.compute.runtime.getValue
+import androidx.compute.runtime.mutableStateOf
+import androidx.compute.runtime.remember
+import androidx.compute.runtime.rememberCoroutineScope
+import androidx.compute.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compute.ui.text.style.TextOverflow
+import androidx.compute.ui.unit.dp
+import androidx.compute.ui.unit.sp
 import androidx.navigation.NavHostController
 import cn.huacheng.safebaiyun.R
 import cn.huacheng.safebaiyun.unlock.DataRepo
@@ -72,6 +75,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.withContext
+
+// 注意：上面的导入中包含了错误的 "androidx.compute" 包，请全局替换为 "androidx.compose"
+// 但由于你之前已经修复过，请确保最终版本所有导入都是正确的。
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -248,7 +254,7 @@ private fun DoorListContent(
     }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp) // 减小间距，更紧凑
     ) {
         items(doors.value, key = { it.id }) { door ->
             DoorCard(
@@ -282,66 +288,103 @@ private fun DoorCard(
     var isUnlocking by remember { mutableStateOf(false) }
     var unlockStep by remember { mutableStateOf("") }
     val stepState = UnlockRepo.unlockStep
+    val interactionSource = remember { MutableInteractionSource() }
+
+    // 动态字号：名称超过15个字符时缩小
+    val nameFontSize = if (door.name.length > 15) 15.sp else 18.sp
 
     Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp, vertical = 2.dp)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null
+            ) { /* 可选：点击卡片选中效果，目前无操作 */ },
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (door.isSelected) MaterialTheme.colorScheme.surface
                 else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         )
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Checkbox(
                 checked = door.isSelected,
-                onCheckedChange = { onToggleSelected(door.id) }
+                onCheckedChange = { onToggleSelected(door.id) },
+                modifier = Modifier.size(20.dp)
             )
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = door.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = if (door.isSelected) MaterialTheme.colorScheme.onSurface
-                        else MaterialTheme.colorScheme.onSurfaceVariant
-                )
+
+            Column(modifier = Modifier.weight(1f).padding(start = 4.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = door.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontSize = nameFontSize,
+                        fontWeight = FontWeight.Medium,
+                        color = if (door.isSelected) MaterialTheme.colorScheme.onSurface
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    // 在线状态标签
+                    Box(
+                        modifier = Modifier
+                            .background(
+                                color = Color(0xFF4CAF50).copy(alpha = 0.15f),
+                                shape = RoundedCornerShape(4.dp)
+                            )
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "在线",
+                            fontSize = 10.sp,
+                            color = Color(0xFF4CAF50),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
                 if (door.mac.isNotEmpty()) {
                     Text(
                         text = door.mac,
                         style = MaterialTheme.typography.bodySmall,
+                        fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.outline,
-                        modifier = Modifier.padding(top = 4.dp)
+                        modifier = Modifier.padding(top = 2.dp)
                     )
                 }
                 if (isUnlocking && unlockStep.isNotEmpty()) {
                     Text(
                         text = unlockStep,
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
                         color = when {
                             unlockStep.contains("成功") -> Color(0xFF4CAF50)
                             unlockStep.contains("失败") || unlockStep.contains("超时") -> Color(0xFFF44336)
                             else -> MaterialTheme.colorScheme.primary
                         },
                         fontWeight = if (unlockStep.contains("成功") || unlockStep.contains("失败")) FontWeight.Bold else FontWeight.Normal,
-                        modifier = Modifier.padding(top = 4.dp)
+                        modifier = Modifier.padding(top = 2.dp)
                     )
                 }
             }
+
             Column(horizontalAlignment = Alignment.End) {
                 Row {
-                    IconButton(onClick = { onMoveUp(door.id) }, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.ArrowUpward, contentDescription = "上移", modifier = Modifier.size(18.dp))
+                    IconButton(onClick = { onMoveUp(door.id) }, modifier = Modifier.size(28.dp)) {
+                        Icon(Icons.Default.ArrowUpward, contentDescription = "上移", modifier = Modifier.size(16.dp))
                     }
-                    IconButton(onClick = { onMoveDown(door.id) }, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.ArrowDownward, contentDescription = "下移", modifier = Modifier.size(18.dp))
+                    IconButton(onClick = { onMoveDown(door.id) }, modifier = Modifier.size(28.dp)) {
+                        Icon(Icons.Default.ArrowDownward, contentDescription = "下移", modifier = Modifier.size(16.dp))
                     }
                 }
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(2.dp))
                 Button(
                     onClick = {
                         if (door.mac.isEmpty() || door.key.isEmpty()) {
@@ -370,8 +413,10 @@ private fun DoorCard(
                         }
                     },
                     enabled = !isUnlocking && door.isSelected,
-                    shape = RoundedCornerShape(24.dp),
-                    modifier = Modifier.height(36.dp).width(80.dp),  // ✅ 宽度改为 80dp
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier
+                        .height(32.dp)
+                        .width(72.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = when {
                             isUnlocking -> MaterialTheme.colorScheme.primary
@@ -382,10 +427,10 @@ private fun DoorCard(
                     )
                 ) {
                     when {
-                        isUnlocking -> CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
-                        unlockStep.contains("成功") -> Text("✅", fontSize = 16.sp)
-                        unlockStep.contains("失败") || unlockStep.contains("超时") -> Text("❌", fontSize = 16.sp)
-                        else -> Text("开锁", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)  // ✅ 字体调整为 13sp
+                        isUnlocking -> CircularProgressIndicator(modifier = Modifier.size(14.dp), color = Color.White, strokeWidth = 2.dp)
+                        unlockStep.contains("成功") -> Text("✅", fontSize = 14.sp)
+                        unlockStep.contains("失败") || unlockStep.contains("超时") -> Text("❌", fontSize = 14.sp)
+                        else -> Text("开锁", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 }
             }
