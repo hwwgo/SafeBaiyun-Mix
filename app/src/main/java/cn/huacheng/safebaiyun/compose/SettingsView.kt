@@ -1,19 +1,43 @@
 package cn.huacheng.safebaiyun.compose
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Restore
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compute.material3.CardDefaults
+import androidx.compute.material3.ExperimentalMaterial3Api
+import androidx.compute.material3.Icon
+import androidx.compute.material3.IconButton
+import androidx.compute.material3.MaterialTheme
+import androidx.compute.material3.OutlinedTextField
+import androidx.compute.material3.Scaffold
+import androidx.compute.material3.Switch
+import androidx.compute.material3.Text
+import androidx.compute.material3.TopAppBar
+import androidx.compute.material3.TopAppBarDefaults
+import androidx.compute.runtime.Composable
+import androidx.compute.runtime.getValue
+import androidx.compute.runtime.mutableStateOf
+import androidx.compute.runtime.remember
+import androidx.compute.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compute.ui.text.font.FontWeight
+import androidx.compute.ui.unit.dp
+import androidx.compute.ui.unit.sp
 import androidx.navigation.NavController
 import cn.huacheng.safebaiyun.util.ConfigManager
 import cn.huacheng.safebaiyun.util.showToast
@@ -27,6 +51,7 @@ fun SettingsView(navController: NavController) {
     var pollInterval by remember { mutableStateOf(ConfigManager.getPollInterval().toString()) }
     var resultDelay by remember { mutableStateOf(ConfigManager.getResultDelay().toString()) }
     var resetDelay by remember { mutableStateOf(ConfigManager.getResetDelay().toString()) }
+    var autoPoll by remember { mutableStateOf(ConfigManager.getAutoPollOnStart()) }
     var hasChanges by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -46,6 +71,7 @@ fun SettingsView(navController: NavController) {
                             pollInterval = ConfigManager.getDefaultPollInterval().toString()
                             resultDelay = ConfigManager.getDefaultResultDelay().toString()
                             resetDelay = ConfigManager.getDefaultResetDelay().toString()
+                            autoPoll = ConfigManager.getDefaultAutoPoll()
                             hasChanges = false
                             showToast("已恢复默认设置")
                         }
@@ -67,6 +93,7 @@ fun SettingsView(navController: NavController) {
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // ---- 说明卡片 ----
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -84,42 +111,94 @@ fun SettingsView(navController: NavController) {
                 }
             }
 
+            // ---- 自动轮询开关 ----
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "🔄 打开软件自动轮询",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "启动应用后自动执行一键轮询",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = autoPoll,
+                        onCheckedChange = {
+                            autoPoll = it
+                            hasChanges = true
+                        }
+                    )
+                }
+            }
+
+            // ---- 配置项 1：单次开锁超时 ----
             ConfigItem(
                 label = "单次开锁超时",
                 description = "单次开锁允许的最大时间，超时则判定失败",
                 value = unlockTimeout,
-                onValueChange = { unlockTimeout = it; hasChanges = true },
+                onValueChange = {
+                    unlockTimeout = it
+                    hasChanges = true
+                },
                 defaultValue = ConfigManager.getDefaultUnlockTimeout().toString(),
                 unit = "毫秒"
             )
 
+            // ---- 配置项 2：轮询间隔 ----
             ConfigItem(
                 label = "轮询间隔",
                 description = "轮询时，尝试两个门禁之间的等待时间",
                 value = pollInterval,
-                onValueChange = { pollInterval = it; hasChanges = true },
+                onValueChange = {
+                    pollInterval = it
+                    hasChanges = true
+                },
                 defaultValue = ConfigManager.getDefaultPollInterval().toString(),
                 unit = "毫秒"
             )
 
+            // ---- 配置项 3：结果展示延迟 ----
             ConfigItem(
                 label = "结果展示延迟",
                 description = "开锁完成后，显示成功/失败图标的时间",
                 value = resultDelay,
-                onValueChange = { resultDelay = it; hasChanges = true },
+                onValueChange = {
+                    resultDelay = it
+                    hasChanges = true
+                },
                 defaultValue = ConfigManager.getDefaultResultDelay().toString(),
                 unit = "毫秒"
             )
 
+            // ---- 配置项 4：状态复位延迟 ----
             ConfigItem(
                 label = "状态复位延迟",
                 description = "显示开锁结果后，自动复位到空闲状态的时间",
                 value = resetDelay,
-                onValueChange = { resetDelay = it; hasChanges = true },
+                onValueChange = {
+                    resetDelay = it
+                    hasChanges = true
+                },
                 defaultValue = ConfigManager.getDefaultResetDelay().toString(),
                 unit = "毫秒"
             )
 
+            // ---- 保存按钮 ----
             Button(
                 onClick = {
                     try {
@@ -135,6 +214,7 @@ fun SettingsView(navController: NavController) {
                         ConfigManager.setPollInterval(interval)
                         ConfigManager.setResultDelay(result)
                         ConfigManager.setResetDelay(reset)
+                        ConfigManager.setAutoPollOnStart(autoPoll)
                         hasChanges = false
                         showToast("✅ 设置已保存")
                     } catch (e: NumberFormatException) {
