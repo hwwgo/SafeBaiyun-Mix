@@ -53,8 +53,8 @@ object ExtraLargeWidget : GlanceAppWidget() {
 
     override val sizeMode: SizeMode = SizeMode.Single
 
-    /** Intent 参数 key：门禁 ID */
-    private val KEY_DOOR_ID = ActionParameters.Key<Int>("door_id")
+    /** Intent 参数 key：门禁 ID（改为 String） */
+    private val KEY_DOOR_ID = ActionParameters.Key<String>("door_id")
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
@@ -116,7 +116,7 @@ object ExtraLargeWidget : GlanceAppWidget() {
     @Composable
     private fun DoorButton(
         context: Context,
-        doorId: Int,
+        doorId: String,  // 改为 String
         name: String,
         hasConfig: Boolean,
     ) {
@@ -160,7 +160,7 @@ class UnlockDoorAction : ActionCallback {
         val doorId = parameters[KEY_DOOR_ID]
         if (doorId != null) {
             val intent = Intent(context, ShortcutActivity::class.java).apply {
-                putExtra(ShortcutActivity.EXTRA_DOOR_ID, doorId.toInt())
+                putExtra(ShortcutActivity.EXTRA_DOOR_ID, doorId)  // 直接传 String，不再 toInt()
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             }
             context.startActivity(intent)
@@ -168,6 +168,6 @@ class UnlockDoorAction : ActionCallback {
     }
 
     companion object {
-        private val KEY_DOOR_ID = ActionParameters.Key<Int>("door_id")
+        private val KEY_DOOR_ID = ActionParameters.Key<String>("door_id")  // 改为 String
     }
 }
