@@ -17,12 +17,20 @@ import cn.huacheng.safebaiyun.compose.HelpView
 import cn.huacheng.safebaiyun.compose.MainView
 import cn.huacheng.safebaiyun.compose.QRExportView
 import cn.huacheng.safebaiyun.compose.QRImportView
+import cn.huacheng.safebaiyun.compose.SettingsView
 import cn.huacheng.safebaiyun.theme.SafeBaiyunTheme
+import cn.huacheng.safebaiyun.unlock.UnlockRepo
+import cn.huacheng.safebaiyun.util.ConfigManager
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // 删除 UnlockRepo.init(lifecycleScope) 这行，因为 UnlockRepo 内部已自动检查蓝牙
+
+        // 初始化 ConfigManager
+        ConfigManager.init(this)
+
+        // 初始化 UnlockRepo（传入 lifecycleScope）
+        UnlockRepo.init(lifecycleScope)
 
         setContent {
             SafeBaiyunTheme {
@@ -81,6 +89,19 @@ class MainActivity : ComponentActivity() {
                             }
                         }) {
                             QRImportView(navController)
+                        }
+
+                        // 新增设置页面路由
+                        composable("settings", enterTransition = {
+                            slideIn {
+                                IntOffset(it.width, 0)
+                            }
+                        }, exitTransition = {
+                            slideOut {
+                                IntOffset(it.width, 0)
+                            }
+                        }) {
+                            SettingsView(navController)
                         }
                     }
                 }
