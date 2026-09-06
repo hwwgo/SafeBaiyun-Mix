@@ -14,6 +14,7 @@ import android.os.Build
 import cn.huacheng.safebaiyun.util.ContextHolder
 import cn.huacheng.safebaiyun.util.LockBiz
 import cn.huacheng.safebaiyun.util.showToast
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
@@ -22,7 +23,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-
 
 @SuppressLint("MissingPermission")
 object UnlockRepo {
@@ -40,23 +40,46 @@ object UnlockRepo {
     private val _logFlow = MutableStateFlow<List<String>>(emptyList())
     val logFlow: StateFlow<List<String>> = _logFlow
 
+    // ========== 新增：协程作用域管理 ==========
+    private var repoScope: CoroutineScope? = null
+
+    /**
+     * 初始化，传入 LifecycleScope 或 ViewModelScope
+     * 建议在 MainActivity.onCreate 中调用
+     */
+    fun init(scope: CoroutineScope) {
+        repoScope = scope
+    }
+
     /**
      * 解锁指定门禁
      * @param mac 门禁蓝牙 MAC 地址
      * @param key 门禁加密密钥
      */
     fun unlock(mac: String, key: String) {
-        val bluetoothAdapter =
-            (ContextHolder.get()
-                .getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter
+        // ========== 新增：蓝牙状态检查（防止闪退） ==========
+        val bluetoothManager = ContextHolder.get()
+            .getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        val bluetoothAdapter = bluetoothManager.adapter
+        if (bluetoothAdapter == null) {
+            showToast("设备不支持蓝牙")
+            return
+        }
+        if (!bluetoothAdapter.isEnabled) {
+            showToast("请先开启蓝牙")
+            return
+        }
 
+        // ========== 原有逻辑继续 ==========
         if (!BluetoothAdapter.checkBluetoothAddress(mac)) {
             showToast("Mac地址格式错误")
             return
         }
         connect(bluetoothAdapter, mac, key)
 
-        autoDisconnectJob = GlobalScope.launch {
+        // ========== 使用传入的 scope 替代 GlobalScope ==========
+        val scope = repoScope ?: GlobalScope  // 未调用 init 时降级
+        autoDisconnectJob = scope.launch {
             delay(10000)
             if (isActive) {
                 log("10s超时，自动断开链接")
@@ -218,9 +241,7 @@ object UnlockRepo {
         writeableCharacteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
         val result = gatt.writeCharacteristic(writeableCharacteristic)
         log("密钥写入结果 $result")
-
     }
-
 
     @OptIn(DelicateCoroutinesApi::class)
     private fun log(msg: String) {
