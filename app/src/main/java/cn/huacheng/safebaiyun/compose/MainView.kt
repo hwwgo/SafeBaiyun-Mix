@@ -90,8 +90,6 @@ fun MainView(navController: NavHostController) {
     var pollingCurrentIndex by remember { mutableStateOf(0) }
     var pollingTotal by remember { mutableStateOf(0) }
 
-    var stopPolling by remember { mutableStateOf(false) }
-
     var autoPollExecuted by remember { mutableStateOf(false) }
 
     // P0 修复：SideEffect -> LaunchedEffect，只在进入时执行一次
@@ -103,6 +101,7 @@ fun MainView(navController: NavHostController) {
         }
     }
 
+    // P1 修复：自动轮询使用新的 startPolling API
     LaunchedEffect(Unit) {
         if (hasPermission.value && doors.value.isNotEmpty() && !autoPollExecuted) {
             val autoPoll = ConfigManager.getAutoPollOnStart()
@@ -121,29 +120,23 @@ fun MainView(navController: NavHostController) {
                     pollingCurrentIndex = 0
                     pollingTotal = selectedDoors.size
                     pollingProgress = "自动轮询中..."
-                    stopPolling = false
-                    scope.launch {
-                        val result = UnlockRepo.pollAllDoors(
-                            doors = selectedDoors,
-                            onProgress = { index, total, name ->
-                                if (stopPolling) return@pollAllDoors
-                                withContext(Dispatchers.Main) {
-                                    pollingCurrentIndex = index
-                                    pollingTotal = total
-                                    pollingProgress = "正在尝试 $index/$total: $name"
-                                }
+
+                    UnlockRepo.startPolling(
+                        scope = scope,
+                        doors = selectedDoors,
+                        onProgress = { index, total, name ->
+                            withContext(Dispatchers.Main) {
+                                pollingCurrentIndex = index
+                                pollingTotal = total
+                                pollingProgress = "正在尝试 $index/$total: $name"
                             }
-                        )
-                        if (!stopPolling) {
+                        },
+                        onComplete = { result ->
                             isPolling = false
                             pollingProgress = if (result != null) "✅ 已开启: ${result.name}" else "❌ 未找到可开门禁"
                             doors.value = DataRepo.getDoors()
-                        } else {
-                            isPolling = false
-                            pollingProgress = "⏹ 已停止轮询"
-                            stopPolling = false
                         }
-                    }
+                    )
                 }
             }
         }
@@ -175,29 +168,24 @@ fun MainView(navController: NavHostController) {
                             pollingCurrentIndex = 0
                             pollingTotal = selectedDoors.size
                             pollingProgress = "准备轮询..."
-                            stopPolling = false
-                            scope.launch {
-                                val result = UnlockRepo.pollAllDoors(
-                                    doors = selectedDoors,
-                                    onProgress = { index, total, name ->
-                                        if (stopPolling) return@pollAllDoors
-                                        withContext(Dispatchers.Main) {
-                                            pollingCurrentIndex = index
-                                            pollingTotal = total
-                                            pollingProgress = "正在尝试 $index/$total: $name"
-                                        }
+
+                            // P1 修复：使用 startPolling API
+                            UnlockRepo.startPolling(
+                                scope = scope,
+                                doors = selectedDoors,
+                                onProgress = { index, total, name ->
+                                    withContext(Dispatchers.Main) {
+                                        pollingCurrentIndex = index
+                                        pollingTotal = total
+                                        pollingProgress = "正在尝试 $index/$total: $name"
                                     }
-                                )
-                                if (!stopPolling) {
+                                },
+                                onComplete = { result ->
                                     isPolling = false
                                     pollingProgress = if (result != null) "✅ 已开启: ${result.name}" else "❌ 未找到可开门禁"
                                     doors.value = DataRepo.getDoors()
-                                } else {
-                                    isPolling = false
-                                    pollingProgress = "⏹ 已停止轮询"
-                                    stopPolling = false
                                 }
-                            }
+                            )
                         }
                     )
 
@@ -215,9 +203,10 @@ fun MainView(navController: NavHostController) {
                             Spacer(modifier = Modifier.width(8.dp))
                             IconButton(
                                 onClick = {
-                                    stopPolling = true
+                                    // P1 修复：使用 stopPolling API
+                                    UnlockRepo.stopPolling()
                                     isPolling = false
-                                    pollingProgress = "⏹ 正在停止..."
+                                    pollingProgress = "⏹ 已停止轮询"
                                 },
                                 modifier = Modifier.size(32.dp)
                             ) {
