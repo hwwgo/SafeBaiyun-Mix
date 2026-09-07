@@ -6,14 +6,15 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
-import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.os.Build
+import android.util.Log
 import cn.huacheng.safebaiyun.util.ConfigManager
 import cn.huacheng.safebaiyun.util.ContextHolder
 import cn.huacheng.safebaiyun.util.LockBiz
 import cn.huacheng.safebaiyun.util.showToast
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
@@ -30,6 +31,7 @@ import kotlin.coroutines.resume
 @SuppressLint("MissingPermission")
 object UnlockRepo {
 
+    private const val TAG = "UnlockRepo"
     private const val MAGIC_SERVICE = "14839ac4-7d7e-415c-9a42-167340cf2339"
 
     // ---------- 状态流 ----------
@@ -39,6 +41,9 @@ object UnlockRepo {
     // 单门禁开锁步骤状态流
     private val _unlockStep = MutableStateFlow("")
     val unlockStep: StateFlow<String> = _unlockStep
+
+    // ---------- 轮询控制 ----------
+    private var pollJob: Job? = null
 
     // ---------- 初始化 ----------
     fun init(scope: CoroutineScope) {
@@ -225,7 +230,7 @@ object UnlockRepo {
     }
 
     // ============================================================
-    //  一键轮询功能
+    //  一键轮询功能（P1 修复：支持真正的协程取消）
     // ============================================================
 
     /**
@@ -246,12 +251,23 @@ object UnlockRepo {
         log("开始轮询 ${doors.size} 个门禁...")
 
         for ((index, door) in doors.withIndex()) {
+            // 检查协程是否被取消
+            if (!kotlin.coroutines.coroutineContext.isActive) {
+                log("轮询已被取消")
+                return null
+            }
+
             // 报告进度
             onProgress(index + 1, doors.size, door.name)
 
             log("正在尝试第 ${index + 1}/${doors.size} 个门禁: ${door.name} (${door.mac})")
 
-            val success = tryUnlock(door.mac, door.key)
+            val success = try {
+                tryUnlock(door.mac, door.key)
+            } catch (e: CancellationException) {
+                log("轮询被取消")
+                throw e  // 重新抛出取消异常
+            }
 
             if (success) {
                 log("✅ 成功开启门禁: ${door.name}")
@@ -259,14 +275,47 @@ object UnlockRepo {
                 return door
             } else {
                 log("❌ 第 ${index + 1} 个门禁开门失败，继续尝试下一个...")
-                // 轮询间隔使用用户自定义值
-                delay(ConfigManager.getPollInterval())
+                // 轮询间隔使用用户自定义值，但可以被取消
+                try {
+                    delay(ConfigManager.getPollInterval())
+                } catch (e: CancellationException) {
+                    log("轮询在等待间隔中被取消")
+                    throw e
+                }
             }
         }
 
         log("所有门禁均尝试失败")
         showToast("未找到可开启的门禁")
         return null
+    }
+
+    /**
+     * 停止当前轮询（P1 新增）
+     */
+    fun stopPolling() {
+        pollJob?.cancel()
+        pollJob = null
+        log("轮询已停止")
+    }
+
+    /**
+     * 启动轮询（P1 新增，使用 Job 管理生命周期）
+     */
+    fun startPolling(
+        scope: CoroutineScope,
+        doors: List<DoorDevice>,
+        onProgress: suspend (index: Int, total: Int, doorName: String) -> Unit = { _, _, _ -> },
+        onComplete: (DoorDevice?) -> Unit = {}
+    ): Job {
+        // 先取消之前的轮询
+        stopPolling()
+
+        pollJob = scope.launch {
+            val result = pollAllDoors(doors, onProgress)
+            onComplete(result)
+        }
+        return pollJob!!
     }
 
     // ============================================================
@@ -281,6 +330,10 @@ object UnlockRepo {
     suspend fun waitForBluetooth(timeoutMs: Long): Boolean {
         val startTime = System.currentTimeMillis()
         while (System.currentTimeMillis() - startTime < timeoutMs) {
+            // 检查是否被取消
+            if (!kotlin.coroutines.coroutineContext.isActive) {
+                return false
+            }
             val adapter = BluetoothAdapter.getDefaultAdapter()
             if (adapter != null && adapter.isEnabled) {
                 return true
@@ -300,7 +353,7 @@ object UnlockRepo {
 
     @OptIn(DelicateCoroutinesApi::class)
     private fun log(msg: String) {
-        println(msg)
+        Log.d(TAG, msg)  // P1 修复：println -> Android Log
         val current = _logFlow.value
         _logFlow.value = if (current.size >= MAX_LOG_LINES) {
             current.drop(current.size - MAX_LOG_LINES + 1) + msg
