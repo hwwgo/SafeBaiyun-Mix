@@ -38,8 +38,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -51,7 +49,6 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -86,7 +83,6 @@ fun MainView(navController: NavHostController) {
     val scope = rememberCoroutineScope()
 
     val hasPermission = remember { mutableStateOf(false) }
-    val showManageDialog = remember { mutableStateOf(false) }
     val doors = remember { mutableStateOf<List<DoorDevice>>(DataRepo.getDoors()) }
 
     var isPolling by remember { mutableStateOf(false) }
@@ -98,7 +94,8 @@ fun MainView(navController: NavHostController) {
 
     var autoPollExecuted by remember { mutableStateOf(false) }
 
-    SideEffect {
+    // P0 修复：SideEffect -> LaunchedEffect，只在进入时执行一次
+    LaunchedEffect(Unit) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             hasPermission.value = context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
         } else {
@@ -154,7 +151,7 @@ fun MainView(navController: NavHostController) {
 
     Column {
         MainTopBar(
-            onEditClick = { navController.navigate("manage_doors") },   // 改为导航
+            onEditClick = { navController.navigate("manage_doors") },
             onHelperClick = { navController.navigate("helper") },
             onSettingsClick = { navController.navigate("settings") }
         )
@@ -258,9 +255,6 @@ fun MainView(navController: NavHostController) {
                 Text("扫描导入")
             }
         }
-
-        // 移除半屏弹窗，改为导航
-        // if (showManageDialog.value) { ... }
     }
 }
 
