@@ -154,7 +154,7 @@ fun MainView(navController: NavHostController) {
 
     Column {
         MainTopBar(
-            onEditClick = { showManageDialog.value = true },
+            onEditClick = { navController.navigate("manage_doors") },   // 改为导航
             onHelperClick = { navController.navigate("helper") },
             onSettingsClick = { navController.navigate("settings") }
         )
@@ -259,13 +259,8 @@ fun MainView(navController: NavHostController) {
             }
         }
 
-        if (showManageDialog.value) {
-            ManageDoorDialog(
-                state = showManageDialog,
-                initialDoors = doors.value,
-                onSaved = { doors.value = DataRepo.getDoors() }
-            )
-        }
+        // 移除半屏弹窗，改为导航
+        // if (showManageDialog.value) { ... }
     }
 }
 
