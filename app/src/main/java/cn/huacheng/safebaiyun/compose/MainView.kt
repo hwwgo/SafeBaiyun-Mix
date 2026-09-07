@@ -26,14 +26,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AppSettingsAlt
 import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.HelpOutline
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Settings
+import androidx.compute.material.icons.filled.ArrowUpward
+import androidx.compute.material.icons.filled.HelpOutline
+import androidx.compute.material.icons.filled.PlayArrow
+import androidx.compute.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
+import androidx.compute.material3.Button
+import androidx.compute.material3.ButtonDefaults
+import androidx.compute.material3.Card
 import androidx.compute.material3.CardDefaults
 import androidx.compute.material3.Checkbox
 import androidx.compute.material3.CircularProgressIndicator
@@ -94,7 +94,6 @@ fun MainView(navController: NavHostController) {
     var pollingCurrentIndex by remember { mutableStateOf(0) }
     var pollingTotal by remember { mutableStateOf(0) }
 
-    // 控制轮询是否应该停止
     var stopPolling by remember { mutableStateOf(false) }
 
     var autoPollExecuted by remember { mutableStateOf(false) }
@@ -107,9 +106,6 @@ fun MainView(navController: NavHostController) {
         }
     }
 
-    // ============================================================
-    //  自动轮询逻辑
-    // ============================================================
     LaunchedEffect(Unit) {
         if (hasPermission.value && doors.value.isNotEmpty() && !autoPollExecuted) {
             val autoPoll = ConfigManager.getAutoPollOnStart()
@@ -117,7 +113,6 @@ fun MainView(navController: NavHostController) {
                 val selectedDoors = doors.value.filter { it.isSelected }
                 if (selectedDoors.isNotEmpty()) {
                     autoPollExecuted = true
-                    // 等待蓝牙开启（超时时间可配置，默认 5000ms）
                     val waitTime = ConfigManager.getPollWaitTime()
                     val bluetoothReady = UnlockRepo.waitForBluetooth(waitTime)
                     if (!bluetoothReady) {
@@ -134,7 +129,6 @@ fun MainView(navController: NavHostController) {
                         val result = UnlockRepo.pollAllDoors(
                             doors = selectedDoors,
                             onProgress = { index, total, name ->
-                                // 如果用户点击了停止，不再更新进度
                                 if (stopPolling) return@pollAllDoors
                                 withContext(Dispatchers.Main) {
                                     pollingCurrentIndex = index
@@ -143,13 +137,11 @@ fun MainView(navController: NavHostController) {
                                 }
                             }
                         )
-                        // 如果是因为停止而退出，不显示结果
                         if (!stopPolling) {
                             isPolling = false
                             pollingProgress = if (result != null) "✅ 已开启: ${result.name}" else "❌ 未找到可开门禁"
                             doors.value = DataRepo.getDoors()
                         } else {
-                            // 停止轮询
                             isPolling = false
                             pollingProgress = "⏹ 已停止轮询"
                             stopPolling = false
@@ -212,7 +204,6 @@ fun MainView(navController: NavHostController) {
                         }
                     )
 
-                    // 轮询进度条 + 停止按钮（右侧）
                     if (isPolling && pollingTotal > 0) {
                         Row(
                             modifier = Modifier
