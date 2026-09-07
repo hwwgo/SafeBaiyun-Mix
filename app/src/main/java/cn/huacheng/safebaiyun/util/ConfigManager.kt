@@ -14,7 +14,7 @@ object ConfigManager {
     private const val DEFAULT_RESULT_DELAY = 1500L
     private const val DEFAULT_RESET_DELAY = 2000L
     private const val DEFAULT_AUTO_POLL = false
-    private const val DEFAULT_POLL_WAIT_TIME = 3000L   // 新增：等待蓝牙开启的默认时间（3秒）
+    private const val DEFAULT_POLL_WAIT_TIME = 5000L   // 改为 5 秒
 
     // Keys
     private const val KEY_UNLOCK_TIMEOUT = "unlock_timeout"
@@ -22,7 +22,7 @@ object ConfigManager {
     private const val KEY_RESULT_DELAY = "result_delay"
     private const val KEY_RESET_DELAY = "reset_delay"
     private const val KEY_AUTO_POLL = "auto_poll"
-    private const val KEY_POLL_WAIT_TIME = "poll_wait_time"   // 新增
+    private const val KEY_POLL_WAIT_TIME = "poll_wait_time"
 
     fun init(context: Context) {
         prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
@@ -34,7 +34,7 @@ object ConfigManager {
     fun getResultDelay(): Long = prefs.getLong(KEY_RESULT_DELAY, DEFAULT_RESULT_DELAY)
     fun getResetDelay(): Long = prefs.getLong(KEY_RESET_DELAY, DEFAULT_RESET_DELAY)
     fun getAutoPollOnStart(): Boolean = prefs.getBoolean(KEY_AUTO_POLL, DEFAULT_AUTO_POLL)
-    fun getPollWaitTime(): Long = prefs.getLong(KEY_POLL_WAIT_TIME, DEFAULT_POLL_WAIT_TIME)   // 新增
+    fun getPollWaitTime(): Long = prefs.getLong(KEY_POLL_WAIT_TIME, DEFAULT_POLL_WAIT_TIME)
 
     // ---------- Setter ----------
     fun setUnlockTimeout(value: Long) { prefs.edit().putLong(KEY_UNLOCK_TIMEOUT, value).apply() }
@@ -42,7 +42,7 @@ object ConfigManager {
     fun setResultDelay(value: Long) { prefs.edit().putLong(KEY_RESULT_DELAY, value).apply() }
     fun setResetDelay(value: Long) { prefs.edit().putLong(KEY_RESET_DELAY, value).apply() }
     fun setAutoPollOnStart(value: Boolean) { prefs.edit().putBoolean(KEY_AUTO_POLL, value).apply() }
-    fun setPollWaitTime(value: Long) { prefs.edit().putLong(KEY_POLL_WAIT_TIME, value).apply() }   // 新增
+    fun setPollWaitTime(value: Long) { prefs.edit().putLong(KEY_POLL_WAIT_TIME, value).apply() }
 
     // ---------- 获取所有配置 ----------
     data class ConfigValues(
@@ -51,7 +51,7 @@ object ConfigManager {
         val resultDelay: Long,
         val resetDelay: Long,
         val autoPollOnStart: Boolean,
-        val pollWaitTime: Long   // 新增
+        val pollWaitTime: Long
     )
 
     fun getAllValues(): ConfigValues = ConfigValues(
@@ -71,7 +71,7 @@ object ConfigManager {
             .remove(KEY_RESULT_DELAY)
             .remove(KEY_RESET_DELAY)
             .remove(KEY_AUTO_POLL)
-            .remove(KEY_POLL_WAIT_TIME)   // 新增
+            .remove(KEY_POLL_WAIT_TIME)
             .apply()
     }
 
@@ -81,5 +81,5 @@ object ConfigManager {
     fun getDefaultResultDelay(): Long = DEFAULT_RESULT_DELAY
     fun getDefaultResetDelay(): Long = DEFAULT_RESET_DELAY
     fun getDefaultAutoPoll(): Boolean = DEFAULT_AUTO_POLL
-    fun getDefaultPollWaitTime(): Long = DEFAULT_POLL_WAIT_TIME   // 新增
+    fun getDefaultPollWaitTime(): Long = DEFAULT_POLL_WAIT_TIME
 }
