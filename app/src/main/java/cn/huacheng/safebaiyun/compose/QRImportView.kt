@@ -11,45 +11,30 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.navigation.NavHostController
+import cn.huacheng.safebaiyun.theme.*
 import cn.huacheng.safebaiyun.unlock.DataRepo
 import cn.huacheng.safebaiyun.unlock.DoorDevice
 import cn.huacheng.safebaiyun.util.QRCodeUtils
@@ -61,8 +46,7 @@ import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun QRImportView(navController: androidx.navigation.NavHostController) {
-
+fun QRImportView(navController: NavHostController) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -92,121 +76,534 @@ fun QRImportView(navController: androidx.navigation.NavHostController) {
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("扫描导入") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
-                    }
-                }
-            )
-        }
-    ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            if (showConfirmDialog && importedDoors != null) {
-                ImportConfirmDialog(
-                    doors = importedDoors!!,
-                    onDismiss = {
-                        showConfirmDialog = false
-                        importedDoors = null
-                        scannedData = null
-                    },
-                    onImport = { replaceAll ->
-                        importDoors(importedDoors!!, replaceAll)
-                        showConfirmDialog = false
-                        importedDoors = null
-                        scannedData = null
-                        showToast("导入成功")
-                        navController.popBackStack()
-                    }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.background,
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                    )
                 )
-            } else if (!hasCameraPermission) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text("需要相机权限才能扫描二维码")
+            )
+    ) {
+        Column {
+            // ColorOS 16 顶部栏
+            ColorOSImportTopBar(
+                onBack = { navController.popBackStack() }
+            )
 
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Button(onClick = {
-                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                    }) {
-                        Text("请求相机权限")
-                    }
-                }
-            } else if (scannedData == null) {
-                CameraPreview(
-                    onQrCodeDetected = { data ->
-                        if (!isProcessing) {
-                            isProcessing = true
-                            scannedData = data
-                            val decodedDoors = QRCodeUtils.decodeQRTodoors(data)
-                            if (decodedDoors != null && decodedDoors.isNotEmpty()) {
-                                importedDoors = decodedDoors
-                                showConfirmDialog = true
-                            } else {
-                                showToast("无效的二维码格式")
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+            ) {
+                when {
+                    showConfirmDialog && importedDoors != null -> {
+                        ColorOSImportConfirmDialog(
+                            doors = importedDoors!!,
+                            onDismiss = {
+                                showConfirmDialog = false
+                                importedDoors = null
                                 scannedData = null
+                            },
+                            onImport = { replaceAll ->
+                                importDoors(importedDoors!!, replaceAll)
+                                showConfirmDialog = false
+                                importedDoors = null
+                                scannedData = null
+                                showToast("导入成功")
+                                navController.popBackStack()
                             }
-                            isProcessing = false
+                        )
+                    }
+                    !hasCameraPermission -> {
+                        ColorOSCameraPermissionView(
+                            onRequestPermission = {
+                                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                            }
+                        )
+                    }
+                    scannedData == null -> {
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            CameraPreview(
+                                onQrCodeDetected = { data ->
+                                    if (!isProcessing) {
+                                        isProcessing = true
+                                        scannedData = data
+                                        val decodedDoors = QRCodeUtils.decodeQRTodoors(data)
+                                        if (decodedDoors != null && decodedDoors.isNotEmpty()) {
+                                            importedDoors = decodedDoors
+                                            showConfirmDialog = true
+                                        } else {
+                                            showToast("无效的二维码格式")
+                                            scannedData = null
+                                        }
+                                        isProcessing = false
+                                    }
+                                }
+                            )
+
+                            // ColorOS 16 扫描遮罩
+                            ColorOSScannerOverlay()
+
+                            // 底部提示
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .align(Alignment.BottomCenter)
+                                    .padding(24.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Card(
+                                    shape = RoundedCornerShape(16.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = Color.Black.copy(alpha = 0.6f)
+                                    )
+                                ) {
+                                    Text(
+                                        text = "请将二维码对准取景框",
+                                        color = Color.White,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+                                    )
+                                }
+                            }
                         }
                     }
-                )
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.5f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    QrScannerOverlay()
-                }
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "请将二维码对准取景框",
-                        color = Color.White,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            } else {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("正在处理...")
+                    else -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            ColorOSLoadingState()
+                        }
+                    }
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ColorOSImportTopBar(onBack: () -> Unit) {
+    TopAppBar(
+        title = {
+            Text(
+                "扫描导入",
+                fontWeight = FontWeight.Bold,
+                fontSize = 22.sp,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+        },
+        navigationIcon = {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            ) {
+                Icon(
+                    Icons.Default.ArrowBack,
+                    contentDescription = "返回",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = Color.Transparent
+        )
+    )
+}
+
+@Composable
+private fun ColorOSCameraPermissionView(onRequestPermission: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(80.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Default.CameraAlt,
+                contentDescription = null,
+                modifier = Modifier.size(40.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text(
+            text = "需要相机权限才能扫描二维码",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "授权后即可使用相机扫描二维码导入门禁配置",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Box(
+            modifier = Modifier
+                .height(48.dp)
+                .shadow(
+                    elevation = 6.dp,
+                    shape = RoundedCornerShape(14.dp),
+                    ambientColor = ColorOSGlow,
+                    spotColor = ColorOSGlow
+                )
+                .clip(RoundedCornerShape(14.dp))
+                .background(
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(ColorOSGradientStart, ColorOSGradientEnd)
+                    )
+                )
+                .clickable(onClick = onRequestPermission),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "授予相机权限",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White,
+                modifier = Modifier.padding(horizontal = 32.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ColorOSScannerOverlay() {
+    val primaryColor = ColorOSPrimary
+
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val canvasWidth = size.width
+        val canvasHeight = size.height
+
+        val overlaySize = minOf(canvasWidth, canvasHeight) * 0.7f
+        val left = (canvasWidth - overlaySize) / 2
+        val top = (canvasHeight - overlaySize) / 2
+
+        // 半透明遮罩
+        drawRect(
+            color = Color.Black.copy(alpha = 0.5f),
+            size = Size(canvasWidth, canvasHeight)
+        )
+
+        // 透明扫描区域
+        drawRoundRect(
+            color = Color.Transparent,
+            topLeft = Offset(left, top),
+            size = Size(overlaySize, overlaySize),
+            cornerRadius = CornerRadius(24.dp.toPx()),
+            blendMode = androidx.compose.ui.graphics.BlendMode.Clear
+        )
+
+        // ColorOS 16 风格边框
+        drawRoundRect(
+            color = primaryColor,
+            topLeft = Offset(left, top),
+            size = Size(overlaySize, overlaySize),
+            cornerRadius = CornerRadius(24.dp.toPx()),
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.dp.toPx())
+        )
+
+        // 四角装饰
+        val cornerLength = 40.dp.toPx()
+        val cornerWidth = 6.dp.toPx()
+
+        // 左上角
+        drawLine(
+            color = Color.White,
+            start = Offset(left, top + cornerLength),
+            end = Offset(left, top),
+            strokeWidth = cornerWidth
+        )
+        drawLine(
+            color = Color.White,
+            start = Offset(left, top),
+            end = Offset(left + cornerLength, top),
+            strokeWidth = cornerWidth
+        )
+
+        // 右上角
+        drawLine(
+            color = Color.White,
+            start = Offset(left + overlaySize - cornerLength, top),
+            end = Offset(left + overlaySize, top),
+            strokeWidth = cornerWidth
+        )
+        drawLine(
+            color = Color.White,
+            start = Offset(left + overlaySize, top),
+            end = Offset(left + overlaySize, top + cornerLength),
+            strokeWidth = cornerWidth
+        )
+
+        // 左下角
+        drawLine(
+            color = Color.White,
+            start = Offset(left, top + overlaySize - cornerLength),
+            end = Offset(left, top + overlaySize),
+            strokeWidth = cornerWidth
+        )
+        drawLine(
+            color = Color.White,
+            start = Offset(left, top + overlaySize),
+            end = Offset(left + cornerLength, top + overlaySize),
+            strokeWidth = cornerWidth
+        )
+
+        // 右下角
+        drawLine(
+            color = Color.White,
+            start = Offset(left + overlaySize - cornerLength, top + overlaySize),
+            end = Offset(left + overlaySize, top + overlaySize),
+            strokeWidth = cornerWidth
+        )
+        drawLine(
+            color = Color.White,
+            start = Offset(left + overlaySize, top + overlaySize - cornerLength),
+            end = Offset(left + overlaySize, top + overlaySize),
+            strokeWidth = cornerWidth
+        )
+    }
+}
+
+@Composable
+private fun ColorOSImportConfirmDialog(
+    doors: List<DoorDevice>,
+    onDismiss: () -> Unit,
+    onImport: (Boolean) -> Unit
+) {
+    var replaceAll by remember { mutableStateOf(true) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(24.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(ColorOSPrimary.copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.QrCode,
+                        contentDescription = null,
+                        tint = ColorOSPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    "发现门禁配置",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            }
+        },
+        text = {
+            Column {
+                Text(
+                    "即将导入以下 ${doors.size} 个门禁：",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // 门禁列表
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        doors.take(5).forEach { door ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(ColorOSPrimary)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = door.name,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                        if (doors.size > 5) {
+                            Text(
+                                text = "... 还有 ${doors.size - 5} 个",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "导入方式：",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // 单选按钮
+                ColorOSRadioOption(
+                    selected = replaceAll,
+                    onClick = { replaceAll = true },
+                    text = "替换全部配置"
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                ColorOSRadioOption(
+                    selected = !replaceAll,
+                    onClick = { replaceAll = false },
+                    text = "追加到现有配置"
+                )
+            }
+        },
+        confirmButton = {
+            Box(
+                modifier = Modifier
+                    .height(40.dp)
+                    .shadow(
+                        elevation = 4.dp,
+                        shape = RoundedCornerShape(12.dp),
+                        ambientColor = ColorOSGlow,
+                        spotColor = ColorOSGlow
+                    )
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(ColorOSGradientStart, ColorOSGradientEnd)
+                        )
+                    )
+                    .clickable { onImport(replaceAll) },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "确认导入",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White,
+                    modifier = Modifier.padding(horizontal = 20.dp)
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    "取消",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+    )
+}
+
+@Composable
+private fun ColorOSRadioOption(
+    selected: Boolean,
+    onClick: () -> Unit,
+    text: String
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(
+                if (selected) 
+                    ColorOSPrimary.copy(alpha = 0.1f) 
+                else 
+                    Color.Transparent
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = null,
+            colors = RadioButtonDefaults.colors(
+                selectedColor = ColorOSPrimary
+            )
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (selected) 
+                MaterialTheme.colorScheme.onSurface 
+            else 
+                MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun ColorOSLoadingState() {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        CircularProgressIndicator(
+            color = ColorOSPrimary,
+            modifier = Modifier.size(48.dp)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "正在处理...",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
 @Composable
 private fun CameraPreview(onQrCodeDetected: (String) -> Unit) {
-
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
     AndroidView(
         factory = { ctx ->
             val previewView = PreviewView(ctx)
-
             val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
 
             cameraProviderFuture.addListener({
@@ -248,14 +645,12 @@ private fun processImageProxy(
     imageProxy: androidx.camera.core.ImageProxy,
     onQrCodeDetected: (String) -> Unit
 ) {
-
     val mediaImage = imageProxy.image ?: run {
         imageProxy.close()
         return
     }
 
     val inputImage = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
-
     val scanner = BarcodeScanning.getClient()
 
     scanner.process(inputImage)
@@ -276,113 +671,11 @@ private fun processImageProxy(
         }
 }
 
-@Composable
-private fun QrScannerOverlay() {
-
-    val primaryColor = MaterialTheme.colorScheme.primary
-
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        val canvasWidth = size.width
-        val canvasHeight = size.height
-
-        val overlaySize = minOf(canvasWidth, canvasHeight) * 0.7f
-        val left = (canvasWidth - overlaySize) / 2
-        val top = (canvasHeight - overlaySize) / 2
-
-        drawRect(
-            color = Color.Black.copy(alpha = 0.6f),
-            size = Size(canvasWidth, canvasHeight)
-        )
-
-        drawRoundRect(
-            color = Color.Transparent,
-            topLeft = Offset(left, top),
-            size = Size(overlaySize, overlaySize),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(16.dp.toPx()),
-            blendMode = androidx.compose.ui.graphics.BlendMode.Clear
-        )
-
-        drawRect(
-            color = primaryColor,
-            topLeft = Offset(left, top),
-            size = Size(overlaySize, overlaySize),
-            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
-        )
-    }
-}
-
-@Composable
-private fun ImportConfirmDialog(
-    doors: List<DoorDevice>,
-    onDismiss: () -> Unit,
-    onImport: (Boolean) -> Unit
-) {
-
-    var replaceAll by remember { mutableStateOf(true) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("发现门禁配置") },
-        text = {
-            Column {
-                Text("即将导入以下门禁：")
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                doors.forEach { door ->
-                    Text(
-                        text = "• ${door.name} (${door.mac.takeIf { it.isNotEmpty() } ?: "未配置 MAC"})",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(text = "导入方式：")
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    RadioButton(
-                        selected = replaceAll,
-                        onClick = { replaceAll = true }
-                    )
-                    Text("替换全部配置")
-                }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    RadioButton(
-                        selected = !replaceAll,
-                        onClick = { replaceAll = false }
-                    )
-                    Text("追加到现有配置")
-                }
-            }
-        },
-        confirmButton = {
-            Button(onClick = { onImport(replaceAll) }) {
-                Text("确认导入")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("取消")
-            }
-        }
-    )
-}
-
-/**
- * 导入门禁配置（ID 类型已改为 String）
- */
 private fun importDoors(newDoors: List<DoorDevice>, replaceAll: Boolean) {
     if (replaceAll) {
         DataRepo.saveDoors(newDoors)
     } else {
         val existingDoors = DataRepo.getDoors().toMutableList()
-        // 使用 UUID 生成新的唯一 ID
         val renumberedDoors = newDoors.map { door ->
             door.copy(id = UUID.randomUUID().toString())
         }

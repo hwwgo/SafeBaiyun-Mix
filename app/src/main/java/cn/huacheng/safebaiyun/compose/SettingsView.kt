@@ -1,52 +1,31 @@
 package cn.huacheng.safebaiyun.compose
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Restore
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import cn.huacheng.safebaiyun.theme.*
 import cn.huacheng.safebaiyun.util.ConfigManager
 import cn.huacheng.safebaiyun.util.showToast
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsView(navController: NavController) {
-    val context = LocalContext.current
-
     var unlockTimeout by remember { mutableStateOf(ConfigManager.getUnlockTimeout().toString()) }
     var pollInterval by remember { mutableStateOf(ConfigManager.getPollInterval().toString()) }
     var resultDelay by remember { mutableStateOf(ConfigManager.getResultDelay().toString()) }
@@ -55,202 +34,362 @@ fun SettingsView(navController: NavController) {
     var pollWaitTime by remember { mutableStateOf(ConfigManager.getPollWaitTime().toString()) }
     var hasChanges by remember { mutableStateOf(false) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("⚙️ 设置", fontWeight = FontWeight.Bold, fontSize = 20.sp) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
+    // ColorOS 16 渐变背景
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.background,
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                    )
+                )
+            )
+    ) {
+        Column {
+            // ColorOS 16 顶部栏
+            ColorOSSettingsTopBar(
+                onBack = { navController.popBackStack() },
+                onRestore = {
+                    ConfigManager.resetToDefaults()
+                    unlockTimeout = ConfigManager.getDefaultUnlockTimeout().toString()
+                    pollInterval = ConfigManager.getDefaultPollInterval().toString()
+                    resultDelay = ConfigManager.getDefaultResultDelay().toString()
+                    resetDelay = ConfigManager.getDefaultResetDelay().toString()
+                    autoPoll = ConfigManager.getDefaultAutoPoll()
+                    pollWaitTime = ConfigManager.getDefaultPollWaitTime().toString()
+                    hasChanges = false
+                    showToast("已恢复默认设置")
+                }
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // 说明卡片
+                ColorOSInfoCard()
+
+                // 自动轮询开关
+                ColorOSAutoPollCard(
+                    autoPoll = autoPoll,
+                    onToggle = {
+                        autoPoll = it
+                        hasChanges = true
                     }
-                },
-                actions = {
-                    IconButton(
-                        onClick = {
-                            ConfigManager.resetToDefaults()
-                            unlockTimeout = ConfigManager.getDefaultUnlockTimeout().toString()
-                            pollInterval = ConfigManager.getDefaultPollInterval().toString()
-                            resultDelay = ConfigManager.getDefaultResultDelay().toString()
-                            resetDelay = ConfigManager.getDefaultResetDelay().toString()
-                            autoPoll = ConfigManager.getDefaultAutoPoll()
-                            pollWaitTime = ConfigManager.getDefaultPollWaitTime().toString()
+                )
+
+                // 配置项
+                ColorOSConfigItem(
+                    label = "轮询等待时间",
+                    description = "自动轮询时等待蓝牙开启的最长时间",
+                    value = pollWaitTime,
+                    onValueChange = {
+                        pollWaitTime = it
+                        hasChanges = true
+                    },
+                    defaultValue = ConfigManager.getDefaultPollWaitTime().toString(),
+                    unit = "毫秒"
+                )
+
+                ColorOSConfigItem(
+                    label = "单次开锁超时",
+                    description = "单次开锁允许的最大时间，超时则判定失败",
+                    value = unlockTimeout,
+                    onValueChange = {
+                        unlockTimeout = it
+                        hasChanges = true
+                    },
+                    defaultValue = ConfigManager.getDefaultUnlockTimeout().toString(),
+                    unit = "毫秒"
+                )
+
+                ColorOSConfigItem(
+                    label = "轮询间隔",
+                    description = "轮询时，尝试两个门禁之间的等待时间",
+                    value = pollInterval,
+                    onValueChange = {
+                        pollInterval = it
+                        hasChanges = true
+                    },
+                    defaultValue = ConfigManager.getDefaultPollInterval().toString(),
+                    unit = "毫秒"
+                )
+
+                ColorOSConfigItem(
+                    label = "结果展示延迟",
+                    description = "开锁完成后，显示成功/失败图标的时间",
+                    value = resultDelay,
+                    onValueChange = {
+                        resultDelay = it
+                        hasChanges = true
+                    },
+                    defaultValue = ConfigManager.getDefaultResultDelay().toString(),
+                    unit = "毫秒"
+                )
+
+                ColorOSConfigItem(
+                    label = "状态复位延迟",
+                    description = "显示开锁结果后，自动复位到空闲状态的时间",
+                    value = resetDelay,
+                    onValueChange = {
+                        resetDelay = it
+                        hasChanges = true
+                    },
+                    defaultValue = ConfigManager.getDefaultResetDelay().toString(),
+                    unit = "毫秒"
+                )
+
+                // 保存按钮
+                ColorOSSaveButton(
+                    hasChanges = hasChanges,
+                    onClick = {
+                        try {
+                            val timeout = unlockTimeout.toLong()
+                            val interval = pollInterval.toLong()
+                            val result = resultDelay.toLong()
+                            val reset = resetDelay.toLong()
+                            val wait = pollWaitTime.toLong()
+                            if (timeout < 1000 || interval < 100 || result < 100 || reset < 100 || wait < 100) {
+                                showToast("数值不能小于 100ms")
+                                return@ColorOSSaveButton
+                            }
+                            ConfigManager.setUnlockTimeout(timeout)
+                            ConfigManager.setPollInterval(interval)
+                            ConfigManager.setResultDelay(result)
+                            ConfigManager.setResetDelay(reset)
+                            ConfigManager.setAutoPollOnStart(autoPoll)
+                            ConfigManager.setPollWaitTime(wait)
                             hasChanges = false
-                            showToast("已恢复默认设置")
+                            showToast("✅ 设置已保存")
+                        } catch (e: NumberFormatException) {
+                            showToast("请输入有效的数字")
                         }
-                    ) {
-                        Icon(Icons.Default.Restore, contentDescription = "恢复默认")
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
                 )
-            )
+
+                Spacer(modifier = Modifier.height(24.dp))
+            }
         }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // 说明卡片
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("⏱️ 时间参数设置", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                    Text(
-                        "调整以下参数可以优化开锁体验，数值单位为毫秒（1秒 = 1000毫秒）",
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-            }
+    }
+}
 
-            // 自动轮询开关
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Row(
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ColorOSSettingsTopBar(
+    onBack: () -> Unit,
+    onRestore: () -> Unit
+) {
+    TopAppBar(
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .size(36.dp)
+                        .shadow(4.dp, RoundedCornerShape(10.dp))
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(ColorOSGradientStart, ColorOSGradientEnd)
+                            ),
+                            shape = RoundedCornerShape(10.dp)
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Column {
-                        Text(
-                            text = "🔄 打开软件自动轮询",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "启动应用后自动执行一键轮询",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
-                        checked = autoPoll,
-                        onCheckedChange = {
-                            autoPoll = it
-                            hasChanges = true
-                        }
+                    Icon(
+                        Icons.Default.Settings,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    "设置",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 22.sp,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
             }
-
-            // 配置项：轮询等待时间（新增）
-            ConfigItem(
-                label = "轮询等待时间",
-                description = "自动轮询时等待蓝牙开启的最长时间",
-                value = pollWaitTime,
-                onValueChange = {
-                    pollWaitTime = it
-                    hasChanges = true
-                },
-                defaultValue = ConfigManager.getDefaultPollWaitTime().toString(),
-                unit = "毫秒"
-            )
-
-            // 配置项：单次开锁超时
-            ConfigItem(
-                label = "单次开锁超时",
-                description = "单次开锁允许的最大时间，超时则判定失败",
-                value = unlockTimeout,
-                onValueChange = {
-                    unlockTimeout = it
-                    hasChanges = true
-                },
-                defaultValue = ConfigManager.getDefaultUnlockTimeout().toString(),
-                unit = "毫秒"
-            )
-
-            // 配置项：轮询间隔
-            ConfigItem(
-                label = "轮询间隔",
-                description = "轮询时，尝试两个门禁之间的等待时间",
-                value = pollInterval,
-                onValueChange = {
-                    pollInterval = it
-                    hasChanges = true
-                },
-                defaultValue = ConfigManager.getDefaultPollInterval().toString(),
-                unit = "毫秒"
-            )
-
-            // 配置项：结果展示延迟
-            ConfigItem(
-                label = "结果展示延迟",
-                description = "开锁完成后，显示成功/失败图标的时间",
-                value = resultDelay,
-                onValueChange = {
-                    resultDelay = it
-                    hasChanges = true
-                },
-                defaultValue = ConfigManager.getDefaultResultDelay().toString(),
-                unit = "毫秒"
-            )
-
-            // 配置项：状态复位延迟
-            ConfigItem(
-                label = "状态复位延迟",
-                description = "显示开锁结果后，自动复位到空闲状态的时间",
-                value = resetDelay,
-                onValueChange = {
-                    resetDelay = it
-                    hasChanges = true
-                },
-                defaultValue = ConfigManager.getDefaultResetDelay().toString(),
-                unit = "毫秒"
-            )
-
-            // 保存按钮
-            Button(
-                onClick = {
-                    try {
-                        val timeout = unlockTimeout.toLong()
-                        val interval = pollInterval.toLong()
-                        val result = resultDelay.toLong()
-                        val reset = resetDelay.toLong()
-                        val wait = pollWaitTime.toLong()
-                        if (timeout < 1000 || interval < 100 || result < 100 || reset < 100 || wait < 100) {
-                            showToast("数值不能小于 100ms")
-                            return@Button
-                        }
-                        ConfigManager.setUnlockTimeout(timeout)
-                        ConfigManager.setPollInterval(interval)
-                        ConfigManager.setResultDelay(result)
-                        ConfigManager.setResetDelay(reset)
-                        ConfigManager.setAutoPollOnStart(autoPoll)
-                        ConfigManager.setPollWaitTime(wait)
-                        hasChanges = false
-                        showToast("✅ 设置已保存")
-                    } catch (e: NumberFormatException) {
-                        showToast("请输入有效的数字")
-                    }
-                },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                enabled = hasChanges
+        },
+        navigationIcon = {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
             ) {
-                Text(if (hasChanges) "💾 保存设置" else "设置已保存", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Icon(
+                    Icons.Default.ArrowBack,
+                    contentDescription = "返回",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        },
+        actions = {
+            IconButton(
+                onClick = onRestore,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            ) {
+                Icon(
+                    Icons.Default.Restore,
+                    contentDescription = "恢复默认",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = Color.Transparent
+        )
+    )
+}
+
+@Composable
+private fun ColorOSInfoCard() {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(
+                elevation = 4.dp,
+                shape = RoundedCornerShape(20.dp),
+                ambientColor = ColorOSGlow,
+                spotColor = ColorOSGlow
+            ),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(ColorOSGradientStart, ColorOSGradientEnd)
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.Info,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column {
+                Text(
+                    "时间参数设置",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "调整以下参数可以优化开锁体验，数值单位为毫秒（1秒 = 1000毫秒）",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun ConfigItem(
+private fun ColorOSAutoPollCard(
+    autoPoll: Boolean,
+    onToggle: (Boolean) -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(
+                elevation = 3.dp,
+                shape = RoundedCornerShape(20.dp),
+                ambientColor = ColorOSGlow.copy(alpha = 0.3f),
+                spotColor = ColorOSGlow.copy(alpha = 0.3f)
+            ),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(ColorOSPrimary.copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Refresh,
+                        contentDescription = null,
+                        tint = ColorOSPrimary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column {
+                    Text(
+                        text = "打开软件自动轮询",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "启动应用后自动执行一键轮询",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Switch(
+                checked = autoPoll,
+                onCheckedChange = onToggle,
+                colors = SwitchDefaults.colors(
+                    checkedTrackColor = ColorOSPrimary,
+                    checkedThumbColor = Color.White
+                )
+            )
+        }
+    }
+}
+
+@Composable
+private fun ColorOSConfigItem(
     label: String,
     description: String,
     value: String,
@@ -259,24 +398,60 @@ private fun ConfigItem(
     unit: String
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(
+                elevation = 3.dp,
+                shape = RoundedCornerShape(20.dp),
+                ambientColor = ColorOSGlow.copy(alpha = 0.3f),
+                spotColor = ColorOSGlow.copy(alpha = 0.3f)
+            ),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(ColorOSSecondary.copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Timer,
+                        contentDescription = null,
+                        tint = ColorOSSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(label, fontSize = 16.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
-                    Text(description, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        label,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        description,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedTextField(
@@ -285,11 +460,69 @@ private fun ConfigItem(
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                     label = { Text("数值") },
-                    trailingIcon = { Text(unit, fontSize = 12.sp) }
+                    trailingIcon = { 
+                        Text(
+                            unit,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ColorOSPrimary,
+                        focusedLabelColor = ColorOSPrimary,
+                        cursorColor = ColorOSPrimary
+                    )
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("默认: $defaultValue", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    "默认: $defaultValue",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.outline
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun ColorOSSaveButton(
+    hasChanges: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(52.dp)
+            .shadow(
+                elevation = if (hasChanges) 8.dp else 2.dp,
+                shape = RoundedCornerShape(16.dp),
+                ambientColor = if (hasChanges) ColorOSGlow else ColorOSGlow.copy(alpha = 0.3f),
+                spotColor = if (hasChanges) ColorOSGlow else ColorOSGlow.copy(alpha = 0.3f)
+            )
+            .clip(RoundedCornerShape(16.dp))
+            .background(
+                brush = if (hasChanges) {
+                    Brush.horizontalGradient(
+                        colors = listOf(ColorOSGradientStart, ColorOSGradientEnd)
+                    )
+                } else {
+                    Brush.horizontalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.surfaceVariant,
+                            MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    )
+                }
+            )
+            .clickable(enabled = hasChanges) { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = if (hasChanges) "保存设置" else "设置已保存",
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = if (hasChanges) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }

@@ -3,55 +3,37 @@ package cn.huacheng.safebaiyun.compose
 import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
+import cn.huacheng.safebaiyun.theme.*
 import cn.huacheng.safebaiyun.unlock.DataRepo
 import cn.huacheng.safebaiyun.util.QRCodeUtils
 import cn.huacheng.safebaiyun.util.showToast
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun QRExportView(navController: androidx.navigation.NavHostController) {
-
+fun QRExportView(navController: NavHostController) {
     val context = LocalContext.current
 
-    var qrBitmap by remember {
-        mutableStateOf<android.graphics.Bitmap?>(null)
-    }
-
+    var qrBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var showSavedMessage by remember { mutableStateOf(false) }
-
     val doors = remember { DataRepo.getDoors() }
 
     LaunchedEffect(doors) {
@@ -66,104 +48,292 @@ fun QRExportView(navController: androidx.navigation.NavHostController) {
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("导出配置") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
-                    }
-                }
+    // ColorOS 16 渐变背景
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.background,
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                    )
+                )
             )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            if (qrBitmap != null) {
-                Image(
-                    bitmap = qrBitmap!!.asImageBitmap(),
-                    contentDescription = "门禁配置二维码",
-                    modifier = Modifier.size(300.dp)
-                )
+    ) {
+        Column {
+            // ColorOS 16 顶部栏
+            ColorOSQRTopBar(
+                title = "导出配置",
+                onBack = { navController.popBackStack() }
+            )
 
-                Spacer(modifier = Modifier.height(16.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                when {
+                    qrBitmap != null -> {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            // ColorOS 16 二维码卡片
+                            ColorOSQRCard(qrBitmap!!)
 
-                Text(
-                    text = "已配置 ${doors.size} 个门禁",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                            Spacer(modifier = Modifier.height(24.dp))
 
-                Spacer(modifier = Modifier.height(8.dp))
+                            // 信息文本
+                            Text(
+                                text = "已配置 ${doors.size} 个门禁",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
 
-                Text(
-                    text = "请在新设备上打开应用扫描此二维码",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.outline
-                )
+                            Spacer(modifier = Modifier.height(8.dp))
 
-                Spacer(modifier = Modifier.height(24.dp))
+                            Text(
+                                text = "请在新设备上打开应用扫描此二维码",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    Button(onClick = {
-                        qrBitmap?.let { bitmap ->
-                            if (QRCodeUtils.saveQRCodeToGallery(context, bitmap)) {
-                                showToast("已保存到相册")
-                            } else {
-                                showToast("保存失败")
+                            Spacer(modifier = Modifier.height(32.dp))
+
+                            // 操作按钮
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceEvenly
+                            ) {
+                                ColorOSActionButton(
+                                    onClick = {
+                                        qrBitmap?.let { bitmap ->
+                                            if (QRCodeUtils.saveQRCodeToGallery(context, bitmap)) {
+                                                showToast("已保存到相册")
+                                                showSavedMessage = true
+                                            } else {
+                                                showToast("保存失败")
+                                            }
+                                        }
+                                    },
+                                    icon = Icons.Default.Download,
+                                    text = "保存到相册",
+                                    modifier = Modifier.weight(1f)
+                                )
+
+                                Spacer(modifier = Modifier.width(16.dp))
+
+                                ColorOSActionButton(
+                                    onClick = {
+                                        qrBitmap?.let { bitmap ->
+                                            shareQRCode(context, bitmap)
+                                        }
+                                    },
+                                    icon = Icons.Default.Share,
+                                    text = "分享",
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+
+                            if (showSavedMessage) {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = ColorOSSuccess,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "已保存到相册",
+                                        color = ColorOSSuccess,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
                             }
                         }
-                    }) {
-                        Icon(Icons.Default.CloudDownload, contentDescription = null)
-                        Spacer(modifier = Modifier.size(4.dp))
-                        Text("保存到相册")
                     }
-
-                    Button(onClick = {
-                        qrBitmap?.let { bitmap ->
-                            shareQRCode(context, bitmap)
-                        }
-                    }) {
-                        Icon(Icons.Default.Share, contentDescription = null)
-                        Spacer(modifier = Modifier.size(4.dp))
-                        Text("分享")
+                    doors.isEmpty() -> {
+                        ColorOSEmptyState(
+                            icon = Icons.Default.QrCode,
+                            message = "暂无门禁配置，请先添加门禁"
+                        )
                     }
-                }
-
-                if (showSavedMessage) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "✓ 已保存到相册",
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            } else if (doors.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("暂无门禁配置，请先添加门禁")
-                }
-            } else {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("正在生成二维码...")
+                    else -> {
+                        ColorOSLoadingState()
+                    }
                 }
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ColorOSQRTopBar(
+    title: String,
+    onBack: () -> Unit
+) {
+    TopAppBar(
+        title = {
+            Text(
+                title,
+                fontWeight = FontWeight.Bold,
+                fontSize = 22.sp,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+        },
+        navigationIcon = {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            ) {
+                Icon(
+                    Icons.Default.ArrowBack,
+                    contentDescription = "返回",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = Color.Transparent
+        )
+    )
+}
+
+@Composable
+private fun ColorOSQRCard(bitmap: android.graphics.Bitmap) {
+    Card(
+        modifier = Modifier
+            .size(280.dp)
+            .shadow(
+                elevation = 8.dp,
+                shape = RoundedCornerShape(24.dp),
+                ambientColor = ColorOSGlow,
+                spotColor = ColorOSGlow
+            ),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(20.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = "门禁配置二维码",
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+    }
+}
+
+@Composable
+private fun ColorOSActionButton(
+    onClick: () -> Unit,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .height(48.dp)
+            .shadow(
+                elevation = 4.dp,
+                shape = RoundedCornerShape(14.dp),
+                ambientColor = ColorOSGlow,
+                spotColor = ColorOSGlow
+            )
+            .clip(RoundedCornerShape(14.dp))
+            .background(
+                brush = Brush.horizontalGradient(
+                    colors = listOf(ColorOSGradientStart, ColorOSGradientEnd)
+                )
+            )
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = text,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White
+            )
+        }
+    }
+}
+
+@Composable
+private fun ColorOSEmptyState(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    message: String
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(80.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                modifier = Modifier.size(40.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            )
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun ColorOSLoadingState() {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        CircularProgressIndicator(
+            color = ColorOSPrimary,
+            modifier = Modifier.size(48.dp)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "正在生成二维码...",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
