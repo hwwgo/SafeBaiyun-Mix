@@ -446,6 +446,9 @@ private fun DoorCard(
                     }
                 }
                 Spacer(modifier = Modifier.height(2.dp))
+                // ============================================================
+                //  开锁按钮：更大（100dp x 40dp）+ 黑色文字
+                // ============================================================
                 Button(
                     onClick = {
                         if (door.mac.isEmpty() || door.key.isEmpty()) {
@@ -474,10 +477,10 @@ private fun DoorCard(
                         }
                     },
                     enabled = !isUnlocking,
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(24.dp),
                     modifier = Modifier
-                        .height(34.dp)
-                        .width(88.dp),
+                        .height(40.dp)
+                        .width(100.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = when {
                             isUnlocking -> MaterialTheme.colorScheme.primary
@@ -485,14 +488,14 @@ private fun DoorCard(
                             unlockStep.contains("失败") || unlockStep.contains("超时") -> Color(0xFFF44336)
                             else -> MaterialTheme.colorScheme.primary
                         },
-                        contentColor = Color.White
+                        contentColor = Color.Black
                     )
                 ) {
                     when {
-                        isUnlocking -> CircularProgressIndicator(modifier = Modifier.size(14.dp), color = Color.White, strokeWidth = 2.dp)
-                        unlockStep.contains("成功") -> Text("✅", fontSize = 14.sp)
-                        unlockStep.contains("失败") || unlockStep.contains("超时") -> Text("❌", fontSize = 14.sp)
-                        else -> Text("开锁", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        isUnlocking -> CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.Black, strokeWidth = 2.dp)
+                        unlockStep.contains("成功") -> Text("✅", fontSize = 16.sp)
+                        unlockStep.contains("失败") || unlockStep.contains("超时") -> Text("❌", fontSize = 16.sp)
+                        else -> Text("开锁", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                     }
                 }
             }
