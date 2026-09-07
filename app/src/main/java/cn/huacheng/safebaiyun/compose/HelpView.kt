@@ -130,9 +130,9 @@ private fun ColorOSShortcutHelper() {
         icon = Icons.Default.Add,
         title = "快捷方式",
         content = {
-            // 修复：使用字符串拼接避免引号问题
+            // 修复：完全避免在字符串中使用引号
             Text(
-                text = "快捷方式在桌面上跟普通App长的差不多，使用快捷方式开门只需点击图标即可。在大部分国产系统如OPPO, MIUI上需要手动授予" + "\" + "创建桌面快捷方式" + "\" + "权限。",
+                text = "快捷方式在桌面上跟普通App长的差不多，使用快捷方式开门只需点击图标即可。在大部分国产系统如OPPO, MIUI上需要手动授予【创建桌面快捷方式】权限。",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 lineHeight = 22.sp
@@ -168,9 +168,9 @@ private fun ColorOSWidgetHelper() {
         icon = Icons.Default.Home,
         title = "桌面小部件",
         content = {
-            // 修复：使用字符串拼接避免引号问题
+            // 修复：完全避免在字符串中使用引号
             Text(
-                text = "桌面小部件类似于快捷方式，但是可以有更多的样式。本App提供了大中三种样式。可以在桌面长按空白处，然后选择" + "\" + "添加小部件" + "\" + "。",
+                text = "桌面小部件类似于快捷方式，但是可以有更多的样式。本App提供了大中三种样式。可以在桌面长按空白处，然后选择【添加小部件】。",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 lineHeight = 22.sp
