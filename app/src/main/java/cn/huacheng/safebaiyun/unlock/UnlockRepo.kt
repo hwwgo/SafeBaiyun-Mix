@@ -446,6 +446,29 @@ object UnlockRepo {
     }
 
     // ============================================================
+    //  等待蓝牙开启
+    // ============================================================
+
+    /**
+     * 等待蓝牙开启，最多等待 timeoutMs 毫秒
+     * 在 timeoutMs 时间内，一旦检测到蓝牙开启立即返回 true
+     * 超时则返回 false
+     */
+    suspend fun waitForBluetooth(timeoutMs: Long): Boolean {
+        val startTime = System.currentTimeMillis()
+        while (System.currentTimeMillis() - startTime < timeoutMs) {
+            val adapter = BluetoothAdapter.getDefaultAdapter()
+            if (adapter != null && adapter.isEnabled) {
+                return true
+            }
+            delay(200) // 每 200ms 检查一次
+        }
+        // 最后再检查一次
+        val adapter = BluetoothAdapter.getDefaultAdapter()
+        return adapter != null && adapter.isEnabled
+    }
+
+    // ============================================================
     //  日志工具
     // ============================================================
 
