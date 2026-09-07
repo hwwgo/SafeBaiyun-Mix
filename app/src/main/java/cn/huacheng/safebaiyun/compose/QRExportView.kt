@@ -14,10 +14,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -49,7 +49,6 @@ fun QRExportView(navController: NavHostController) {
         }
     }
 
-    // ColorOS 16 渐变背景
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -63,11 +62,7 @@ fun QRExportView(navController: NavHostController) {
             )
     ) {
         Column {
-            // ColorOS 16 顶部栏
-            ColorOSQRTopBar(
-                title = "导出配置",
-                onBack = { navController.popBackStack() }
-            )
+            QRExportTopBar(onBack = { navController.popBackStack() })
 
             Box(
                 modifier = Modifier
@@ -80,12 +75,11 @@ fun QRExportView(navController: NavHostController) {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            // ColorOS 16 二维码卡片
-                            ColorOSQRCard(qrBitmap!!)
+                            // 修复：去掉阴影
+                            QRCard(qrBitmap!!)
 
                             Spacer(modifier = Modifier.height(24.dp))
 
-                            // 信息文本
                             Text(
                                 text = "已配置 ${doors.size} 个门禁",
                                 style = MaterialTheme.typography.titleMedium,
@@ -103,12 +97,11 @@ fun QRExportView(navController: NavHostController) {
 
                             Spacer(modifier = Modifier.height(32.dp))
 
-                            // 操作按钮
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceEvenly
                             ) {
-                                ColorOSActionButton(
+                                ActionButton(
                                     onClick = {
                                         qrBitmap?.let { bitmap ->
                                             if (QRCodeUtils.saveQRCodeToGallery(context, bitmap)) {
@@ -126,7 +119,7 @@ fun QRExportView(navController: NavHostController) {
 
                                 Spacer(modifier = Modifier.width(16.dp))
 
-                                ColorOSActionButton(
+                                ActionButton(
                                     onClick = {
                                         qrBitmap?.let { bitmap ->
                                             shareQRCode(context, bitmap)
@@ -159,13 +152,13 @@ fun QRExportView(navController: NavHostController) {
                         }
                     }
                     doors.isEmpty() -> {
-                        ColorOSEmptyState(
+                        EmptyState(
                             icon = Icons.Default.QrCode,
                             message = "暂无门禁配置，请先添加门禁"
                         )
                     }
                     else -> {
-                        ColorOSLoadingState()
+                        LoadingState()
                     }
                 }
             }
@@ -175,14 +168,11 @@ fun QRExportView(navController: NavHostController) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ColorOSQRTopBar(
-    title: String,
-    onBack: () -> Unit
-) {
+private fun QRExportTopBar(onBack: () -> Unit) {
     TopAppBar(
         title = {
             Text(
-                title,
+                "导出配置",
                 fontWeight = FontWeight.Bold,
                 fontSize = 22.sp,
                 color = MaterialTheme.colorScheme.onBackground
@@ -211,16 +201,10 @@ private fun ColorOSQRTopBar(
 }
 
 @Composable
-private fun ColorOSQRCard(bitmap: android.graphics.Bitmap) {
+private fun QRCard(bitmap: android.graphics.Bitmap) {
+    // 修复：去掉阴影
     Card(
-        modifier = Modifier
-            .size(280.dp)
-            .shadow(
-                elevation = 8.dp,
-                shape = RoundedCornerShape(24.dp),
-                ambientColor = ColorOSGlow,
-                spotColor = ColorOSGlow
-            ),
+        modifier = Modifier.size(280.dp),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
@@ -242,21 +226,16 @@ private fun ColorOSQRCard(bitmap: android.graphics.Bitmap) {
 }
 
 @Composable
-private fun ColorOSActionButton(
+private fun ActionButton(
     onClick: () -> Unit,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     text: String,
     modifier: Modifier = Modifier
 ) {
+    // 修复：去掉阴影
     Box(
         modifier = modifier
             .height(48.dp)
-            .shadow(
-                elevation = 4.dp,
-                shape = RoundedCornerShape(14.dp),
-                ambientColor = ColorOSGlow,
-                spotColor = ColorOSGlow
-            )
             .clip(RoundedCornerShape(14.dp))
             .background(
                 brush = Brush.horizontalGradient(
@@ -288,8 +267,8 @@ private fun ColorOSActionButton(
 }
 
 @Composable
-private fun ColorOSEmptyState(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+private fun EmptyState(
+    icon: ImageVector,
     message: String
 ) {
     Column(
@@ -320,7 +299,7 @@ private fun ColorOSEmptyState(
 }
 
 @Composable
-private fun ColorOSLoadingState() {
+private fun LoadingState() {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center

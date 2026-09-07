@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -38,15 +39,15 @@ fun HelpView(navController: NavController) {
             )
     ) {
         Column {
-            ColorOSHelpTopBar(onBack = { navController.popBackStack() })
+            HelpTopBar(onBack = { navController.popBackStack() })
 
             LazyColumn(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                item { ColorOSAppHelper() }
-                item { ColorOSShortcutHelper() }
-                item { ColorOSWidgetHelper() }
+                item { AppHelper() }
+                item { ShortcutHelper() }
+                item { WidgetHelper() }
                 item { Spacer(modifier = Modifier.height(32.dp)) }
             }
         }
@@ -55,10 +56,11 @@ fun HelpView(navController: NavController) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ColorOSHelpTopBar(onBack: () -> Unit) {
+private fun HelpTopBar(onBack: () -> Unit) {
     TopAppBar(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // 修复：去掉阴影
                 Box(
                     modifier = Modifier
                         .size(36.dp)
@@ -109,8 +111,8 @@ private fun ColorOSHelpTopBar(onBack: () -> Unit) {
 }
 
 @Composable
-private fun ColorOSAppHelper() {
-    ColorOSHelpCard(
+private fun AppHelper() {
+    HelpCard(
         icon = Icons.Default.Info,
         title = "关于软件",
         content = {
@@ -125,12 +127,11 @@ private fun ColorOSAppHelper() {
 }
 
 @Composable
-private fun ColorOSShortcutHelper() {
-    ColorOSHelpCard(
+private fun ShortcutHelper() {
+    HelpCard(
         icon = Icons.Default.Add,
         title = "快捷方式",
         content = {
-            // 修复：完全避免在字符串中使用引号
             Text(
                 text = "快捷方式在桌面上跟普通App长的差不多，使用快捷方式开门只需点击图标即可。在大部分国产系统如OPPO, MIUI上需要手动授予【创建桌面快捷方式】权限。",
                 style = MaterialTheme.typography.bodyMedium,
@@ -144,14 +145,14 @@ private fun ColorOSShortcutHelper() {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                ColorOSHelpButton(
+                HelpButton(
                     onClick = { WidgetHelper.createShortcut() },
                     text = "创建快捷方式",
                     icon = Icons.Default.Add,
                     modifier = Modifier.weight(1f)
                 )
 
-                ColorOSHelpButton(
+                HelpButton(
                     onClick = { WidgetHelper.requestPermission() },
                     text = "授予权限",
                     icon = Icons.Default.Check,
@@ -163,12 +164,11 @@ private fun ColorOSShortcutHelper() {
 }
 
 @Composable
-private fun ColorOSWidgetHelper() {
-    ColorOSHelpCard(
+private fun WidgetHelper() {
+    HelpCard(
         icon = Icons.Default.Home,
         title = "桌面小部件",
         content = {
-            // 修复：完全避免在字符串中使用引号
             Text(
                 text = "桌面小部件类似于快捷方式，但是可以有更多的样式。本App提供了大中三种样式。可以在桌面长按空白处，然后选择【添加小部件】。",
                 style = MaterialTheme.typography.bodyMedium,
@@ -197,11 +197,12 @@ private fun ColorOSWidgetHelper() {
 }
 
 @Composable
-private fun ColorOSHelpCard(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+private fun HelpCard(
+    icon: ImageVector,
     title: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    // 修复：去掉阴影
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -244,12 +245,13 @@ private fun ColorOSHelpCard(
 }
 
 @Composable
-private fun ColorOSHelpButton(
+private fun HelpButton(
     onClick: () -> Unit,
     text: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     modifier: Modifier = Modifier
 ) {
+    // 修复：使用 Button，去掉阴影
     Button(
         onClick = onClick,
         modifier = modifier.height(44.dp),

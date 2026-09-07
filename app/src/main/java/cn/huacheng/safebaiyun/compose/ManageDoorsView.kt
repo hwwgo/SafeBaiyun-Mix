@@ -13,7 +13,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -39,7 +38,6 @@ fun ManageDoorsView(
     val editMac = remember { mutableStateOf("") }
     val editKey = remember { mutableStateOf("") }
 
-    // ColorOS 16 渐变背景
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -53,8 +51,7 @@ fun ManageDoorsView(
             )
     ) {
         Column {
-            // ColorOS 16 顶部栏
-            ColorOSManageTopBar(
+            ManageTopBar(
                 onBack = {
                     DataRepo.saveDoors(doors.toList())
                     onSaved()
@@ -102,7 +99,7 @@ fun ManageDoorsView(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(doors, key = { it.id }) { door ->
-                        ColorOSDoorEditItem(
+                        DoorEditItem(
                             door = door,
                             isEditing = editingId == door.id,
                             editName = editName,
@@ -122,7 +119,7 @@ fun ManageDoorsView(
                                 val name = editName.value.trim()
                                 val mac = editMac.value.trim()
                                 val key = editKey.value.trim()
-                                if (name.isEmpty()) return@ColorOSDoorEditItem
+                                if (name.isEmpty()) return@DoorEditItem
 
                                 val index = doors.indexOfFirst { it.id == door.id }
                                 if (index >= 0) {
@@ -143,8 +140,7 @@ fun ManageDoorsView(
                     }
                 }
 
-                // ColorOS 16 添加按钮
-                ColorOSAddButton(
+                AddButton(
                     onClick = {
                         val newId = UUID.randomUUID().toString()
                         val newName = "门禁${doors.size + 1}"
@@ -170,7 +166,7 @@ fun ManageDoorsView(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ColorOSManageTopBar(
+private fun ManageTopBar(
     onBack: () -> Unit,
     onSave: () -> Unit
 ) {
@@ -216,17 +212,12 @@ private fun ColorOSManageTopBar(
 }
 
 @Composable
-private fun ColorOSAddButton(onClick: () -> Unit) {
+private fun AddButton(onClick: () -> Unit) {
+    // 修复：去掉阴影
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(52.dp)
-            .shadow(
-                elevation = 6.dp,
-                shape = RoundedCornerShape(16.dp),
-                ambientColor = ColorOSGlow,
-                spotColor = ColorOSGlow
-            )
             .clip(RoundedCornerShape(16.dp))
             .background(
                 brush = Brush.horizontalGradient(
@@ -258,7 +249,7 @@ private fun ColorOSAddButton(onClick: () -> Unit) {
 }
 
 @Composable
-private fun ColorOSDoorEditItem(
+private fun DoorEditItem(
     door: DoorDevice,
     isEditing: Boolean,
     editName: MutableState<String>,
@@ -272,30 +263,28 @@ private fun ColorOSDoorEditItem(
         .padding(vertical = 4.dp)
         .fillMaxWidth()
 
-    // ColorOS 16 毛玻璃卡片
+    // 修复：去掉阴影，使用边框区分编辑状态
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(
-                elevation = if (isEditing) 6.dp else 3.dp,
-                shape = RoundedCornerShape(20.dp),
-                ambientColor = if (isEditing) ColorOSGlow else ColorOSGlow.copy(alpha = 0.3f),
-                spotColor = if (isEditing) ColorOSGlow else ColorOSGlow.copy(alpha = 0.3f)
-            ),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isEditing)
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
             else
                 MaterialTheme.colorScheme.surface
-        )
+        ),
+        border = if (isEditing) {
+            androidx.compose.foundation.BorderStroke(
+                1.dp,
+                ColorOSPrimary.copy(alpha = 0.3f)
+            )
+        } else null
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // 门禁图标
                 Box(
                     modifier = Modifier
                         .size(40.dp)
@@ -371,14 +360,14 @@ private fun ColorOSDoorEditItem(
             if (isEditing) {
                 Spacer(modifier = Modifier.height(12.dp))
 
-                ColorOSTextField(
+                CleanTextField(
                     value = editName.value,
                     onValueChange = { editName.value = it },
                     label = "名称",
                     modifier = fieldModifier
                 )
 
-                ColorOSTextField(
+                CleanTextField(
                     value = editMac.value,
                     onValueChange = { editMac.value = it },
                     label = "MAC 地址",
@@ -386,7 +375,7 @@ private fun ColorOSDoorEditItem(
                     modifier = fieldModifier
                 )
 
-                ColorOSTextField(
+                CleanTextField(
                     value = editKey.value,
                     onValueChange = { editKey.value = it },
                     label = "加密 Key",
@@ -398,7 +387,7 @@ private fun ColorOSDoorEditItem(
 }
 
 @Composable
-private fun ColorOSTextField(
+private fun CleanTextField(
     value: String,
     onValueChange: (String) -> Unit,
     label: String,

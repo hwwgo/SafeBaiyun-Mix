@@ -21,12 +21,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
@@ -90,10 +90,7 @@ fun QRImportView(navController: NavHostController) {
             )
     ) {
         Column {
-            // ColorOS 16 顶部栏
-            ColorOSImportTopBar(
-                onBack = { navController.popBackStack() }
-            )
+            QRImportTopBar(onBack = { navController.popBackStack() })
 
             Box(
                 modifier = Modifier
@@ -101,7 +98,7 @@ fun QRImportView(navController: NavHostController) {
             ) {
                 when {
                     showConfirmDialog && importedDoors != null -> {
-                        ColorOSImportConfirmDialog(
+                        ImportConfirmDialog(
                             doors = importedDoors!!,
                             onDismiss = {
                                 showConfirmDialog = false
@@ -119,7 +116,7 @@ fun QRImportView(navController: NavHostController) {
                         )
                     }
                     !hasCameraPermission -> {
-                        ColorOSCameraPermissionView(
+                        CameraPermissionView(
                             onRequestPermission = {
                                 cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                             }
@@ -145,10 +142,8 @@ fun QRImportView(navController: NavHostController) {
                                 }
                             )
 
-                            // ColorOS 16 扫描遮罩
-                            ColorOSScannerOverlay()
+                            ScannerOverlay()
 
-                            // 底部提示
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -177,7 +172,7 @@ fun QRImportView(navController: NavHostController) {
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            ColorOSLoadingState()
+                            LoadingState()
                         }
                     }
                 }
@@ -188,7 +183,7 @@ fun QRImportView(navController: NavHostController) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ColorOSImportTopBar(onBack: () -> Unit) {
+private fun QRImportTopBar(onBack: () -> Unit) {
     TopAppBar(
         title = {
             Text(
@@ -221,7 +216,7 @@ private fun ColorOSImportTopBar(onBack: () -> Unit) {
 }
 
 @Composable
-private fun ColorOSCameraPermissionView(onRequestPermission: () -> Unit) {
+private fun CameraPermissionView(onRequestPermission: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -263,15 +258,10 @@ private fun ColorOSCameraPermissionView(onRequestPermission: () -> Unit) {
 
         Spacer(modifier = Modifier.height(32.dp))
 
+        // 修复：去掉阴影
         Box(
             modifier = Modifier
                 .height(48.dp)
-                .shadow(
-                    elevation = 6.dp,
-                    shape = RoundedCornerShape(14.dp),
-                    ambientColor = ColorOSGlow,
-                    spotColor = ColorOSGlow
-                )
                 .clip(RoundedCornerShape(14.dp))
                 .background(
                     brush = Brush.horizontalGradient(
@@ -293,7 +283,7 @@ private fun ColorOSCameraPermissionView(onRequestPermission: () -> Unit) {
 }
 
 @Composable
-private fun ColorOSScannerOverlay() {
+private fun ScannerOverlay() {
     val primaryColor = ColorOSPrimary
 
     Canvas(modifier = Modifier.fillMaxSize()) {
@@ -304,13 +294,11 @@ private fun ColorOSScannerOverlay() {
         val left = (canvasWidth - overlaySize) / 2
         val top = (canvasHeight - overlaySize) / 2
 
-        // 半透明遮罩
         drawRect(
             color = Color.Black.copy(alpha = 0.5f),
             size = Size(canvasWidth, canvasHeight)
         )
 
-        // 透明扫描区域
         drawRoundRect(
             color = Color.Transparent,
             topLeft = Offset(left, top),
@@ -319,7 +307,6 @@ private fun ColorOSScannerOverlay() {
             blendMode = androidx.compose.ui.graphics.BlendMode.Clear
         )
 
-        // ColorOS 16 风格边框
         drawRoundRect(
             color = primaryColor,
             topLeft = Offset(left, top),
@@ -328,11 +315,9 @@ private fun ColorOSScannerOverlay() {
             style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.dp.toPx())
         )
 
-        // 四角装饰
         val cornerLength = 40.dp.toPx()
         val cornerWidth = 6.dp.toPx()
 
-        // 左上角
         drawLine(
             color = Color.White,
             start = Offset(left, top + cornerLength),
@@ -346,7 +331,6 @@ private fun ColorOSScannerOverlay() {
             strokeWidth = cornerWidth
         )
 
-        // 右上角
         drawLine(
             color = Color.White,
             start = Offset(left + overlaySize - cornerLength, top),
@@ -360,7 +344,6 @@ private fun ColorOSScannerOverlay() {
             strokeWidth = cornerWidth
         )
 
-        // 左下角
         drawLine(
             color = Color.White,
             start = Offset(left, top + overlaySize - cornerLength),
@@ -374,7 +357,6 @@ private fun ColorOSScannerOverlay() {
             strokeWidth = cornerWidth
         )
 
-        // 右下角
         drawLine(
             color = Color.White,
             start = Offset(left + overlaySize - cornerLength, top + overlaySize),
@@ -391,7 +373,7 @@ private fun ColorOSScannerOverlay() {
 }
 
 @Composable
-private fun ColorOSImportConfirmDialog(
+private fun ImportConfirmDialog(
     doors: List<DoorDevice>,
     onDismiss: () -> Unit,
     onImport: (Boolean) -> Unit
@@ -435,7 +417,6 @@ private fun ColorOSImportConfirmDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // 门禁列表
                 Card(
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(
@@ -483,8 +464,7 @@ private fun ColorOSImportConfirmDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // 单选按钮
-                ColorOSRadioOption(
+                RadioOption(
                     selected = replaceAll,
                     onClick = { replaceAll = true },
                     text = "替换全部配置"
@@ -492,7 +472,7 @@ private fun ColorOSImportConfirmDialog(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                ColorOSRadioOption(
+                RadioOption(
                     selected = !replaceAll,
                     onClick = { replaceAll = false },
                     text = "追加到现有配置"
@@ -500,30 +480,19 @@ private fun ColorOSImportConfirmDialog(
             }
         },
         confirmButton = {
-            Box(
-                modifier = Modifier
-                    .height(40.dp)
-                    .shadow(
-                        elevation = 4.dp,
-                        shape = RoundedCornerShape(12.dp),
-                        ambientColor = ColorOSGlow,
-                        spotColor = ColorOSGlow
-                    )
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(
-                        brush = Brush.horizontalGradient(
-                            colors = listOf(ColorOSGradientStart, ColorOSGradientEnd)
-                        )
-                    )
-                    .clickable { onImport(replaceAll) },
-                contentAlignment = Alignment.Center
+            // 修复：去掉阴影，使用 Button
+            Button(
+                onClick = { onImport(replaceAll) },
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ColorOSPrimary
+                )
             ) {
                 Text(
                     "确认导入",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color.White,
-                    modifier = Modifier.padding(horizontal = 20.dp)
+                    color = Color.White
                 )
             }
         },
@@ -540,7 +509,7 @@ private fun ColorOSImportConfirmDialog(
 }
 
 @Composable
-private fun ColorOSRadioOption(
+private fun RadioOption(
     selected: Boolean,
     onClick: () -> Unit,
     text: String
@@ -579,7 +548,7 @@ private fun ColorOSRadioOption(
 }
 
 @Composable
-private fun ColorOSLoadingState() {
+private fun LoadingState() {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center

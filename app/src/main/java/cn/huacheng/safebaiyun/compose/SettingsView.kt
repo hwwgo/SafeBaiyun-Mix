@@ -13,7 +13,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -35,7 +34,6 @@ fun SettingsView(navController: NavController) {
     var pollWaitTime by remember { mutableStateOf(ConfigManager.getPollWaitTime().toString()) }
     var hasChanges by remember { mutableStateOf(false) }
 
-    // ColorOS 16 渐变背景
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -49,8 +47,7 @@ fun SettingsView(navController: NavController) {
             )
     ) {
         Column {
-            // ColorOS 16 顶部栏
-            ColorOSSettingsTopBar(
+            SettingsTopBar(
                 onBack = { navController.popBackStack() },
                 onRestore = {
                     ConfigManager.resetToDefaults()
@@ -74,11 +71,9 @@ fun SettingsView(navController: NavController) {
             ) {
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // 说明卡片
-                ColorOSInfoCard()
+                InfoCard()
 
-                // 自动轮询开关
-                ColorOSAutoPollCard(
+                AutoPollCard(
                     autoPoll = autoPoll,
                     onToggle = {
                         autoPoll = it
@@ -86,8 +81,7 @@ fun SettingsView(navController: NavController) {
                     }
                 )
 
-                // 配置项
-                ColorOSConfigItem(
+                ConfigItem(
                     label = "轮询等待时间",
                     description = "自动轮询时等待蓝牙开启的最长时间",
                     value = pollWaitTime,
@@ -99,7 +93,7 @@ fun SettingsView(navController: NavController) {
                     unit = "毫秒"
                 )
 
-                ColorOSConfigItem(
+                ConfigItem(
                     label = "单次开锁超时",
                     description = "单次开锁允许的最大时间，超时则判定失败",
                     value = unlockTimeout,
@@ -111,7 +105,7 @@ fun SettingsView(navController: NavController) {
                     unit = "毫秒"
                 )
 
-                ColorOSConfigItem(
+                ConfigItem(
                     label = "轮询间隔",
                     description = "轮询时，尝试两个门禁之间的等待时间",
                     value = pollInterval,
@@ -123,7 +117,7 @@ fun SettingsView(navController: NavController) {
                     unit = "毫秒"
                 )
 
-                ColorOSConfigItem(
+                ConfigItem(
                     label = "结果展示延迟",
                     description = "开锁完成后，显示成功/失败图标的时间",
                     value = resultDelay,
@@ -135,7 +129,7 @@ fun SettingsView(navController: NavController) {
                     unit = "毫秒"
                 )
 
-                ColorOSConfigItem(
+                ConfigItem(
                     label = "状态复位延迟",
                     description = "显示开锁结果后，自动复位到空闲状态的时间",
                     value = resetDelay,
@@ -147,8 +141,7 @@ fun SettingsView(navController: NavController) {
                     unit = "毫秒"
                 )
 
-                // 保存按钮
-                ColorOSSaveButton(
+                SaveButton(
                     hasChanges = hasChanges,
                     onClick = {
                         try {
@@ -159,7 +152,7 @@ fun SettingsView(navController: NavController) {
                             val wait = pollWaitTime.toLong()
                             if (timeout < 1000 || interval < 100 || result < 100 || reset < 100 || wait < 100) {
                                 showToast("数值不能小于 100ms")
-                                return@ColorOSSaveButton
+                                return@SaveButton
                             }
                             ConfigManager.setUnlockTimeout(timeout)
                             ConfigManager.setPollInterval(interval)
@@ -183,7 +176,7 @@ fun SettingsView(navController: NavController) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ColorOSSettingsTopBar(
+private fun SettingsTopBar(
     onBack: () -> Unit,
     onRestore: () -> Unit
 ) {
@@ -193,12 +186,11 @@ private fun ColorOSSettingsTopBar(
                 Box(
                     modifier = Modifier
                         .size(36.dp)
-                        .shadow(4.dp, RoundedCornerShape(10.dp))
+                        .clip(RoundedCornerShape(10.dp))
                         .background(
                             brush = Brush.linearGradient(
                                 colors = listOf(ColorOSGradientStart, ColorOSGradientEnd)
-                            ),
-                            shape = RoundedCornerShape(10.dp)
+                            )
                         ),
                     contentAlignment = Alignment.Center
                 ) {
@@ -257,19 +249,13 @@ private fun ColorOSSettingsTopBar(
 }
 
 @Composable
-private fun ColorOSInfoCard() {
+private fun InfoCard() {
+    // 修复：去掉阴影
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(
-                elevation = 4.dp,
-                shape = RoundedCornerShape(20.dp),
-                ambientColor = ColorOSGlow,
-                spotColor = ColorOSGlow
-            ),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
         )
     ) {
         Row(
@@ -316,19 +302,13 @@ private fun ColorOSInfoCard() {
 }
 
 @Composable
-private fun ColorOSAutoPollCard(
+private fun AutoPollCard(
     autoPoll: Boolean,
     onToggle: (Boolean) -> Unit
 ) {
+    // 修复：去掉阴影
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(
-                elevation = 3.dp,
-                shape = RoundedCornerShape(20.dp),
-                ambientColor = ColorOSGlow.copy(alpha = 0.3f),
-                spotColor = ColorOSGlow.copy(alpha = 0.3f)
-            ),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
@@ -390,7 +370,7 @@ private fun ColorOSAutoPollCard(
 }
 
 @Composable
-private fun ColorOSConfigItem(
+private fun ConfigItem(
     label: String,
     description: String,
     value: String,
@@ -398,15 +378,9 @@ private fun ColorOSConfigItem(
     defaultValue: String,
     unit: String
 ) {
+    // 修复：去掉阴影
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(
-                elevation = 3.dp,
-                shape = RoundedCornerShape(20.dp),
-                ambientColor = ColorOSGlow.copy(alpha = 0.3f),
-                spotColor = ColorOSGlow.copy(alpha = 0.3f)
-            ),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
@@ -487,20 +461,15 @@ private fun ColorOSConfigItem(
 }
 
 @Composable
-private fun ColorOSSaveButton(
+private fun SaveButton(
     hasChanges: Boolean,
     onClick: () -> Unit
 ) {
+    // 修复：去掉阴影
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(52.dp)
-            .shadow(
-                elevation = if (hasChanges) 8.dp else 2.dp,
-                shape = RoundedCornerShape(16.dp),
-                ambientColor = if (hasChanges) ColorOSGlow else ColorOSGlow.copy(alpha = 0.3f),
-                spotColor = if (hasChanges) ColorOSGlow else ColorOSGlow.copy(alpha = 0.3f)
-            )
             .clip(RoundedCornerShape(16.dp))
             .background(
                 brush = if (hasChanges) {
