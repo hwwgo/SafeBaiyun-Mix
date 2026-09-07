@@ -33,38 +33,38 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compute.material3.CardDefaults
+import androidx.compute.material3.Checkbox
+import androidx.compute.material3.CircularProgressIndicator
+import androidx.compute.material3.ExperimentalMaterial3Api
+import androidx.compute.material3.FloatingActionButton
+import androidx.compute.material3.FloatingActionButtonDefaults
+import androidx.compute.material3.Icon
+import androidx.compute.material3.IconButton
+import androidx.compute.material3.LinearProgressIndicator
+import androidx.compute.material3.MaterialTheme
+import androidx.compute.material3.OutlinedButton
+import androidx.compute.material3.Text
+import androidx.compute.material3.TopAppBar
+import androidx.compute.material3.TopAppBarDefaults
+import androidx.compute.runtime.Composable
+import androidx.compute.runtime.LaunchedEffect
+import androidx.compute.runtime.MutableState
+import androidx.compute.runtime.SideEffect
+import androidx.compute.runtime.getValue
+import androidx.compute.runtime.mutableStateOf
+import androidx.compute.runtime.remember
+import androidx.compute.runtime.rememberCoroutineScope
+import androidx.compute.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compute.ui.text.font.FontWeight
+import androidx.compute.ui.text.style.TextOverflow
+import androidx.compute.ui.unit.dp
+import androidx.compute.ui.unit.sp
 import androidx.navigation.NavHostController
 import cn.huacheng.safebaiyun.R
 import cn.huacheng.safebaiyun.unlock.DataRepo
@@ -110,7 +110,14 @@ fun MainView(navController: NavHostController) {
                 val selectedDoors = doors.value.filter { it.isSelected }
                 if (selectedDoors.isNotEmpty()) {
                     autoPollExecuted = true
-                    delay(500)
+                    // 等待蓝牙开启（超时时间可配置）
+                    val waitTime = ConfigManager.getPollWaitTime()
+                    val bluetoothReady = UnlockRepo.waitForBluetooth(waitTime)
+                    if (!bluetoothReady) {
+                        showToast("蓝牙未开启，自动轮询已跳过")
+                        return@LaunchedEffect
+                    }
+                    delay(500) // 额外小延迟确保蓝牙稳定
                     isPolling = true
                     pollingCurrentIndex = 0
                     pollingTotal = selectedDoors.size
@@ -162,6 +169,7 @@ fun MainView(navController: NavHostController) {
                             pollingTotal = selectedDoors.size
                             pollingProgress = "准备轮询..."
                             scope.launch {
+                                // 手动轮询不等待蓝牙（直接尝试）
                                 val result = UnlockRepo.pollAllDoors(
                                     doors = selectedDoors,
                                     onProgress = { index, total, name ->
@@ -425,7 +433,8 @@ private fun DoorCard(
                             }
                         }
                     },
-                    enabled = !isUnlocking && door.isSelected,
+                    // 修改点：移除 door.isSelected 限制，只要不是解锁中即可点击
+                    enabled = !isUnlocking,
                     shape = RoundedCornerShape(20.dp),
                     modifier = Modifier
                         .height(34.dp)
