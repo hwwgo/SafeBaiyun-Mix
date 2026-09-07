@@ -8,54 +8,19 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AppSettingsAlt
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.HelpOutline
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -65,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import cn.huacheng.safebaiyun.R
+import cn.huacheng.safebaiyun.theme.*
 import cn.huacheng.safebaiyun.unlock.DataRepo
 import cn.huacheng.safebaiyun.unlock.DoorDevice
 import cn.huacheng.safebaiyun.unlock.UnlockRepo
@@ -92,7 +58,7 @@ fun MainView(navController: NavHostController) {
 
     var autoPollExecuted by remember { mutableStateOf(false) }
 
-    // P0 修复：SideEffect -> LaunchedEffect，只在进入时执行一次
+    // 权限检查
     LaunchedEffect(Unit) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             hasPermission.value = context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
@@ -101,7 +67,7 @@ fun MainView(navController: NavHostController) {
         }
     }
 
-    // P1 修复：自动轮询使用新的 startPolling API
+    // 自动轮询
     LaunchedEffect(Unit) {
         if (hasPermission.value && doors.value.isNotEmpty() && !autoPollExecuted) {
             val autoPoll = ConfigManager.getAutoPollOnStart()
@@ -142,106 +108,111 @@ fun MainView(navController: NavHostController) {
         }
     }
 
-    Column {
-        MainTopBar(
-            onEditClick = { navController.navigate("manage_doors") },
-            onHelperClick = { navController.navigate("helper") },
-            onSettingsClick = { navController.navigate("settings") }
-        )
-
-        Box(modifier = Modifier.weight(1f).padding(8.dp), contentAlignment = Alignment.Center) {
-            if (hasPermission.value) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    val selectedCount = doors.value.count { it.isSelected }
-                    PollButton(
-                        doors = doors.value,
-                        selectedCount = selectedCount,
-                        isPolling = isPolling,
-                        pollingProgress = pollingProgress,
-                        onPollStart = {
-                            val selectedDoors = doors.value.filter { it.isSelected }
-                            if (selectedDoors.isEmpty()) {
-                                showToast("请至少选择一个门禁")
-                                return@PollButton
-                            }
-                            isPolling = true
-                            pollingCurrentIndex = 0
-                            pollingTotal = selectedDoors.size
-                            pollingProgress = "准备轮询..."
-
-                            // P1 修复：使用 startPolling API
-                            UnlockRepo.startPolling(
-                                scope = scope,
-                                doors = selectedDoors,
-                                onProgress = { index, total, name ->
-                                    withContext(Dispatchers.Main) {
-                                        pollingCurrentIndex = index
-                                        pollingTotal = total
-                                        pollingProgress = "正在尝试 $index/$total: $name"
-                                    }
-                                },
-                                onComplete = { result ->
-                                    isPolling = false
-                                    pollingProgress = if (result != null) "✅ 已开启: ${result.name}" else "❌ 未找到可开门禁"
-                                    doors.value = DataRepo.getDoors()
-                                }
-                            )
-                        }
+    // ColorOS 16 渐变背景
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.background,
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                     )
+                )
+            )
+    ) {
+        Column {
+            // ColorOS 16 风格顶部栏
+            ColorOSTopBar(
+                onEditClick = { navController.navigate("manage_doors") },
+                onHelperClick = { navController.navigate("helper") },
+                onSettingsClick = { navController.navigate("settings") }
+            )
 
-                    if (isPolling && pollingTotal > 0) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            LinearProgressIndicator(
-                                progress = pollingCurrentIndex.toFloat() / pollingTotal,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            IconButton(
-                                onClick = {
-                                    // P1 修复：使用 stopPolling API
+            Box(modifier = Modifier.weight(1f).padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
+                if (hasPermission.value) {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        val selectedCount = doors.value.count { it.isSelected }
+
+                        // ColorOS 16 风格轮询按钮
+                        ColorOSPollButton(
+                            doors = doors.value,
+                            selectedCount = selectedCount,
+                            isPolling = isPolling,
+                            pollingProgress = pollingProgress,
+                            onPollStart = {
+                                val selectedDoors = doors.value.filter { it.isSelected }
+                                if (selectedDoors.isEmpty()) {
+                                    showToast("请至少选择一个门禁")
+                                    return@ColorOSPollButton
+                                }
+                                isPolling = true
+                                pollingCurrentIndex = 0
+                                pollingTotal = selectedDoors.size
+                                pollingProgress = "准备轮询..."
+
+                                UnlockRepo.startPolling(
+                                    scope = scope,
+                                    doors = selectedDoors,
+                                    onProgress = { index, total, name ->
+                                        withContext(Dispatchers.Main) {
+                                            pollingCurrentIndex = index
+                                            pollingTotal = total
+                                            pollingProgress = "正在尝试 $index/$total: $name"
+                                        }
+                                    },
+                                    onComplete = { result ->
+                                        isPolling = false
+                                        pollingProgress = if (result != null) "✅ 已开启: ${result.name}" else "❌ 未找到可开门禁"
+                                        doors.value = DataRepo.getDoors()
+                                    }
+                                )
+                            }
+                        )
+
+                        // 轮询进度条
+                        if (isPolling && pollingTotal > 0) {
+                            ColorOSProgressBar(
+                                current = pollingCurrentIndex,
+                                total = pollingTotal,
+                                onStop = {
                                     UnlockRepo.stopPolling()
                                     isPolling = false
                                     pollingProgress = "⏹ 已停止轮询"
-                                },
-                                modifier = Modifier.size(32.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.Stop,
-                                    contentDescription = "停止轮询",
-                                    tint = Color(0xFFF44336),
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
+                                }
+                            )
                         }
-                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // 门禁列表
+                        DoorListContent(doors = doors, onRefresh = { doors.value = DataRepo.getDoors() })
                     }
-
-                    DoorListContent(doors = doors, onRefresh = { doors.value = DataRepo.getDoors() })
+                } else {
+                    PermissionView(hasPermission)
                 }
-            } else {
-                PermissionView(hasPermission)
             }
-        }
 
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            OutlinedButton(onClick = { navController.navigate("qr_export") }, modifier = Modifier.weight(1f)) {
-                Icon(Icons.Default.AppSettingsAlt, contentDescription = null)
-                Spacer(modifier = Modifier.size(4.dp))
-                Text("导出配置")
-            }
-            Spacer(modifier = Modifier.size(8.dp))
-            OutlinedButton(onClick = { navController.navigate("qr_import") }, modifier = Modifier.weight(1f)) {
-                Icon(Icons.Default.HelpOutline, contentDescription = null)
-                Spacer(modifier = Modifier.size(4.dp))
-                Text("扫描导入")
+            // 底部操作按钮
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                ColorOSOutlineButton(
+                    onClick = { navController.navigate("qr_export") },
+                    icon = Icons.Default.Share,
+                    text = "导出配置",
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                ColorOSOutlineButton(
+                    onClick = { navController.navigate("qr_import") },
+                    icon = Icons.Default.Add,
+                    text = "扫描导入",
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
     }
@@ -249,26 +220,79 @@ fun MainView(navController: NavHostController) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MainTopBar(
+private fun ColorOSTopBar(
     onEditClick: () -> Unit,
     onHelperClick: () -> Unit,
     onSettingsClick: () -> Unit
 ) {
     TopAppBar(
-        title = { Text("🔓 智能门禁", fontWeight = FontWeight.Bold, fontSize = 20.sp) },
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // ColorOS 16 微光图标
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .shadow(4.dp, RoundedCornerShape(10.dp))
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(ColorOSGradientStart, ColorOSGradientEnd)
+                            ),
+                            shape = RoundedCornerShape(10.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Lock,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    "智能门禁",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 22.sp,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            }
+        },
         actions = {
-            IconButton(onClick = onEditClick) { Icon(Icons.Default.Add, contentDescription = "添加门禁") }
-            IconButton(onClick = onSettingsClick) { Icon(Icons.Default.Settings, contentDescription = "设置") }
-            IconButton(onClick = onHelperClick) { Icon(Icons.Default.HelpOutline, contentDescription = "帮助") }
+            // ColorOS 16 风格图标按钮
+            ColorOSIconButton(onClick = onEditClick, icon = Icons.Default.Add, contentDesc = "添加门禁")
+            ColorOSIconButton(onClick = onSettingsClick, icon = Icons.Default.Settings, contentDesc = "设置")
+            ColorOSIconButton(onClick = onHelperClick, icon = Icons.Default.Info, contentDesc = "帮助")
         },
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = Color.Transparent
         )
     )
 }
 
 @Composable
-private fun PollButton(
+private fun ColorOSIconButton(
+    onClick: () -> Unit,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDesc: String
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier
+            .size(40.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+    ) {
+        Icon(
+            icon,
+            contentDescription = contentDesc,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(20.dp)
+        )
+    }
+}
+
+@Composable
+private fun ColorOSPollButton(
     doors: List<DoorDevice>,
     selectedCount: Int,
     isPolling: Boolean,
@@ -276,32 +300,137 @@ private fun PollButton(
     onPollStart: () -> Unit
 ) {
     val hasDoors = doors.isNotEmpty()
-    Button(
-        onClick = { if (!isPolling && hasDoors) onPollStart() },
-        enabled = !isPolling && hasDoors,
+
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(52.dp)
-            .padding(vertical = 4.dp),
-        shape = RoundedCornerShape(14.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (isPolling) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.primary
-        )
+            .height(56.dp)
+            .shadow(
+                elevation = if (isPolling) 2.dp else 8.dp,
+                shape = RoundedCornerShape(18.dp),
+                ambientColor = ColorOSGlow,
+                spotColor = ColorOSGlow
+            )
+            .clip(RoundedCornerShape(18.dp))
+            .background(
+                brush = if (isPolling) {
+                    Brush.horizontalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.secondaryContainer,
+                            MaterialTheme.colorScheme.secondaryContainer
+                        )
+                    )
+                } else {
+                    Brush.horizontalGradient(
+                        colors = listOf(ColorOSGradientStart, ColorOSGradientEnd)
+                    )
+                }
+            )
+            .clickable(enabled = !isPolling && hasDoors) { onPollStart() },
+        contentAlignment = Alignment.Center
     ) {
         if (isPolling) {
-            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onSecondaryContainer, strokeWidth = 2.dp)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(text = pollingProgress, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSecondaryContainer)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    strokeWidth = 2.dp
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = pollingProgress,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
         } else {
-            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "一键轮询开锁 (${selectedCount}/${doors.size})",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color.White
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    Icons.Default.PlayArrow,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "一键轮询开锁 (${selectedCount}/${doors.size})",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ColorOSProgressBar(
+    current: Int,
+    total: Int,
+    onStop: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        LinearProgressIndicator(
+            progress = current.toFloat() / total,
+            modifier = Modifier
+                .weight(1f)
+                .height(6.dp)
+                .clip(RoundedCornerShape(3.dp)),
+            color = ColorOSPrimary,
+            trackColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        IconButton(
+            onClick = onStop,
+            modifier = Modifier
+                .size(36.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(ColorOSError.copy(alpha = 0.1f))
+        ) {
+            Icon(
+                Icons.Default.Stop,
+                contentDescription = "停止轮询",
+                tint = ColorOSError,
+                modifier = Modifier.size(20.dp)
             )
         }
+    }
+}
+
+@Composable
+private fun ColorOSOutlineButton(
+    onClick: () -> Unit,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier.height(48.dp),
+        shape = RoundedCornerShape(14.dp),
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = MaterialTheme.colorScheme.primary
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+        )
+    ) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(text, fontSize = 14.sp, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -311,15 +440,34 @@ private fun DoorListContent(
     onRefresh: () -> Unit,
 ) {
     if (doors.value.isEmpty()) {
-        Text(text = "暂无门禁，请点击右上角添加", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    Icons.Default.Home,
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "暂无门禁，请点击右上角添加",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 16.sp
+                )
+            }
+        }
         return
     }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         items(doors.value, key = { it.id }) { door ->
-            DoorCard(
+            ColorOSDoorCard(
                 door = door,
                 onToggleSelected = { id ->
                     DataRepo.toggleSelected(id)
@@ -335,12 +483,12 @@ private fun DoorListContent(
                 }
             )
         }
-        item { Spacer(modifier = Modifier.size(60.dp)) }
+        item { Spacer(modifier = Modifier.size(80.dp)) }
     }
 }
 
 @Composable
-private fun DoorCard(
+private fun ColorOSDoorCard(
     door: DoorDevice,
     onToggleSelected: (String) -> Unit = {},
     onMoveUp: (String) -> Unit = {},
@@ -352,86 +500,130 @@ private fun DoorCard(
     val stepState = UnlockRepo.unlockStep
     val interactionSource = remember { MutableInteractionSource() }
 
-    val nameFontSize = if (door.name.length > 15) 16.sp else 18.sp
+    val nameFontSize = if (door.name.length > 15) 15.sp else 17.sp
 
+    // ColorOS 16 毛玻璃卡片
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp, vertical = 2.dp)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null
-            ) { },
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            .shadow(
+                elevation = 4.dp,
+                shape = RoundedCornerShape(20.dp),
+                ambientColor = if (door.isSelected) ColorOSGlow else ColorOSGlow.copy(alpha = 0.3f),
+                spotColor = if (door.isSelected) ColorOSGlow else ColorOSGlow.copy(alpha = 0.3f)
+            ),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (door.isSelected) MaterialTheme.colorScheme.surface
-                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            containerColor = if (door.isSelected) 
+                MaterialTheme.colorScheme.surface 
+            else 
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // 选择框
             Checkbox(
                 checked = door.isSelected,
                 onCheckedChange = { onToggleSelected(door.id) },
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(24.dp),
+                colors = CheckboxDefaults.colors(
+                    checkedColor = ColorOSPrimary,
+                    uncheckedColor = MaterialTheme.colorScheme.outline
+                )
             )
 
-            Column(modifier = Modifier.weight(1f).padding(start = 6.dp)) {
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // 信息区域
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = door.name,
                     style = MaterialTheme.typography.titleMedium,
                     fontSize = nameFontSize,
                     fontWeight = FontWeight.Bold,
-                    color = if (door.isSelected) MaterialTheme.colorScheme.onSurface
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (door.isSelected) 
+                        MaterialTheme.colorScheme.onSurface 
+                    else 
+                        MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
+
                 if (door.mac.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = door.mac,
                         style = MaterialTheme.typography.bodySmall,
                         fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f),
-                        modifier = Modifier.padding(top = 2.dp)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
                 }
+
+                // 状态显示
                 if (isUnlocking && unlockStep.isNotEmpty()) {
-                    Text(
-                        text = unlockStep,
-                        fontSize = 12.sp,
-                        color = when {
-                            unlockStep.contains("成功") -> Color(0xFF4CAF50)
-                            unlockStep.contains("失败") || unlockStep.contains("超时") -> Color(0xFFF44336)
-                            else -> MaterialTheme.colorScheme.primary
-                        },
-                        fontWeight = if (unlockStep.contains("成功") || unlockStep.contains("失败")) FontWeight.Bold else FontWeight.Normal,
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(
+                                    when {
+                                        unlockStep.contains("成功") -> ColorOSSuccess
+                                        unlockStep.contains("失败") || unlockStep.contains("超时") -> ColorOSError
+                                        else -> ColorOSPrimary
+                                    }
+                                )
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = unlockStep,
+                            fontSize = 12.sp,
+                            color = when {
+                                unlockStep.contains("成功") -> ColorOSSuccess
+                                unlockStep.contains("失败") || unlockStep.contains("超时") -> ColorOSError
+                                else -> MaterialTheme.colorScheme.primary
+                            },
+                            fontWeight = if (unlockStep.contains("成功") || unlockStep.contains("失败")) 
+                                FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
                 }
             }
 
+            // 操作区域
             Column(horizontalAlignment = Alignment.End) {
+                // 排序按钮
                 Row {
-                    IconButton(onClick = { onMoveUp(door.id) }, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Default.ArrowUpward, contentDescription = "上移", modifier = Modifier.size(16.dp))
-                    }
-                    IconButton(onClick = { onMoveDown(door.id) }, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Default.ArrowDownward, contentDescription = "下移", modifier = Modifier.size(16.dp))
-                    }
+                    ColorOSSmallIconButton(
+                        onClick = { onMoveUp(door.id) },
+                        icon = Icons.Default.KeyboardArrowUp,
+                        contentDesc = "上移"
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    ColorOSSmallIconButton(
+                        onClick = { onMoveDown(door.id) },
+                        icon = Icons.Default.KeyboardArrowDown,
+                        contentDesc = "下移"
+                    )
                 }
-                Spacer(modifier = Modifier.height(4.dp))
-                Button(
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // 开锁按钮
+                ColorOSUnlockButton(
+                    isUnlocking = isUnlocking,
+                    unlockStep = unlockStep,
                     onClick = {
                         if (door.mac.isEmpty() || door.key.isEmpty()) {
                             showToast("请先配置该门禁的 MAC 和 Key")
-                            return@Button
+                            return@ColorOSUnlockButton
                         }
                         if (!isUnlocking) {
                             isUnlocking = true
@@ -453,30 +645,91 @@ private fun DoorCard(
                                 unlockStep = ""
                             }
                         }
-                    },
-                    enabled = !isUnlocking,
-                    shape = RoundedCornerShape(24.dp),
-                    modifier = Modifier
-                        .height(42.dp)
-                        .width(100.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = when {
-                            isUnlocking -> Color(0xFF4A90D9)
-                            unlockStep.contains("成功") -> Color(0xFF4CAF50)
-                            unlockStep.contains("失败") || unlockStep.contains("超时") -> Color(0xFFF44336)
-                            else -> Color(0xFF4A90D9)
-                        },
-                        contentColor = Color.White
-                    )
-                ) {
-                    when {
-                        isUnlocking -> CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
-                        unlockStep.contains("成功") -> Text("✅", fontSize = 16.sp)
-                        unlockStep.contains("失败") || unlockStep.contains("超时") -> Text("❌", fontSize = 16.sp)
-                        else -> Text("开锁", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
-                }
+                )
             }
+        }
+    }
+}
+
+@Composable
+private fun ColorOSSmallIconButton(
+    onClick: () -> Unit,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDesc: String
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier
+            .size(32.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+    ) {
+        Icon(
+            icon,
+            contentDescription = contentDesc,
+            modifier = Modifier.size(18.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun ColorOSUnlockButton(
+    isUnlocking: Boolean,
+    unlockStep: String,
+    onClick: () -> Unit
+) {
+    val buttonColor = when {
+        isUnlocking -> ColorOSPrimary
+        unlockStep.contains("成功") -> ColorOSSuccess
+        unlockStep.contains("失败") || unlockStep.contains("超时") -> ColorOSError
+        else -> ColorOSPrimary
+    }
+
+    Box(
+        modifier = Modifier
+            .width(88.dp)
+            .height(40.dp)
+            .shadow(
+                elevation = if (isUnlocking) 2.dp else 6.dp,
+                shape = RoundedCornerShape(20.dp),
+                ambientColor = buttonColor.copy(alpha = 0.5f),
+                spotColor = buttonColor.copy(alpha = 0.5f)
+            )
+            .clip(RoundedCornerShape(20.dp))
+            .background(
+                brush = Brush.horizontalGradient(
+                    colors = listOf(buttonColor, buttonColor.copy(alpha = 0.8f))
+                )
+            )
+            .clickable(enabled = !isUnlocking) { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        when {
+            isUnlocking -> CircularProgressIndicator(
+                modifier = Modifier.size(18.dp),
+                color = Color.White,
+                strokeWidth = 2.dp
+            )
+            unlockStep.contains("成功") -> Icon(
+                Icons.Default.Check,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(20.dp)
+            )
+            unlockStep.contains("失败") || unlockStep.contains("超时") -> Icon(
+                Icons.Default.Close,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(20.dp)
+            )
+            else -> Text(
+                "开锁",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
         }
     }
 }
@@ -487,14 +740,36 @@ private fun PermissionView(hasPermission: MutableState<Boolean>) {
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
             hasPermission.value = isGranted
         }
-    Button(
-        modifier = Modifier.size(144.dp, 56.dp),
-        onClick = {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                requestPermissionLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT)
-            }
-        }
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        Text(text = stringResource(id = R.string.request_permission), fontSize = 18.sp)
+        Icon(
+            Icons.Default.Bluetooth,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "需要蓝牙权限才能开门",
+            fontSize = 16.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(
+            onClick = {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    requestPermissionLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT)
+                }
+            },
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = ColorOSPrimary
+            )
+        ) {
+            Text("授予权限", fontSize = 16.sp)
+        }
     }
 }
