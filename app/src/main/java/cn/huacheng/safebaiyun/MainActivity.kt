@@ -16,10 +16,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import cn.huacheng.safebaiyun.compose.HelpView
 import cn.huacheng.safebaiyun.compose.MainView
+import cn.huacheng.safebaiyun.compose.ManageDoorsView
 import cn.huacheng.safebaiyun.compose.QRExportView
 import cn.huacheng.safebaiyun.compose.QRImportView
 import cn.huacheng.safebaiyun.compose.SettingsView
 import cn.huacheng.safebaiyun.theme.SafeBaiyunTheme
+import cn.huacheng.safebaiyun.unlock.DataRepo
 import cn.huacheng.safebaiyun.unlock.UnlockRepo
 import cn.huacheng.safebaiyun.util.ConfigManager
 
@@ -28,7 +30,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         ConfigManager.init(this)
-        // 数据迁移由 DataRepo.getDoors() 自动处理，无需手动调用
         UnlockRepo.init(lifecycleScope)
 
         setContent {
@@ -48,6 +49,17 @@ class MainActivity : ComponentActivity() {
                             slideOut { IntOffset(-it.width, 0) }
                         }) {
                             MainView(navController)
+                        }
+
+                        composable("manage_doors", enterTransition = {
+                            slideIn { IntOffset(it.width, 0) }
+                        }, exitTransition = {
+                            slideOut { IntOffset(it.width, 0) }
+                        }) {
+                            ManageDoorsView(
+                                navController = navController,
+                                onSaved = { /* 可在此刷新数据 */ }
+                            )
                         }
 
                         composable("helper", enterTransition = {
