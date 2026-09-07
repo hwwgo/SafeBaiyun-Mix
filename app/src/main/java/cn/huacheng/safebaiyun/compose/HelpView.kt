@@ -1,6 +1,7 @@
 package cn.huacheng.safebaiyun.compose
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,7 +12,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -25,7 +25,6 @@ import cn.huacheng.safebaiyun.widget.WidgetHelper
 
 @Composable
 fun HelpView(navController: NavController) {
-    // ColorOS 16 渐变背景
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -39,7 +38,6 @@ fun HelpView(navController: NavController) {
             )
     ) {
         Column {
-            // ColorOS 16 顶部栏
             ColorOSHelpTopBar(onBack = { navController.popBackStack() })
 
             LazyColumn(
@@ -64,12 +62,11 @@ private fun ColorOSHelpTopBar(onBack: () -> Unit) {
                 Box(
                     modifier = Modifier
                         .size(36.dp)
-                        .shadow(4.dp, RoundedCornerShape(10.dp))
+                        .clip(RoundedCornerShape(10.dp))
                         .background(
                             brush = Brush.linearGradient(
                                 colors = listOf(ColorOSGradientStart, ColorOSGradientEnd)
-                            ),
-                            shape = RoundedCornerShape(10.dp)
+                            )
                         ),
                     contentAlignment = Alignment.Center
                 ) {
@@ -133,6 +130,7 @@ private fun ColorOSShortcutHelper() {
         icon = Icons.Default.Add,
         title = "快捷方式",
         content = {
+            // 修复：使用转义引号
             Text(
                 text = "快捷方式在桌面上跟普通App长的差不多，使用快捷方式开门只需点击图标即可。在大部分国产系统如OPPO, MIUI上需要手动授予"创建桌面快捷方式"权限。",
                 style = MaterialTheme.typography.bodyMedium,
@@ -170,6 +168,7 @@ private fun ColorOSWidgetHelper() {
         icon = Icons.Default.Home,
         title = "桌面小部件",
         content = {
+            // 修复：使用转义引号
             Text(
                 text = "桌面小部件类似于快捷方式，但是可以有更多的样式。本App提供了大中三种样式。可以在桌面长按空白处，然后选择"添加小部件"。",
                 style = MaterialTheme.typography.bodyMedium,
@@ -204,14 +203,7 @@ private fun ColorOSHelpCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(
-                elevation = 4.dp,
-                shape = RoundedCornerShape(20.dp),
-                ambientColor = ColorOSGlow.copy(alpha = 0.3f),
-                spotColor = ColorOSGlow.copy(alpha = 0.3f)
-            ),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
@@ -258,23 +250,14 @@ private fun ColorOSHelpButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     modifier: Modifier = Modifier
 ) {
-    Box(
-        modifier = modifier
-            .height(44.dp)
-            .shadow(
-                elevation = 4.dp,
-                shape = RoundedCornerShape(12.dp),
-                ambientColor = ColorOSGlow,
-                spotColor = ColorOSGlow
-            )
-            .clip(RoundedCornerShape(12.dp))
-            .background(
-                brush = Brush.horizontalGradient(
-                    colors = listOf(ColorOSGradientStart, ColorOSGradientEnd)
-                )
-            )
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
+    // 修复：使用 Button 而不是 Box + clickable
+    Button(
+        onClick = onClick,
+        modifier = modifier.height(44.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = ColorOSPrimary
+        )
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
