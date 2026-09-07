@@ -59,6 +59,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -284,7 +285,8 @@ private fun MainTopBar(
             IconButton(onClick = onHelperClick) { Icon(Icons.Default.HelpOutline, contentDescription = "帮助") }
         },
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
+            containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(0.dp),
+            scrolledContainerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(0.dp)
         )
     )
 }
@@ -301,8 +303,11 @@ private fun PollButton(
     Button(
         onClick = { if (!isPolling && hasDoors) onPollStart() },
         enabled = !isPolling && hasDoors,
-        modifier = Modifier.fillMaxWidth().height(56.dp).padding(vertical = 4.dp),
-        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(52.dp)
+            .padding(vertical = 4.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = if (isPolling) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.primary
         )
@@ -312,11 +317,11 @@ private fun PollButton(
             Spacer(modifier = Modifier.width(8.dp))
             Text(text = pollingProgress, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSecondaryContainer)
         } else {
-            Icon(Icons.Default.PlayArrow, contentDescription = null)
+            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White)
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "🔄 一键轮询开锁 ($selectedCount/${doors.size})",
-                fontSize = 16.sp,
+                text = "一键轮询开锁 (${selectedCount}/${doors.size})",
+                fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Color.White
             )
@@ -335,7 +340,7 @@ private fun DoorListContent(
     }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         items(doors.value, key = { it.id }) { door ->
             DoorCard(
@@ -371,7 +376,7 @@ private fun DoorCard(
     val stepState = UnlockRepo.unlockStep
     val interactionSource = remember { MutableInteractionSource() }
 
-    val nameFontSize = if (door.name.length > 15) 15.sp else 18.sp
+    val nameFontSize = if (door.name.length > 15) 16.sp else 18.sp
 
     Card(
         modifier = Modifier
@@ -381,7 +386,7 @@ private fun DoorCard(
                 interactionSource = interactionSource,
                 indication = null
             ) { },
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (door.isSelected) MaterialTheme.colorScheme.surface
@@ -391,22 +396,22 @@ private fun DoorCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 8.dp),
+                .padding(horizontal = 14.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Checkbox(
                 checked = door.isSelected,
                 onCheckedChange = { onToggleSelected(door.id) },
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(22.dp)
             )
 
-            Column(modifier = Modifier.weight(1f).padding(start = 4.dp)) {
+            Column(modifier = Modifier.weight(1f).padding(start = 6.dp)) {
                 Text(
                     text = door.name,
                     style = MaterialTheme.typography.titleMedium,
                     fontSize = nameFontSize,
-                    fontWeight = FontWeight.Medium,
+                    fontWeight = FontWeight.Bold,
                     color = if (door.isSelected) MaterialTheme.colorScheme.onSurface
                         else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
@@ -417,7 +422,7 @@ private fun DoorCard(
                         text = door.mac,
                         style = MaterialTheme.typography.bodySmall,
                         fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.outline,
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f),
                         modifier = Modifier.padding(top = 2.dp)
                     )
                 }
@@ -438,17 +443,14 @@ private fun DoorCard(
 
             Column(horizontalAlignment = Alignment.End) {
                 Row {
-                    IconButton(onClick = { onMoveUp(door.id) }, modifier = Modifier.size(24.dp)) {
-                        Icon(Icons.Default.ArrowUpward, contentDescription = "上移", modifier = Modifier.size(14.dp))
+                    IconButton(onClick = { onMoveUp(door.id) }, modifier = Modifier.size(28.dp)) {
+                        Icon(Icons.Default.ArrowUpward, contentDescription = "上移", modifier = Modifier.size(16.dp))
                     }
-                    IconButton(onClick = { onMoveDown(door.id) }, modifier = Modifier.size(24.dp)) {
-                        Icon(Icons.Default.ArrowDownward, contentDescription = "下移", modifier = Modifier.size(14.dp))
+                    IconButton(onClick = { onMoveDown(door.id) }, modifier = Modifier.size(28.dp)) {
+                        Icon(Icons.Default.ArrowDownward, contentDescription = "下移", modifier = Modifier.size(16.dp))
                     }
                 }
-                Spacer(modifier = Modifier.height(2.dp))
-                // ============================================================
-                //  开锁按钮：更大（100dp x 40dp）+ 黑色文字
-                // ============================================================
+                Spacer(modifier = Modifier.height(4.dp))
                 Button(
                     onClick = {
                         if (door.mac.isEmpty() || door.key.isEmpty()) {
@@ -479,23 +481,23 @@ private fun DoorCard(
                     enabled = !isUnlocking,
                     shape = RoundedCornerShape(24.dp),
                     modifier = Modifier
-                        .height(40.dp)
+                        .height(42.dp)
                         .width(100.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = when {
-                            isUnlocking -> MaterialTheme.colorScheme.primary
+                            isUnlocking -> Color(0xFF4A90D9)
                             unlockStep.contains("成功") -> Color(0xFF4CAF50)
                             unlockStep.contains("失败") || unlockStep.contains("超时") -> Color(0xFFF44336)
-                            else -> MaterialTheme.colorScheme.primary
+                            else -> Color(0xFF4A90D9)
                         },
-                        contentColor = Color.Black
+                        contentColor = Color.White
                     )
                 ) {
                     when {
-                        isUnlocking -> CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.Black, strokeWidth = 2.dp)
+                        isUnlocking -> CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
                         unlockStep.contains("成功") -> Text("✅", fontSize = 16.sp)
                         unlockStep.contains("失败") || unlockStep.contains("超时") -> Text("❌", fontSize = 16.sp)
-                        else -> Text("开锁", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                        else -> Text("开锁", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 }
             }
