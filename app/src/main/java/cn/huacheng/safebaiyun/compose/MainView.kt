@@ -59,7 +59,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -285,8 +284,7 @@ private fun MainTopBar(
             IconButton(onClick = onHelperClick) { Icon(Icons.Default.HelpOutline, contentDescription = "帮助") }
         },
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(0.dp),
-            scrolledContainerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(0.dp)
+            containerColor = MaterialTheme.colorScheme.surface
         )
     )
 }
