@@ -19,6 +19,10 @@ import androidx.compose.ui.unit.dp
 import cn.huacheng.safebaiyun.unlock.DataRepo
 import cn.huacheng.safebaiyun.unlock.UnlockRepo
 import cn.huacheng.safebaiyun.util.showToast
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
  * 快捷开门 Activity（桌面快捷方式 / 部件按钮 启动）
@@ -31,6 +35,9 @@ class ShortcutActivity : ComponentActivity() {
     companion object {
         const val EXTRA_DOOR_ID = "door_id"
     }
+
+    // P0 修复：使用 Activity 级别的协程作用域
+    private val activityScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -92,7 +99,11 @@ class ShortcutActivity : ComponentActivity() {
         }
 
         showToast("正在解锁 ${doorToUnlock.name}")
-        UnlockRepo.unlock(doorToUnlock.mac, doorToUnlock.key)
-        finish()
+
+        // P0 修复：使用 tryUnlock 替代旧的 unlock
+        activityScope.launch {
+            UnlockRepo.tryUnlock(doorToUnlock.mac, doorToUnlock.key)
+            finish()
+        }
     }
 }
