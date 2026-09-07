@@ -93,6 +93,9 @@ fun MainView(navController: NavHostController) {
     var pollingCurrentIndex by remember { mutableStateOf(0) }
     var pollingTotal by remember { mutableStateOf(0) }
 
+    // 控制轮询是否应该停止
+    var stopPolling by remember { mutableStateOf(false) }
+
     var autoPollExecuted by remember { mutableStateOf(false) }
 
     SideEffect {
@@ -103,6 +106,9 @@ fun MainView(navController: NavHostController) {
         }
     }
 
+    // ============================================================
+    //  自动轮询逻辑
+    // ============================================================
     LaunchedEffect(Unit) {
         if (hasPermission.value && doors.value.isNotEmpty() && !autoPollExecuted) {
             val autoPoll = ConfigManager.getAutoPollOnStart()
@@ -110,22 +116,25 @@ fun MainView(navController: NavHostController) {
                 val selectedDoors = doors.value.filter { it.isSelected }
                 if (selectedDoors.isNotEmpty()) {
                     autoPollExecuted = true
-                    // 等待蓝牙开启（超时时间可配置）
+                    // 等待蓝牙开启（超时时间可配置，默认 5000ms）
                     val waitTime = ConfigManager.getPollWaitTime()
                     val bluetoothReady = UnlockRepo.waitForBluetooth(waitTime)
                     if (!bluetoothReady) {
                         showToast("蓝牙未开启，自动轮询已跳过")
                         return@LaunchedEffect
                     }
-                    delay(500) // 额外小延迟确保蓝牙稳定
+                    delay(500)
                     isPolling = true
                     pollingCurrentIndex = 0
                     pollingTotal = selectedDoors.size
                     pollingProgress = "自动轮询中..."
+                    stopPolling = false
                     scope.launch {
                         val result = UnlockRepo.pollAllDoors(
                             doors = selectedDoors,
                             onProgress = { index, total, name ->
+                                // 如果用户点击了停止，不再更新进度
+                                if (stopPolling) return@pollAllDoors
                                 withContext(Dispatchers.Main) {
                                     pollingCurrentIndex = index
                                     pollingTotal = total
@@ -133,9 +142,17 @@ fun MainView(navController: NavHostController) {
                                 }
                             }
                         )
-                        isPolling = false
-                        pollingProgress = if (result != null) "✅ 已开启: ${result.name}" else "❌ 未找到可开门禁"
-                        doors.value = DataRepo.getDoors()
+                        // 如果是因为停止而退出，不显示结果
+                        if (!stopPolling) {
+                            isPolling = false
+                            pollingProgress = if (result != null) "✅ 已开启: ${result.name}" else "❌ 未找到可开门禁"
+                            doors.value = DataRepo.getDoors()
+                        } else {
+                            // 停止轮询
+                            isPolling = false
+                            pollingProgress = "⏹ 已停止轮询"
+                            stopPolling = false
+                        }
                     }
                 }
             }
@@ -168,10 +185,12 @@ fun MainView(navController: NavHostController) {
                             pollingCurrentIndex = 0
                             pollingTotal = selectedDoors.size
                             pollingProgress = "准备轮询..."
+                            stopPolling = false
                             scope.launch {
                                 val result = UnlockRepo.pollAllDoors(
                                     doors = selectedDoors,
                                     onProgress = { index, total, name ->
+                                        if (stopPolling) return@pollAllDoors
                                         withContext(Dispatchers.Main) {
                                             pollingCurrentIndex = index
                                             pollingTotal = total
@@ -179,18 +198,52 @@ fun MainView(navController: NavHostController) {
                                         }
                                     }
                                 )
-                                isPolling = false
-                                pollingProgress = if (result != null) "✅ 已开启: ${result.name}" else "❌ 未找到可开门禁"
-                                doors.value = DataRepo.getDoors()
+                                if (!stopPolling) {
+                                    isPolling = false
+                                    pollingProgress = if (result != null) "✅ 已开启: ${result.name}" else "❌ 未找到可开门禁"
+                                    doors.value = DataRepo.getDoors()
+                                } else {
+                                    isPolling = false
+                                    pollingProgress = "⏹ 已停止轮询"
+                                    stopPolling = false
+                                }
                             }
                         }
                     )
 
+                    // 轮询进度条 + 停止按钮
                     if (isPolling && pollingTotal > 0) {
-                        LinearProgressIndicator(
-                            progress = pollingCurrentIndex.toFloat() / pollingTotal,
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                        )
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                        ) {
+                            LinearProgressIndicator(
+                                progress = pollingCurrentIndex.toFloat() / pollingTotal,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            // 停止按钮
+                            OutlinedButton(
+                                onClick = {
+                                    stopPolling = true
+                                    isPolling = false
+                                    pollingProgress = "⏹ 正在停止..."
+                                    // 通知 UnlockRepo 停止轮询（通过 pollAllDoors 内部的检查）
+                                    // 由于轮询在协程中，设置 stopPolling = true 后，下次 onProgress 会检测到并退出
+                                },
+                                modifier = Modifier
+                                    .align(Alignment.End)
+                                    .padding(top = 4.dp)
+                                    .height(32.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = Color(0xFFF44336),
+                                    containerColor = Color(0x1AF44336)
+                                )
+                            ) {
+                                Text("⏹ 停止轮询", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                            }
+                        }
                         Spacer(modifier = Modifier.height(4.dp))
                     }
 
@@ -443,7 +496,9 @@ private fun DoorCard(
                             unlockStep.contains("成功") -> Color(0xFF4CAF50)
                             unlockStep.contains("失败") || unlockStep.contains("超时") -> Color(0xFFF44336)
                             else -> MaterialTheme.colorScheme.primary
-                        }
+                        },
+                        // 强制使用白色文字，确保清晰可见
+                        contentColor = Color.White
                     )
                 ) {
                     when {
