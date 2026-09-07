@@ -30,41 +30,42 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compute.material3.CardDefaults
+import androidx.compute.material3.Checkbox
+import androidx.compute.material3.CircularProgressIndicator
+import androidx.compute.material3.ExperimentalMaterial3Api
+import androidx.compute.material3.FloatingActionButton
+import androidx.compute.material3.FloatingActionButtonDefaults
+import androidx.compute.material3.Icon
+import androidx.compute.material3.IconButton
+import androidx.compute.material3.LinearProgressIndicator
+import androidx.compute.material3.MaterialTheme
+import androidx.compute.material3.OutlinedButton
+import androidx.compute.material3.Text
+import androidx.compute.material3.TopAppBar
+import androidx.compute.material3.TopAppBarDefaults
+import androidx.compute.runtime.Composable
+import androidx.compute.runtime.LaunchedEffect
+import androidx.compute.runtime.MutableState
+import androidx.compute.runtime.SideEffect
+import androidx.compute.runtime.getValue
+import androidx.compute.runtime.mutableStateOf
+import androidx.compute.runtime.remember
+import androidx.compute.runtime.rememberCoroutineScope
+import androidx.compute.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compute.ui.text.font.FontWeight
+import androidx.compute.ui.text.style.TextOverflow
+import androidx.compute.ui.unit.dp
+import androidx.compute.ui.unit.sp
 import androidx.navigation.NavHostController
 import cn.huacheng.safebaiyun.R
 import cn.huacheng.safebaiyun.unlock.DataRepo
@@ -211,37 +212,33 @@ fun MainView(navController: NavHostController) {
                         }
                     )
 
-                    // 轮询进度条 + 停止按钮
+                    // 轮询进度条 + 停止按钮（右侧）
                     if (isPolling && pollingTotal > 0) {
-                        Column(
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 4.dp)
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             LinearProgressIndicator(
                                 progress = pollingCurrentIndex.toFloat() / pollingTotal,
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.weight(1f)
                             )
-                            // 停止按钮
-                            OutlinedButton(
+                            Spacer(modifier = Modifier.width(8.dp))
+                            IconButton(
                                 onClick = {
                                     stopPolling = true
                                     isPolling = false
                                     pollingProgress = "⏹ 正在停止..."
-                                    // 通知 UnlockRepo 停止轮询（通过 pollAllDoors 内部的检查）
-                                    // 由于轮询在协程中，设置 stopPolling = true 后，下次 onProgress 会检测到并退出
                                 },
-                                modifier = Modifier
-                                    .align(Alignment.End)
-                                    .padding(top = 4.dp)
-                                    .height(32.dp),
-                                shape = RoundedCornerShape(16.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = Color(0xFFF44336),
-                                    containerColor = Color(0x1AF44336)
-                                )
+                                modifier = Modifier.size(32.dp)
                             ) {
-                                Text("⏹ 停止轮询", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                Icon(
+                                    Icons.Default.Stop,
+                                    contentDescription = "停止轮询",
+                                    tint = Color(0xFFF44336),
+                                    modifier = Modifier.size(24.dp)
+                                )
                             }
                         }
                         Spacer(modifier = Modifier.height(4.dp))
@@ -497,7 +494,6 @@ private fun DoorCard(
                             unlockStep.contains("失败") || unlockStep.contains("超时") -> Color(0xFFF44336)
                             else -> MaterialTheme.colorScheme.primary
                         },
-                        // 强制使用白色文字，确保清晰可见
                         contentColor = Color.White
                     )
                 ) {
