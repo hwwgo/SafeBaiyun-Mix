@@ -19,9 +19,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -58,7 +58,6 @@ fun MainView(navController: NavHostController) {
 
     var autoPollExecuted by remember { mutableStateOf(false) }
 
-    // 权限检查
     LaunchedEffect(Unit) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             hasPermission.value = context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
@@ -67,7 +66,6 @@ fun MainView(navController: NavHostController) {
         }
     }
 
-    // 自动轮询
     LaunchedEffect(Unit) {
         if (hasPermission.value && doors.value.isNotEmpty() && !autoPollExecuted) {
             val autoPoll = ConfigManager.getAutoPollOnStart()
@@ -108,7 +106,6 @@ fun MainView(navController: NavHostController) {
         }
     }
 
-    // ColorOS 16 渐变背景
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -116,14 +113,13 @@ fun MainView(navController: NavHostController) {
                 brush = Brush.verticalGradient(
                     colors = listOf(
                         MaterialTheme.colorScheme.background,
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
                     )
                 )
             )
     ) {
         Column {
-            // ColorOS 16 风格顶部栏
-            ColorOSTopBar(
+            CleanTopBar(
                 onEditClick = { navController.navigate("manage_doors") },
                 onHelperClick = { navController.navigate("helper") },
                 onSettingsClick = { navController.navigate("settings") }
@@ -134,8 +130,7 @@ fun MainView(navController: NavHostController) {
                     Column(modifier = Modifier.fillMaxSize()) {
                         val selectedCount = doors.value.count { it.isSelected }
 
-                        // ColorOS 16 风格轮询按钮
-                        ColorOSPollButton(
+                        CleanPollButton(
                             doors = doors.value,
                             selectedCount = selectedCount,
                             isPolling = isPolling,
@@ -144,7 +139,7 @@ fun MainView(navController: NavHostController) {
                                 val selectedDoors = doors.value.filter { it.isSelected }
                                 if (selectedDoors.isEmpty()) {
                                     showToast("请至少选择一个门禁")
-                                    return@ColorOSPollButton
+                                    return@CleanPollButton
                                 }
                                 isPolling = true
                                 pollingCurrentIndex = 0
@@ -170,9 +165,8 @@ fun MainView(navController: NavHostController) {
                             }
                         )
 
-                        // 轮询进度条
                         if (isPolling && pollingTotal > 0) {
-                            ColorOSProgressBar(
+                            CleanProgressBar(
                                 current = pollingCurrentIndex,
                                 total = pollingTotal,
                                 onStop = {
@@ -185,7 +179,6 @@ fun MainView(navController: NavHostController) {
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // 门禁列表
                         DoorListContent(doors = doors, onRefresh = { doors.value = DataRepo.getDoors() })
                     }
                 } else {
@@ -193,21 +186,20 @@ fun MainView(navController: NavHostController) {
                 }
             }
 
-            // 底部操作按钮
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                ColorOSOutlineButton(
+                CleanOutlineButton(
                     onClick = { navController.navigate("qr_export") },
                     icon = Icons.Default.Share,
                     text = "导出配置",
                     modifier = Modifier.weight(1f)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
-                ColorOSOutlineButton(
+                CleanOutlineButton(
                     onClick = { navController.navigate("qr_import") },
                     icon = Icons.Default.Add,
                     text = "扫描导入",
@@ -220,7 +212,7 @@ fun MainView(navController: NavHostController) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ColorOSTopBar(
+private fun CleanTopBar(
     onEditClick: () -> Unit,
     onHelperClick: () -> Unit,
     onSettingsClick: () -> Unit
@@ -228,16 +220,15 @@ private fun ColorOSTopBar(
     TopAppBar(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // ColorOS 16 微光图标
+                // 修复：移除阴影，使用简单渐变
                 Box(
                     modifier = Modifier
                         .size(36.dp)
-                        .shadow(4.dp, RoundedCornerShape(10.dp))
+                        .clip(RoundedCornerShape(10.dp))
                         .background(
                             brush = Brush.linearGradient(
                                 colors = listOf(ColorOSGradientStart, ColorOSGradientEnd)
-                            ),
-                            shape = RoundedCornerShape(10.dp)
+                            )
                         ),
                     contentAlignment = Alignment.Center
                 ) {
@@ -258,10 +249,16 @@ private fun ColorOSTopBar(
             }
         },
         actions = {
-            // ColorOS 16 风格图标按钮
-            ColorOSIconButton(onClick = onEditClick, icon = Icons.Default.Add, contentDesc = "添加门禁")
-            ColorOSIconButton(onClick = onSettingsClick, icon = Icons.Default.Settings, contentDesc = "设置")
-            ColorOSIconButton(onClick = onHelperClick, icon = Icons.Default.Info, contentDesc = "帮助")
+            // 修复：移除背景，避免阴影重叠
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(end = 8.dp)
+            ) {
+                CleanIconButton(onClick = onEditClick, icon = Icons.Default.Add, contentDesc = "添加门禁")
+                CleanIconButton(onClick = onSettingsClick, icon = Icons.Default.Settings, contentDesc = "设置")
+                CleanIconButton(onClick = onHelperClick, icon = Icons.Default.Info, contentDesc = "帮助")
+            }
         },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = Color.Transparent
@@ -270,29 +267,27 @@ private fun ColorOSTopBar(
 }
 
 @Composable
-private fun ColorOSIconButton(
+private fun CleanIconButton(
     onClick: () -> Unit,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     contentDesc: String
 ) {
+    // 修复：移除背景色块，只保留图标
     IconButton(
         onClick = onClick,
-        modifier = Modifier
-            .size(40.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        modifier = Modifier.size(40.dp)
     ) {
         Icon(
             icon,
             contentDescription = contentDesc,
             tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(20.dp)
+            modifier = Modifier.size(22.dp)
         )
     }
 }
 
 @Composable
-private fun ColorOSPollButton(
+private fun CleanPollButton(
     doors: List<DoorDevice>,
     selectedCount: Int,
     isPolling: Boolean,
@@ -305,12 +300,6 @@ private fun ColorOSPollButton(
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp)
-            .shadow(
-                elevation = if (isPolling) 2.dp else 8.dp,
-                shape = RoundedCornerShape(18.dp),
-                ambientColor = ColorOSGlow,
-                spotColor = ColorOSGlow
-            )
             .clip(RoundedCornerShape(18.dp))
             .background(
                 brush = if (isPolling) {
@@ -371,7 +360,7 @@ private fun ColorOSPollButton(
 }
 
 @Composable
-private fun ColorOSProgressBar(
+private fun CleanProgressBar(
     current: Int,
     total: Int,
     onStop: () -> Unit
@@ -392,27 +381,25 @@ private fun ColorOSProgressBar(
             trackColor = MaterialTheme.colorScheme.surfaceVariant
         )
         Spacer(modifier = Modifier.width(12.dp))
+        // 修复：移除背景色块
         IconButton(
             onClick = onStop,
-            modifier = Modifier
-                .size(36.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(ColorOSError.copy(alpha = 0.1f))
+            modifier = Modifier.size(36.dp)
         ) {
             Icon(
                 Icons.Default.Stop,
                 contentDescription = "停止轮询",
                 tint = ColorOSError,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(22.dp)
             )
         }
     }
 }
 
 @Composable
-private fun ColorOSOutlineButton(
+private fun CleanOutlineButton(
     onClick: () -> Unit,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     text: String,
     modifier: Modifier = Modifier
 ) {
@@ -467,7 +454,7 @@ private fun DoorListContent(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         items(doors.value, key = { it.id }) { door ->
-            ColorOSDoorCard(
+            CleanDoorCard(
                 door = door,
                 onToggleSelected = { id ->
                     DataRepo.toggleSelected(id)
@@ -488,7 +475,7 @@ private fun DoorListContent(
 }
 
 @Composable
-private fun ColorOSDoorCard(
+private fun CleanDoorCard(
     door: DoorDevice,
     onToggleSelected: (String) -> Unit = {},
     onMoveUp: (String) -> Unit = {},
@@ -502,23 +489,23 @@ private fun ColorOSDoorCard(
 
     val nameFontSize = if (door.name.length > 15) 15.sp else 17.sp
 
-    // ColorOS 16 毛玻璃卡片
+    // 修复：移除阴影，使用简单的边框区分选中状态
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(
-                elevation = 4.dp,
-                shape = RoundedCornerShape(20.dp),
-                ambientColor = if (door.isSelected) ColorOSGlow else ColorOSGlow.copy(alpha = 0.3f),
-                spotColor = if (door.isSelected) ColorOSGlow else ColorOSGlow.copy(alpha = 0.3f)
-            ),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (door.isSelected) 
-                MaterialTheme.colorScheme.surface 
-            else 
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        )
+            containerColor = if (door.isSelected)
+                MaterialTheme.colorScheme.surface
+            else
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        ),
+        // 修复：使用边框而不是阴影
+        border = if (door.isSelected) {
+            androidx.compose.foundation.BorderStroke(
+                1.dp,
+                ColorOSPrimary.copy(alpha = 0.3f)
+            )
+        } else null
     ) {
         Row(
             modifier = Modifier
@@ -527,7 +514,6 @@ private fun ColorOSDoorCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 选择框
             Checkbox(
                 checked = door.isSelected,
                 onCheckedChange = { onToggleSelected(door.id) },
@@ -540,17 +526,16 @@ private fun ColorOSDoorCard(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // 信息区域
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = door.name,
                     style = MaterialTheme.typography.titleMedium,
                     fontSize = nameFontSize,
                     fontWeight = FontWeight.Bold,
-                    color = if (door.isSelected) 
-                        MaterialTheme.colorScheme.onSurface 
-                    else 
-                        MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (door.isSelected)
+                        MaterialTheme.colorScheme.onSurface
+                    else
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -561,11 +546,10 @@ private fun ColorOSDoorCard(
                         text = door.mac,
                         style = MaterialTheme.typography.bodySmall,
                         fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                     )
                 }
 
-                // 状态显示
                 if (isUnlocking && unlockStep.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -590,24 +574,23 @@ private fun ColorOSDoorCard(
                                 unlockStep.contains("失败") || unlockStep.contains("超时") -> ColorOSError
                                 else -> MaterialTheme.colorScheme.primary
                             },
-                            fontWeight = if (unlockStep.contains("成功") || unlockStep.contains("失败")) 
+                            fontWeight = if (unlockStep.contains("成功") || unlockStep.contains("失败"))
                                 FontWeight.Bold else FontWeight.Normal
                         )
                     }
                 }
             }
 
-            // 操作区域
             Column(horizontalAlignment = Alignment.End) {
-                // 排序按钮
                 Row {
-                    ColorOSSmallIconButton(
+                    // 修复：移除背景色块
+                    CleanSmallIconButton(
                         onClick = { onMoveUp(door.id) },
                         icon = Icons.Default.KeyboardArrowUp,
                         contentDesc = "上移"
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    ColorOSSmallIconButton(
+                    CleanSmallIconButton(
                         onClick = { onMoveDown(door.id) },
                         icon = Icons.Default.KeyboardArrowDown,
                         contentDesc = "下移"
@@ -616,14 +599,13 @@ private fun ColorOSDoorCard(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // 开锁按钮
-                ColorOSUnlockButton(
+                CleanUnlockButton(
                     isUnlocking = isUnlocking,
                     unlockStep = unlockStep,
                     onClick = {
                         if (door.mac.isEmpty() || door.key.isEmpty()) {
                             showToast("请先配置该门禁的 MAC 和 Key")
-                            return@ColorOSUnlockButton
+                            return@CleanUnlockButton
                         }
                         if (!isUnlocking) {
                             isUnlocking = true
@@ -653,29 +635,27 @@ private fun ColorOSDoorCard(
 }
 
 @Composable
-private fun ColorOSSmallIconButton(
+private fun CleanSmallIconButton(
     onClick: () -> Unit,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     contentDesc: String
 ) {
+    // 修复：移除背景色块，只保留图标
     IconButton(
         onClick = onClick,
-        modifier = Modifier
-            .size(32.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        modifier = Modifier.size(32.dp)
     ) {
         Icon(
             icon,
             contentDescription = contentDesc,
-            modifier = Modifier.size(18.dp),
+            modifier = Modifier.size(20.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
 
 @Composable
-private fun ColorOSUnlockButton(
+private fun CleanUnlockButton(
     isUnlocking: Boolean,
     unlockStep: String,
     onClick: () -> Unit
@@ -687,16 +667,11 @@ private fun ColorOSUnlockButton(
         else -> ColorOSPrimary
     }
 
+    // 修复：移除阴影
     Box(
         modifier = Modifier
             .width(88.dp)
             .height(40.dp)
-            .shadow(
-                elevation = if (isUnlocking) 2.dp else 6.dp,
-                shape = RoundedCornerShape(20.dp),
-                ambientColor = buttonColor.copy(alpha = 0.5f),
-                spotColor = buttonColor.copy(alpha = 0.5f)
-            )
             .clip(RoundedCornerShape(20.dp))
             .background(
                 brush = Brush.horizontalGradient(
@@ -712,24 +687,21 @@ private fun ColorOSUnlockButton(
                 color = Color.White,
                 strokeWidth = 2.dp
             )
-            unlockStep.contains("成功") -> Icon(
-                Icons.Default.Check,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(20.dp)
-            )
-            unlockStep.contains("失败") || unlockStep.contains("超时") -> Icon(
-                Icons.Default.Close,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(20.dp)
-            )
-            else -> Text(
-                "开锁",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
+            unlockStep.contains("成功") -> Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("成功", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            }
+            unlockStep.contains("失败") || unlockStep.contains("超时") -> Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Close, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("失败", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            }
+            else -> Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.LockOpen, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("开锁", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            }
         }
     }
 }
