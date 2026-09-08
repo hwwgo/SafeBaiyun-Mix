@@ -119,18 +119,18 @@ fun MainView(navController: NavHostController) {
             )
     ) {
         Column {
-            CleanTopBar(
+            CompactTopBar(
                 onEditClick = { navController.navigate("manage_doors") },
                 onHelperClick = { navController.navigate("helper") },
                 onSettingsClick = { navController.navigate("settings") }
             )
 
-            Box(modifier = Modifier.weight(1f).padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.weight(1f).padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
                 if (hasPermission.value) {
                     Column(modifier = Modifier.fillMaxSize()) {
                         val selectedCount = doors.value.count { it.isSelected }
 
-                        CleanPollButton(
+                        CompactPollButton(
                             doors = doors.value,
                             selectedCount = selectedCount,
                             isPolling = isPolling,
@@ -139,7 +139,7 @@ fun MainView(navController: NavHostController) {
                                 val selectedDoors = doors.value.filter { it.isSelected }
                                 if (selectedDoors.isEmpty()) {
                                     showToast("请至少选择一个门禁")
-                                    return@CleanPollButton
+                                    return@CompactPollButton
                                 }
                                 isPolling = true
                                 pollingCurrentIndex = 0
@@ -166,7 +166,7 @@ fun MainView(navController: NavHostController) {
                         )
 
                         if (isPolling && pollingTotal > 0) {
-                            CleanProgressBar(
+                            CompactProgressBar(
                                 current = pollingCurrentIndex,
                                 total = pollingTotal,
                                 onStop = {
@@ -177,9 +177,9 @@ fun MainView(navController: NavHostController) {
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                        DoorListContent(doors = doors, onRefresh = { doors.value = DataRepo.getDoors() })
+                        CompactDoorList(doors = doors, onRefresh = { doors.value = DataRepo.getDoors() })
                     }
                 } else {
                     PermissionView(hasPermission)
@@ -189,17 +189,17 @@ fun MainView(navController: NavHostController) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                CleanOutlineButton(
+                CompactOutlineButton(
                     onClick = { navController.navigate("qr_export") },
                     icon = Icons.Default.Share,
                     text = "导出配置",
                     modifier = Modifier.weight(1f)
                 )
-                Spacer(modifier = Modifier.width(12.dp))
-                CleanOutlineButton(
+                Spacer(modifier = Modifier.width(8.dp))
+                CompactOutlineButton(
                     onClick = { navController.navigate("qr_import") },
                     icon = Icons.Default.Add,
                     text = "扫描导入",
@@ -212,7 +212,7 @@ fun MainView(navController: NavHostController) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CleanTopBar(
+private fun CompactTopBar(
     onEditClick: () -> Unit,
     onHelperClick: () -> Unit,
     onSettingsClick: () -> Unit
@@ -220,11 +220,10 @@ private fun CleanTopBar(
     TopAppBar(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // 修复：移除阴影，使用简单渐变
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(10.dp))
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(8.dp))
                         .background(
                             brush = Brush.linearGradient(
                                 colors = listOf(ColorOSGradientStart, ColorOSGradientEnd)
@@ -236,28 +235,27 @@ private fun CleanTopBar(
                         Icons.Default.Lock,
                         contentDescription = null,
                         tint = Color.White,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(16.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     "智能门禁",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 22.sp,
+                    fontSize = 20.sp,
                     color = MaterialTheme.colorScheme.onBackground
                 )
             }
         },
         actions = {
-            // 修复：移除背景，避免阴影重叠
             Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(end = 8.dp)
+                modifier = Modifier.padding(end = 4.dp)
             ) {
-                CleanIconButton(onClick = onEditClick, icon = Icons.Default.Add, contentDesc = "添加门禁")
-                CleanIconButton(onClick = onSettingsClick, icon = Icons.Default.Settings, contentDesc = "设置")
-                CleanIconButton(onClick = onHelperClick, icon = Icons.Default.Info, contentDesc = "帮助")
+                CompactIconButton(onClick = onEditClick, icon = Icons.Default.Add, contentDesc = "添加门禁")
+                CompactIconButton(onClick = onSettingsClick, icon = Icons.Default.Settings, contentDesc = "设置")
+                CompactIconButton(onClick = onHelperClick, icon = Icons.Default.Info, contentDesc = "帮助")
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
@@ -267,27 +265,26 @@ private fun CleanTopBar(
 }
 
 @Composable
-private fun CleanIconButton(
+private fun CompactIconButton(
     onClick: () -> Unit,
     icon: ImageVector,
     contentDesc: String
 ) {
-    // 修复：移除背景色块，只保留图标
     IconButton(
         onClick = onClick,
-        modifier = Modifier.size(40.dp)
+        modifier = Modifier.size(36.dp)
     ) {
         Icon(
             icon,
             contentDescription = contentDesc,
             tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(22.dp)
+            modifier = Modifier.size(20.dp)
         )
     }
 }
 
 @Composable
-private fun CleanPollButton(
+private fun CompactPollButton(
     doors: List<DoorDevice>,
     selectedCount: Int,
     isPolling: Boolean,
@@ -299,8 +296,8 @@ private fun CleanPollButton(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(56.dp)
-            .clip(RoundedCornerShape(18.dp))
+            .height(48.dp)
+            .clip(RoundedCornerShape(14.dp))
             .background(
                 brush = if (isPolling) {
                     Brush.horizontalGradient(
@@ -324,14 +321,14 @@ private fun CleanPollButton(
                 horizontalArrangement = Arrangement.Center
             ) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(18.dp),
                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                     strokeWidth = 2.dp
                 )
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = pollingProgress,
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSecondaryContainer
                 )
@@ -345,12 +342,12 @@ private fun CleanPollButton(
                     Icons.Default.PlayArrow,
                     contentDescription = null,
                     tint = Color.White,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(20.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = "一键轮询开锁 (${selectedCount}/${doors.size})",
-                    fontSize = 16.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color.White
                 )
@@ -360,7 +357,7 @@ private fun CleanPollButton(
 }
 
 @Composable
-private fun CleanProgressBar(
+private fun CompactProgressBar(
     current: Int,
     total: Int,
     onStop: () -> Unit
@@ -368,36 +365,35 @@ private fun CleanProgressBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         LinearProgressIndicator(
             progress = current.toFloat() / total,
             modifier = Modifier
                 .weight(1f)
-                .height(6.dp)
-                .clip(RoundedCornerShape(3.dp)),
+                .height(4.dp)
+                .clip(RoundedCornerShape(2.dp)),
             color = ColorOSPrimary,
             trackColor = MaterialTheme.colorScheme.surfaceVariant
         )
-        Spacer(modifier = Modifier.width(12.dp))
-        // 修复：移除背景色块
+        Spacer(modifier = Modifier.width(8.dp))
         IconButton(
             onClick = onStop,
-            modifier = Modifier.size(36.dp)
+            modifier = Modifier.size(32.dp)
         ) {
             Icon(
                 Icons.Default.Stop,
                 contentDescription = "停止轮询",
                 tint = ColorOSError,
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(20.dp)
             )
         }
     }
 }
 
 @Composable
-private fun CleanOutlineButton(
+private fun CompactOutlineButton(
     onClick: () -> Unit,
     icon: ImageVector,
     text: String,
@@ -405,8 +401,8 @@ private fun CleanOutlineButton(
 ) {
     OutlinedButton(
         onClick = onClick,
-        modifier = modifier.height(48.dp),
-        shape = RoundedCornerShape(14.dp),
+        modifier = modifier.height(40.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = ButtonDefaults.outlinedButtonColors(
             contentColor = MaterialTheme.colorScheme.primary
         ),
@@ -415,14 +411,14 @@ private fun CleanOutlineButton(
             MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
         )
     ) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(text, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+        Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(text, fontSize = 13.sp, fontWeight = FontWeight.Medium)
     }
 }
 
 @Composable
-private fun DoorListContent(
+private fun CompactDoorList(
     doors: MutableState<List<DoorDevice>>,
     onRefresh: () -> Unit,
 ) {
@@ -435,14 +431,14 @@ private fun DoorListContent(
                 Icon(
                     Icons.Default.Home,
                     contentDescription = null,
-                    modifier = Modifier.size(64.dp),
+                    modifier = Modifier.size(48.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = "暂无门禁，请点击右上角添加",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 16.sp
+                    fontSize = 14.sp
                 )
             }
         }
@@ -451,10 +447,10 @@ private fun DoorListContent(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(doors.value, key = { it.id }) { door ->
-            CleanDoorCard(
+            CompactDoorCard(
                 door = door,
                 onToggleSelected = { id ->
                     DataRepo.toggleSelected(id)
@@ -470,12 +466,12 @@ private fun DoorListContent(
                 }
             )
         }
-        item { Spacer(modifier = Modifier.size(80.dp)) }
+        item { Spacer(modifier = Modifier.size(60.dp)) }
     }
 }
 
 @Composable
-private fun CleanDoorCard(
+private fun CompactDoorCard(
     door: DoorDevice,
     onToggleSelected: (String) -> Unit = {},
     onMoveUp: (String) -> Unit = {},
@@ -485,21 +481,18 @@ private fun CleanDoorCard(
     var isUnlocking by remember { mutableStateOf(false) }
     var unlockStep by remember { mutableStateOf("") }
     val stepState = UnlockRepo.unlockStep
-    val interactionSource = remember { MutableInteractionSource() }
 
-    val nameFontSize = if (door.name.length > 15) 15.sp else 17.sp
+    val nameFontSize = if (door.name.length > 12) 14.sp else 15.sp
 
-    // 修复：移除阴影，使用简单的边框区分选中状态
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (door.isSelected)
                 MaterialTheme.colorScheme.surface
             else
                 MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
         ),
-        // 修复：使用边框而不是阴影
         border = if (door.isSelected) {
             androidx.compose.foundation.BorderStroke(
                 1.dp,
@@ -510,53 +503,53 @@ private fun CleanDoorCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Checkbox(
                 checked = door.isSelected,
                 onCheckedChange = { onToggleSelected(door.id) },
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier.size(20.dp),
                 colors = CheckboxDefaults.colors(
                     checkedColor = ColorOSPrimary,
                     uncheckedColor = MaterialTheme.colorScheme.outline
                 )
             )
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = door.name,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall,
                     fontSize = nameFontSize,
                     fontWeight = FontWeight.Bold,
                     color = if (door.isSelected)
                         MaterialTheme.colorScheme.onSurface
                     else
                         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                    maxLines = 2,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
 
                 if (door.mac.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = door.mac,
                         style = MaterialTheme.typography.bodySmall,
-                        fontSize = 12.sp,
+                        fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                     )
                 }
 
                 if (isUnlocking && unlockStep.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
-                                .size(8.dp)
-                                .clip(RoundedCornerShape(4.dp))
+                                .size(6.dp)
+                                .clip(RoundedCornerShape(3.dp))
                                 .background(
                                     when {
                                         unlockStep.contains("成功") -> ColorOSSuccess
@@ -565,10 +558,10 @@ private fun CleanDoorCard(
                                     }
                                 )
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = unlockStep,
-                            fontSize = 12.sp,
+                            fontSize = 11.sp,
                             color = when {
                                 unlockStep.contains("成功") -> ColorOSSuccess
                                 unlockStep.contains("失败") || unlockStep.contains("超时") -> ColorOSError
@@ -581,31 +574,30 @@ private fun CleanDoorCard(
                 }
             }
 
-            Column(horizontalAlignment = Alignment.End) {
-                Row {
-                    // 修复：移除背景色块
-                    CleanSmallIconButton(
-                        onClick = { onMoveUp(door.id) },
-                        icon = Icons.Default.KeyboardArrowUp,
-                        contentDesc = "上移"
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    CleanSmallIconButton(
-                        onClick = { onMoveDown(door.id) },
-                        icon = Icons.Default.KeyboardArrowDown,
-                        contentDesc = "下移"
-                    )
-                }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CompactSmallIconButton(
+                    onClick = { onMoveUp(door.id) },
+                    icon = Icons.Default.KeyboardArrowUp,
+                    contentDesc = "上移"
+                )
+                CompactSmallIconButton(
+                    onClick = { onMoveDown(door.id) },
+                    icon = Icons.Default.KeyboardArrowDown,
+                    contentDesc = "下移"
+                )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.width(4.dp))
 
-                CleanUnlockButton(
+                CompactUnlockButton(
                     isUnlocking = isUnlocking,
                     unlockStep = unlockStep,
                     onClick = {
                         if (door.mac.isEmpty() || door.key.isEmpty()) {
                             showToast("请先配置该门禁的 MAC 和 Key")
-                            return@CleanUnlockButton
+                            return@CompactUnlockButton
                         }
                         if (!isUnlocking) {
                             isUnlocking = true
@@ -635,27 +627,26 @@ private fun CleanDoorCard(
 }
 
 @Composable
-private fun CleanSmallIconButton(
+private fun CompactSmallIconButton(
     onClick: () -> Unit,
     icon: ImageVector,
     contentDesc: String
 ) {
-    // 修复：移除背景色块，只保留图标
     IconButton(
         onClick = onClick,
-        modifier = Modifier.size(32.dp)
+        modifier = Modifier.size(28.dp)
     ) {
         Icon(
             icon,
             contentDescription = contentDesc,
-            modifier = Modifier.size(20.dp),
+            modifier = Modifier.size(18.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
 
 @Composable
-private fun CleanUnlockButton(
+private fun CompactUnlockButton(
     isUnlocking: Boolean,
     unlockStep: String,
     onClick: () -> Unit
@@ -667,12 +658,11 @@ private fun CleanUnlockButton(
         else -> ColorOSPrimary
     }
 
-    // 修复：移除阴影
     Box(
         modifier = Modifier
-            .width(88.dp)
-            .height(40.dp)
-            .clip(RoundedCornerShape(20.dp))
+            .width(72.dp)
+            .height(32.dp)
+            .clip(RoundedCornerShape(16.dp))
             .background(
                 brush = Brush.horizontalGradient(
                     colors = listOf(buttonColor, buttonColor.copy(alpha = 0.8f))
@@ -683,24 +673,39 @@ private fun CleanUnlockButton(
     ) {
         when {
             isUnlocking -> CircularProgressIndicator(
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(14.dp),
                 color = Color.White,
                 strokeWidth = 2.dp
             )
-            unlockStep.contains("成功") -> Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("成功", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            }
-            unlockStep.contains("失败") || unlockStep.contains("超时") -> Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Close, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("失败", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            }
-            else -> Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.LockOpen, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("开锁", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            unlockStep.contains("成功") -> Icon(
+                Icons.Default.Check,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(16.dp)
+            )
+            unlockStep.contains("失败") || unlockStep.contains("超时") -> Icon(
+                Icons.Default.Close,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(16.dp)
+            )
+            else -> Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    Icons.Default.LockOpen,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(3.dp))
+                Text(
+                    "开锁",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
             }
         }
     }
@@ -720,28 +725,28 @@ private fun PermissionView(hasPermission: MutableState<Boolean>) {
         Icon(
             Icons.Default.Bluetooth,
             contentDescription = null,
-            modifier = Modifier.size(64.dp),
+            modifier = Modifier.size(48.dp),
             tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         Text(
             text = "需要蓝牙权限才能开门",
-            fontSize = 16.sp,
+            fontSize = 14.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         Button(
             onClick = {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     requestPermissionLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT)
                 }
             },
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = ColorOSPrimary
             )
         ) {
-            Text("授予权限", fontSize = 16.sp)
+            Text("授予权限", fontSize = 14.sp)
         }
     }
 }
