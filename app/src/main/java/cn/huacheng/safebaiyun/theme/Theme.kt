@@ -16,45 +16,34 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-// ============================================================
-//  ColorOS 16 光场设计配色方案
-// ============================================================
-
 private val ColorOSLightColorScheme = lightColorScheme(
     primary = ColorOSPrimary,
     onPrimary = Color.White,
     primaryContainer = ColorOSPrimaryLight,
     onPrimaryContainer = Color.White,
-
     secondary = ColorOSSecondary,
     onSecondary = Color.White,
     secondaryContainer = Color(0xFFE3F2FD),
     onSecondaryContainer = Color(0xFF1565C0),
-
     tertiary = ColorOSTertiary,
     onTertiary = Color.White,
     tertiaryContainer = Color(0xFFE8F5E9),
     onTertiaryContainer = Color(0xFF2E7D32),
-
     background = ColorOSBackgroundLight,
     onBackground = ColorOSTextPrimaryLight,
     surface = ColorOSSurfaceLight,
     onSurface = ColorOSTextPrimaryLight,
     surfaceVariant = ColorOSSurfaceVariantLight,
     onSurfaceVariant = ColorOSTextSecondaryLight,
-
     outline = Color(0xFFC4C6D0),
     outlineVariant = Color(0xFFE0E1E6),
-
     error = ColorOSError,
     onError = Color.White,
     errorContainer = Color(0xFFFFEBEE),
     onErrorContainer = Color(0xFFC62828),
-
     inverseSurface = Color(0xFF2F3036),
     inverseOnSurface = Color(0xFFF1F0F4),
     inversePrimary = ColorOSPrimaryLight,
-
     surfaceTint = ColorOSPrimary,
     scrim = Color.Black,
 )
@@ -64,36 +53,29 @@ private val ColorOSDarkColorScheme = darkColorScheme(
     onPrimary = Color(0xFF1A237E),
     primaryContainer = ColorOSPrimaryDark,
     onPrimaryContainer = Color.White,
-
     secondary = Color(0xFF90CAF9),
     onSecondary = Color(0xFF0D47A1),
     secondaryContainer = Color(0xFF1565C0),
     onSecondaryContainer = Color.White,
-
     tertiary = Color(0xFFA5D6A7),
     onTertiary = Color(0xFF1B5E20),
     tertiaryContainer = Color(0xFF2E7D32),
     onTertiaryContainer = Color.White,
-
     background = ColorOSBackgroundDark,
     onBackground = ColorOSTextPrimaryDark,
     surface = ColorOSSurfaceDark,
     onSurface = ColorOSTextPrimaryDark,
     surfaceVariant = ColorOSSurfaceVariantDark,
     onSurfaceVariant = ColorOSTextSecondaryDark,
-
     outline = Color(0xFF5A5C66),
     outlineVariant = Color(0xFF3A3B42),
-
     error = Color(0xFFEF9A9A),
     onError = Color(0xFF4A0000),
     errorContainer = Color(0xFFB71C1C),
     onErrorContainer = Color.White,
-
     inverseSurface = Color(0xFFE4E4EC),
     inverseOnSurface = Color(0xFF1A1B20),
     inversePrimary = ColorOSPrimary,
-
     surfaceTint = ColorOSPrimaryLight,
     scrim = Color.Black,
 )
@@ -117,19 +99,13 @@ fun SafeBaiyunTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-
-            // 修复：根据主题设置状态栏颜色
             if (darkTheme) {
-                // 深色模式：状态栏使用背景色
                 window.statusBarColor = ColorOSBackgroundDark.toArgb()
                 window.navigationBarColor = ColorOSBackgroundDark.toArgb()
             } else {
-                // 浅色模式：状态栏使用背景色
                 window.statusBarColor = ColorOSBackgroundLight.toArgb()
                 window.navigationBarColor = ColorOSBackgroundLight.toArgb()
             }
-
-            // 修复：根据主题设置状态栏图标颜色
             WindowCompat.getInsetsController(window, view).apply {
                 isAppearanceLightStatusBars = !darkTheme
                 isAppearanceLightNavigationBars = !darkTheme
@@ -137,9 +113,12 @@ fun SafeBaiyunTheme(
         }
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    // 应用字体缩放
+    ApplyFontScale {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            content = content
+        )
+    }
 }
