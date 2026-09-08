@@ -49,20 +49,8 @@ fun SettingsView(navController: NavController) {
     ) {
         Column {
             SettingsTopBar(
-                onBack = { navController.popBackStack() },
-                onRestore = {
-                    ConfigManager.resetToDefaults()
-                    unlockTimeout = ConfigManager.getDefaultUnlockTimeout().toString()
-                    pollInterval = ConfigManager.getDefaultPollInterval().toString()
-                    resultDelay = ConfigManager.getDefaultResultDelay().toString()
-                    resetDelay = ConfigManager.getDefaultResetDelay().toString()
-                    autoPoll = ConfigManager.getDefaultAutoPoll()
-                    pollWaitTime = ConfigManager.getDefaultPollWaitTime().toString()
-                    largeFont = ConfigManager.getDefaultLargeFont()
-                    hasChanges = false
-                    showToast("已恢复默认设置")
-                },
                 hasChanges = hasChanges,
+                onBack = { navController.popBackStack() },
                 onSave = {
                     try {
                         val timeout = unlockTimeout.toLong()
@@ -71,7 +59,7 @@ fun SettingsView(navController: NavController) {
                         val reset = resetDelay.toLong()
                         val wait = pollWaitTime.toLong()
                         if (timeout < 1000 || interval < 100 || result < 100 || reset < 100 || wait < 100) {
-                            showToast("数值不能小于 100ms")
+                            showToast("单次开锁超时不能小于1000ms，其它时间不能小于100ms")
                             return@SettingsTopBar
                         }
                         ConfigManager.setUnlockTimeout(timeout)
@@ -86,6 +74,18 @@ fun SettingsView(navController: NavController) {
                     } catch (e: NumberFormatException) {
                         showToast("请输入有效的数字")
                     }
+                },
+                onRestore = {
+                    ConfigManager.resetToDefaults()
+                    unlockTimeout = ConfigManager.getDefaultUnlockTimeout().toString()
+                    pollInterval = ConfigManager.getDefaultPollInterval().toString()
+                    resultDelay = ConfigManager.getDefaultResultDelay().toString()
+                    resetDelay = ConfigManager.getDefaultResetDelay().toString()
+                    autoPoll = ConfigManager.getDefaultAutoPoll()
+                    pollWaitTime = ConfigManager.getDefaultPollWaitTime().toString()
+                    largeFont = ConfigManager.getDefaultLargeFont()
+                    hasChanges = false
+                    showToast("已恢复默认设置")
                 }
             )
 
@@ -176,8 +176,6 @@ fun SettingsView(navController: NavController) {
                     defaultValue = ConfigManager.getDefaultResetDelay().toString(),
                     unit = "毫秒"
                 )
-
-                // 底部占位，不再显示保存按钮
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }
@@ -187,10 +185,10 @@ fun SettingsView(navController: NavController) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SettingsTopBar(
-    onBack: () -> Unit,
-    onRestore: () -> Unit,
     hasChanges: Boolean,
-    onSave: () -> Unit
+    onBack: () -> Unit,
+    onSave: () -> Unit,
+    onRestore: () -> Unit
 ) {
     TopAppBar(
         title = {
@@ -239,19 +237,16 @@ private fun SettingsTopBar(
             }
         },
         actions = {
-            // 保存按钮（放在恢复默认左边）
             TextButton(
                 onClick = onSave,
-                enabled = hasChanges,
-                colors = TextButtonDefaults.textButtonColors(
-                    contentColor = if (hasChanges) MaterialTheme.colorScheme.primary
-                                   else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                )
+                enabled = hasChanges
             ) {
-                Text("保存")
+                Text(
+                    "保存",
+                    fontWeight = FontWeight.Bold
+                )
             }
 
-            // 恢复默认按钮（图标）
             IconButton(
                 onClick = onRestore,
                 modifier = Modifier
@@ -524,7 +519,7 @@ private fun ConfigItem(
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                     label = { Text("数值", fontSize = 12.sp) },
-                    trailingIcon = {
+                    trailingIcon = { 
                         Text(
                             unit,
                             fontSize = 11.sp,
@@ -549,3 +544,4 @@ private fun ConfigItem(
         }
     }
 }
+
