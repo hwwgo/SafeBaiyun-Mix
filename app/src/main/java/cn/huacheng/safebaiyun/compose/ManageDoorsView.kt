@@ -213,7 +213,6 @@ private fun ManageTopBar(
 
 @Composable
 private fun AddButton(onClick: () -> Unit) {
-    // 修复：去掉阴影
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -263,7 +262,6 @@ private fun DoorEditItem(
         .padding(vertical = 4.dp)
         .fillMaxWidth()
 
-    // 修复：去掉阴影，使用边框区分编辑状态
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -314,46 +312,46 @@ private fun DoorEditItem(
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
-                if (!isEditing) {
+                // 修复：添加间距，避免图标重叠
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (!isEditing) {
+                        // 编辑按钮 - 去掉背景色块
+                        IconButton(
+                            onClick = onToggleExpand,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Edit,
+                                contentDescription = "编辑",
+                                tint = ColorOSPrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    } else {
+                        TextButton(onClick = onSaveEdit) {
+                            Text(
+                                "完成",
+                                color = ColorOSPrimary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+
+                    // 删除按钮 - 去掉背景色块
                     IconButton(
-                        onClick = onToggleExpand,
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        onClick = onDelete,
+                        modifier = Modifier.size(36.dp)
                     ) {
                         Icon(
-                            Icons.Default.Edit,
-                            contentDescription = "编辑",
-                            tint = ColorOSPrimary,
-                            modifier = Modifier.size(18.dp)
+                            Icons.Default.Delete,
+                            contentDescription = "删除",
+                            tint = ColorOSError,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
-                } else {
-                    TextButton(onClick = onSaveEdit) {
-                        Text(
-                            "完成",
-                            color = ColorOSPrimary,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(ColorOSError.copy(alpha = 0.1f))
-                ) {
-                    Icon(
-                        Icons.Default.Delete,
-                        contentDescription = "删除",
-                        tint = ColorOSError,
-                        modifier = Modifier.size(18.dp)
-                    )
                 }
             }
 

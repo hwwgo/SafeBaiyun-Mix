@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -60,7 +61,6 @@ private fun HelpTopBar(onBack: () -> Unit) {
     TopAppBar(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // 修复：去掉阴影
                 Box(
                     modifier = Modifier
                         .size(36.dp)
@@ -202,7 +202,6 @@ private fun HelpCard(
     title: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    // 修复：去掉阴影
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -251,14 +250,15 @@ private fun HelpButton(
     icon: ImageVector,
     modifier: Modifier = Modifier
 ) {
-    // 修复：使用 Button，去掉阴影
+    // 修复：增加按钮高度，防止文字截断
     Button(
         onClick = onClick,
-        modifier = modifier.height(44.dp),
+        modifier = modifier.height(48.dp),
         shape = RoundedCornerShape(12.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = ColorOSPrimary
-        )
+        ),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -271,11 +271,14 @@ private fun HelpButton(
                 modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.width(6.dp))
+            // 修复：允许文字换行，防止截断
             Text(
                 text = text,
-                fontSize = 14.sp,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color.White
+                color = Color.White,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
