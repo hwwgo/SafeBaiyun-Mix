@@ -32,6 +32,7 @@ fun SettingsView(navController: NavController) {
     var resetDelay by remember { mutableStateOf(ConfigManager.getResetDelay().toString()) }
     var autoPoll by remember { mutableStateOf(ConfigManager.getAutoPollOnStart()) }
     var pollWaitTime by remember { mutableStateOf(ConfigManager.getPollWaitTime().toString()) }
+    var largeFont by remember { mutableStateOf(ConfigManager.isLargeFont()) }
     var hasChanges by remember { mutableStateOf(false) }
 
     Box(
@@ -57,6 +58,7 @@ fun SettingsView(navController: NavController) {
                     resetDelay = ConfigManager.getDefaultResetDelay().toString()
                     autoPoll = ConfigManager.getDefaultAutoPoll()
                     pollWaitTime = ConfigManager.getDefaultPollWaitTime().toString()
+                    largeFont = ConfigManager.getDefaultLargeFont()
                     hasChanges = false
                     showToast("已恢复默认设置")
                 }
@@ -72,6 +74,15 @@ fun SettingsView(navController: NavController) {
                 Spacer(modifier = Modifier.height(4.dp))
 
                 InfoCard()
+
+                // 大字体模式开关
+                LargeFontCard(
+                    largeFont = largeFont,
+                    onToggle = {
+                        largeFont = it
+                        hasChanges = true
+                    }
+                )
 
                 AutoPollCard(
                     autoPoll = autoPoll,
@@ -160,8 +171,9 @@ fun SettingsView(navController: NavController) {
                             ConfigManager.setResetDelay(reset)
                             ConfigManager.setAutoPollOnStart(autoPoll)
                             ConfigManager.setPollWaitTime(wait)
+                            ConfigManager.setLargeFont(largeFont)
                             hasChanges = false
-                            showToast("✅ 设置已保存")
+                            showToast("✅ 设置已保存，重启应用后生效")
                         } catch (e: NumberFormatException) {
                             showToast("请输入有效的数字")
                         }
@@ -284,18 +296,85 @@ private fun InfoCard() {
 
             Column {
                 Text(
-                    "时间参数设置",
+                    "设置",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    "调整以下参数可以优化开锁体验，数值单位为毫秒（1秒 = 1000毫秒）",
+                    "调整以下参数可以优化开锁体验",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun LargeFontCard(
+    largeFont: Boolean,
+    onToggle: (Boolean) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(ColorOSTertiary.copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.FormatSize,
+                        contentDescription = null,
+                        tint = ColorOSTertiary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Column {
+                    Text(
+                        text = "大字体模式",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "放大界面文字，方便阅读",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Switch(
+                checked = largeFont,
+                onCheckedChange = onToggle,
+                colors = SwitchDefaults.colors(
+                    checkedTrackColor = ColorOSTertiary,
+                    checkedThumbColor = Color.White
+                )
+            )
         }
     }
 }
