@@ -67,7 +67,7 @@ fun QRExportView(navController: NavHostController) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(24.dp),
+                    .padding(20.dp),
                 contentAlignment = Alignment.Center
             ) {
                 when {
@@ -75,10 +75,9 @@ fun QRExportView(navController: NavHostController) {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            // 修复：去掉阴影
                             QRCard(qrBitmap!!)
 
-                            Spacer(modifier = Modifier.height(24.dp))
+                            Spacer(modifier = Modifier.height(20.dp))
 
                             Text(
                                 text = "已配置 ${doors.size} 个门禁",
@@ -87,7 +86,7 @@ fun QRExportView(navController: NavHostController) {
                                 color = MaterialTheme.colorScheme.onSurface
                             )
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
 
                             Text(
                                 text = "请在新设备上打开应用扫描此二维码",
@@ -95,7 +94,7 @@ fun QRExportView(navController: NavHostController) {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
 
-                            Spacer(modifier = Modifier.height(32.dp))
+                            Spacer(modifier = Modifier.height(28.dp))
 
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -117,7 +116,7 @@ fun QRExportView(navController: NavHostController) {
                                     modifier = Modifier.weight(1f)
                                 )
 
-                                Spacer(modifier = Modifier.width(16.dp))
+                                Spacer(modifier = Modifier.width(12.dp))
 
                                 ActionButton(
                                     onClick = {
@@ -132,15 +131,15 @@ fun QRExportView(navController: NavHostController) {
                             }
 
                             if (showSavedMessage) {
-                                Spacer(modifier = Modifier.height(16.dp))
+                                Spacer(modifier = Modifier.height(12.dp))
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
                                         Icons.Default.CheckCircle,
                                         contentDescription = null,
                                         tint = ColorOSSuccess,
-                                        modifier = Modifier.size(20.dp)
+                                        modifier = Modifier.size(18.dp)
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         text = "已保存到相册",
                                         color = ColorOSSuccess,
@@ -174,7 +173,7 @@ private fun QRExportTopBar(onBack: () -> Unit) {
             Text(
                 "导出配置",
                 fontWeight = FontWeight.Bold,
-                fontSize = 22.sp,
+                fontSize = 20.sp,
                 color = MaterialTheme.colorScheme.onBackground
             )
         },
@@ -182,15 +181,15 @@ private fun QRExportTopBar(onBack: () -> Unit) {
             IconButton(
                 onClick = onBack,
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(10.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
             ) {
                 Icon(
                     Icons.Default.ArrowBack,
                     contentDescription = "返回",
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
         },
@@ -202,10 +201,9 @@ private fun QRExportTopBar(onBack: () -> Unit) {
 
 @Composable
 private fun QRCard(bitmap: android.graphics.Bitmap) {
-    // 修复：去掉阴影
     Card(
-        modifier = Modifier.size(280.dp),
-        shape = RoundedCornerShape(24.dp),
+        modifier = Modifier.size(240.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         )
@@ -213,7 +211,7 @@ private fun QRCard(bitmap: android.graphics.Bitmap) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(20.dp),
+                .padding(16.dp),
             contentAlignment = Alignment.Center
         ) {
             Image(
@@ -232,11 +230,10 @@ private fun ActionButton(
     text: String,
     modifier: Modifier = Modifier
 ) {
-    // 修复：去掉阴影
     Box(
         modifier = modifier
-            .height(48.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .height(44.dp)
+            .clip(RoundedCornerShape(12.dp))
             .background(
                 brush = Brush.horizontalGradient(
                     colors = listOf(ColorOSGradientStart, ColorOSGradientEnd)
@@ -253,12 +250,12 @@ private fun ActionButton(
                 icon,
                 contentDescription = null,
                 tint = Color.White,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(16.dp)
             )
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = text,
-                fontSize = 14.sp,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Color.White
             )
@@ -277,19 +274,19 @@ private fun EmptyState(
     ) {
         Box(
             modifier = Modifier
-                .size(80.dp)
-                .clip(RoundedCornerShape(24.dp))
+                .size(64.dp)
+                .clip(RoundedCornerShape(18.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 icon,
                 contentDescription = null,
-                modifier = Modifier.size(40.dp),
+                modifier = Modifier.size(32.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
             )
         }
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         Text(
             text = message,
             style = MaterialTheme.typography.bodyLarge,
@@ -306,9 +303,9 @@ private fun LoadingState() {
     ) {
         CircularProgressIndicator(
             color = ColorOSPrimary,
-            modifier = Modifier.size(48.dp)
+            modifier = Modifier.size(40.dp)
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         Text(
             text = "正在生成二维码...",
             style = MaterialTheme.typography.bodyLarge,

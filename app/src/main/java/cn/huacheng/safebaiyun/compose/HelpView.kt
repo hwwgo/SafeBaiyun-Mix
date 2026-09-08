@@ -43,13 +43,13 @@ fun HelpView(navController: NavController) {
             HelpTopBar(onBack = { navController.popBackStack() })
 
             LazyColumn(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 item { AppHelper() }
                 item { ShortcutHelper() }
                 item { WidgetHelper() }
-                item { Spacer(modifier = Modifier.height(32.dp)) }
+                item { Spacer(modifier = Modifier.height(24.dp)) }
             }
         }
     }
@@ -63,8 +63,8 @@ private fun HelpTopBar(onBack: () -> Unit) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(10.dp))
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(8.dp))
                         .background(
                             brush = Brush.linearGradient(
                                 colors = listOf(ColorOSGradientStart, ColorOSGradientEnd)
@@ -76,14 +76,14 @@ private fun HelpTopBar(onBack: () -> Unit) {
                         Icons.Default.Help,
                         contentDescription = null,
                         tint = Color.White,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(16.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     "使用帮助",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 22.sp,
+                    fontSize = 20.sp,
                     color = MaterialTheme.colorScheme.onBackground
                 )
             }
@@ -92,15 +92,15 @@ private fun HelpTopBar(onBack: () -> Unit) {
             IconButton(
                 onClick = onBack,
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(10.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
             ) {
                 Icon(
                     Icons.Default.ArrowBack,
                     contentDescription = "返回",
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
         },
@@ -119,8 +119,9 @@ private fun AppHelper() {
             Text(
                 text = "本软件是广州市白云区蓝牙门禁的离线版本，只需要门禁的mac地址以及加密key即可开门，无需网络。",
                 style = MaterialTheme.typography.bodyMedium,
+                fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                lineHeight = 22.sp
+                lineHeight = 20.sp
             )
         }
     )
@@ -135,15 +136,16 @@ private fun ShortcutHelper() {
             Text(
                 text = "快捷方式在桌面上跟普通App长的差不多，使用快捷方式开门只需点击图标即可。在大部分国产系统如OPPO, MIUI上需要手动授予【创建桌面快捷方式】权限。",
                 style = MaterialTheme.typography.bodyMedium,
+                fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                lineHeight = 22.sp
+                lineHeight = 20.sp
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 HelpButton(
                     onClick = { WidgetHelper.createShortcut() },
@@ -172,23 +174,25 @@ private fun WidgetHelper() {
             Text(
                 text = "桌面小部件类似于快捷方式，但是可以有更多的样式。本App提供了大中三种样式。可以在桌面长按空白处，然后选择【添加小部件】。",
                 style = MaterialTheme.typography.bodyMedium,
+                fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                lineHeight = 22.sp
+                lineHeight = 20.sp
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     Icons.Default.Warning,
                     contentDescription = null,
                     tint = ColorOSWarning,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(14.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = "在低于Android12的手机上小部件不会正常显示，建议不要使用。",
                     style = MaterialTheme.typography.bodySmall,
+                    fontSize = 12.sp,
                     color = ColorOSWarning
                 )
             }
@@ -204,17 +208,17 @@ private fun HelpCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(10.dp))
                         .background(ColorOSPrimary.copy(alpha = 0.1f)),
                     contentAlignment = Alignment.Center
                 ) {
@@ -222,21 +226,22 @@ private fun HelpCard(
                         icon,
                         contentDescription = null,
                         tint = ColorOSPrimary,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
 
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(10.dp))
 
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             content()
         }
@@ -250,15 +255,14 @@ private fun HelpButton(
     icon: ImageVector,
     modifier: Modifier = Modifier
 ) {
-    // 修复：增加按钮高度，防止文字截断
     Button(
         onClick = onClick,
-        modifier = modifier.height(48.dp),
-        shape = RoundedCornerShape(12.dp),
+        modifier = modifier.height(44.dp),
+        shape = RoundedCornerShape(10.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = ColorOSPrimary
         ),
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -268,16 +272,15 @@ private fun HelpButton(
                 icon,
                 contentDescription = null,
                 tint = Color.White,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(16.dp)
             )
-            Spacer(modifier = Modifier.width(6.dp))
-            // 修复：允许文字换行，防止截断
+            Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = text,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Color.White,
-                maxLines = 2,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }

@@ -148,11 +148,11 @@ fun QRImportView(navController: NavHostController) {
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .align(Alignment.BottomCenter)
-                                    .padding(24.dp),
+                                    .padding(20.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Card(
-                                    shape = RoundedCornerShape(16.dp),
+                                    shape = RoundedCornerShape(14.dp),
                                     colors = CardDefaults.cardColors(
                                         containerColor = Color.Black.copy(alpha = 0.6f)
                                     )
@@ -161,7 +161,7 @@ fun QRImportView(navController: NavHostController) {
                                         text = "请将二维码对准取景框",
                                         color = Color.White,
                                         style = MaterialTheme.typography.bodyMedium,
-                                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
                                     )
                                 }
                             }
@@ -189,7 +189,7 @@ private fun QRImportTopBar(onBack: () -> Unit) {
             Text(
                 "扫描导入",
                 fontWeight = FontWeight.Bold,
-                fontSize = 22.sp,
+                fontSize = 20.sp,
                 color = MaterialTheme.colorScheme.onBackground
             )
         },
@@ -197,15 +197,15 @@ private fun QRImportTopBar(onBack: () -> Unit) {
             IconButton(
                 onClick = onBack,
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(10.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
             ) {
                 Icon(
                     Icons.Default.ArrowBack,
                     contentDescription = "返回",
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
         },
@@ -220,26 +220,26 @@ private fun CameraPermissionView(onRequestPermission: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(32.dp),
+            .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Box(
             modifier = Modifier
-                .size(80.dp)
-                .clip(RoundedCornerShape(24.dp))
+                .size(64.dp)
+                .clip(RoundedCornerShape(18.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 Icons.Default.CameraAlt,
                 contentDescription = null,
-                modifier = Modifier.size(40.dp),
+                modifier = Modifier.size(32.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
             )
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         Text(
             text = "需要相机权限才能扫描二维码",
@@ -248,7 +248,7 @@ private fun CameraPermissionView(onRequestPermission: () -> Unit) {
             color = MaterialTheme.colorScheme.onSurface
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
         Text(
             text = "授权后即可使用相机扫描二维码导入门禁配置",
@@ -256,13 +256,12 @@ private fun CameraPermissionView(onRequestPermission: () -> Unit) {
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(28.dp))
 
-        // 修复：去掉阴影
         Box(
             modifier = Modifier
-                .height(48.dp)
-                .clip(RoundedCornerShape(14.dp))
+                .height(44.dp)
+                .clip(RoundedCornerShape(12.dp))
                 .background(
                     brush = Brush.horizontalGradient(
                         colors = listOf(ColorOSGradientStart, ColorOSGradientEnd)
@@ -273,10 +272,10 @@ private fun CameraPermissionView(onRequestPermission: () -> Unit) {
         ) {
             Text(
                 text = "授予相机权限",
-                fontSize = 16.sp,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Color.White,
-                modifier = Modifier.padding(horizontal = 32.dp)
+                modifier = Modifier.padding(horizontal = 28.dp)
             )
         }
     }
@@ -382,14 +381,14 @@ private fun ImportConfirmDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(20.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(10.dp))
                         .background(ColorOSPrimary.copy(alpha = 0.1f)),
                     contentAlignment = Alignment.Center
                 ) {
@@ -397,14 +396,14 @@ private fun ImportConfirmDialog(
                         Icons.Default.QrCode,
                         contentDescription = null,
                         tint = ColorOSPrimary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(10.dp))
                 Text(
                     "发现门禁配置",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp
+                    fontSize = 17.sp
                 )
             }
         },
@@ -415,27 +414,27 @@ private fun ImportConfirmDialog(
                     style = MaterialTheme.typography.bodyMedium
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Card(
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(10.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                     )
                 ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
+                    Column(modifier = Modifier.padding(10.dp)) {
                         doors.take(5).forEach { door ->
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(vertical = 4.dp)
+                                modifier = Modifier.padding(vertical = 3.dp)
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(8.dp)
-                                        .clip(RoundedCornerShape(4.dp))
+                                        .size(6.dp)
+                                        .clip(RoundedCornerShape(3.dp))
                                         .background(ColorOSPrimary)
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = door.name,
                                     style = MaterialTheme.typography.bodySmall,
@@ -448,13 +447,13 @@ private fun ImportConfirmDialog(
                                 text = "... 还有 ${doors.size - 5} 个",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 4.dp)
+                                modifier = Modifier.padding(top = 3.dp)
                             )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 Text(
                     text = "导入方式：",
@@ -462,7 +461,7 @@ private fun ImportConfirmDialog(
                     fontWeight = FontWeight.Medium
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
                 RadioOption(
                     selected = replaceAll,
@@ -470,7 +469,7 @@ private fun ImportConfirmDialog(
                     text = "替换全部配置"
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(3.dp))
 
                 RadioOption(
                     selected = !replaceAll,
@@ -480,17 +479,16 @@ private fun ImportConfirmDialog(
             }
         },
         confirmButton = {
-            // 修复：去掉阴影，使用 Button
             Button(
                 onClick = { onImport(replaceAll) },
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = ColorOSPrimary
                 )
             ) {
                 Text(
                     "确认导入",
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color.White
                 )
@@ -518,7 +516,7 @@ private fun RadioOption(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(8.dp))
             .background(
                 if (selected) 
                     ColorOSPrimary.copy(alpha = 0.1f) 
@@ -526,19 +524,21 @@ private fun RadioOption(
                     Color.Transparent
             )
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp)
+            .padding(horizontal = 10.dp, vertical = 8.dp)
     ) {
         RadioButton(
             selected = selected,
             onClick = null,
             colors = RadioButtonDefaults.colors(
                 selectedColor = ColorOSPrimary
-            )
+            ),
+            modifier = Modifier.size(20.dp)
         )
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(6.dp))
         Text(
             text = text,
             style = MaterialTheme.typography.bodyMedium,
+            fontSize = 14.sp,
             color = if (selected) 
                 MaterialTheme.colorScheme.onSurface 
             else 
@@ -555,9 +555,9 @@ private fun LoadingState() {
     ) {
         CircularProgressIndicator(
             color = ColorOSPrimary,
-            modifier = Modifier.size(48.dp)
+            modifier = Modifier.size(40.dp)
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         Text(
             text = "正在处理...",
             style = MaterialTheme.typography.bodyLarge,

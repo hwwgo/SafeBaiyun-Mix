@@ -16,6 +16,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -51,7 +52,7 @@ fun ManageDoorsView(
             )
     ) {
         Column {
-            ManageTopBar(
+            CompactManageTopBar(
                 onBack = {
                     DataRepo.saveDoors(doors.toList())
                     onSaved()
@@ -68,7 +69,7 @@ fun ManageDoorsView(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp)
+                    .padding(horizontal = 12.dp)
             ) {
                 if (doors.isEmpty()) {
                     Box(
@@ -81,10 +82,10 @@ fun ManageDoorsView(
                             Icon(
                                 Icons.Default.Home,
                                 contentDescription = null,
-                                modifier = Modifier.size(64.dp),
+                                modifier = Modifier.size(48.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                             )
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
                             Text(
                                 text = "暂无门禁，点击下方添加",
                                 style = MaterialTheme.typography.bodyLarge,
@@ -96,10 +97,10 @@ fun ManageDoorsView(
 
                 LazyColumn(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(doors, key = { it.id }) { door ->
-                        DoorEditItem(
+                        CompactDoorEditItem(
                             door = door,
                             isEditing = editingId == door.id,
                             editName = editName,
@@ -119,7 +120,7 @@ fun ManageDoorsView(
                                 val name = editName.value.trim()
                                 val mac = editMac.value.trim()
                                 val key = editKey.value.trim()
-                                if (name.isEmpty()) return@DoorEditItem
+                                if (name.isEmpty()) return@CompactDoorEditItem
 
                                 val index = doors.indexOfFirst { it.id == door.id }
                                 if (index >= 0) {
@@ -140,7 +141,7 @@ fun ManageDoorsView(
                     }
                 }
 
-                AddButton(
+                CompactAddButton(
                     onClick = {
                         val newId = UUID.randomUUID().toString()
                         val newName = "门禁${doors.size + 1}"
@@ -158,7 +159,7 @@ fun ManageDoorsView(
                     }
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
             }
         }
     }
@@ -166,7 +167,7 @@ fun ManageDoorsView(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ManageTopBar(
+private fun CompactManageTopBar(
     onBack: () -> Unit,
     onSave: () -> Unit
 ) {
@@ -175,7 +176,7 @@ private fun ManageTopBar(
             Text(
                 "管理门禁",
                 fontWeight = FontWeight.Bold,
-                fontSize = 22.sp,
+                fontSize = 20.sp,
                 color = MaterialTheme.colorScheme.onBackground
             )
         },
@@ -183,15 +184,15 @@ private fun ManageTopBar(
             IconButton(
                 onClick = onBack,
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(10.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
             ) {
                 Icon(
                     Icons.Default.ArrowBack,
                     contentDescription = "返回",
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
         },
@@ -199,7 +200,7 @@ private fun ManageTopBar(
             TextButton(onClick = onSave) {
                 Text(
                     "保存",
-                    fontSize = 16.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = ColorOSPrimary
                 )
@@ -212,12 +213,12 @@ private fun ManageTopBar(
 }
 
 @Composable
-private fun AddButton(onClick: () -> Unit) {
+private fun CompactAddButton(onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(52.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .height(48.dp)
+            .clip(RoundedCornerShape(14.dp))
             .background(
                 brush = Brush.horizontalGradient(
                     colors = listOf(ColorOSGradientStart, ColorOSGradientEnd)
@@ -234,12 +235,12 @@ private fun AddButton(onClick: () -> Unit) {
                 Icons.Default.Add,
                 contentDescription = null,
                 tint = Color.White,
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(20.dp)
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(6.dp))
             Text(
                 "添加门禁",
-                fontSize = 16.sp,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Color.White
             )
@@ -248,7 +249,7 @@ private fun AddButton(onClick: () -> Unit) {
 }
 
 @Composable
-private fun DoorEditItem(
+private fun CompactDoorEditItem(
     door: DoorDevice,
     isEditing: Boolean,
     editName: MutableState<String>,
@@ -262,9 +263,11 @@ private fun DoorEditItem(
         .padding(vertical = 4.dp)
         .fillMaxWidth()
 
+    val nameFontSize = if (door.name.length > 12) 14.sp else 15.sp
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isEditing)
                 MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
@@ -278,15 +281,16 @@ private fun DoorEditItem(
             )
         } else null
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // 图标缩小
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(10.dp))
                         .background(
                             brush = Brush.linearGradient(
                                 colors = listOf(ColorOSGradientStart, ColorOSGradientEnd)
@@ -298,74 +302,79 @@ private fun DoorEditItem(
                         Icons.Default.Home,
                         contentDescription = null,
                         tint = Color.White,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
 
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(10.dp))
 
                 Text(
                     text = door.name,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontSize = nameFontSize,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f),
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
 
-                // 修复：添加间距，避免图标重叠
+                // 修复：去掉背景色块，添加间距
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (!isEditing) {
-                        // 编辑按钮 - 去掉背景色块
                         IconButton(
                             onClick = onToggleExpand,
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
                                 Icons.Default.Edit,
                                 contentDescription = "编辑",
                                 tint = ColorOSPrimary,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     } else {
-                        TextButton(onClick = onSaveEdit) {
+                        TextButton(
+                            onClick = onSaveEdit,
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
                             Text(
                                 "完成",
+                                fontSize = 13.sp,
                                 color = ColorOSPrimary,
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
                     }
 
-                    // 删除按钮 - 去掉背景色块
                     IconButton(
                         onClick = onDelete,
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
                             Icons.Default.Delete,
                             contentDescription = "删除",
                             tint = ColorOSError,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
             }
 
             if (isEditing) {
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                CleanTextField(
+                CompactTextField(
                     value = editName.value,
                     onValueChange = { editName.value = it },
                     label = "名称",
                     modifier = fieldModifier
                 )
 
-                CleanTextField(
+                CompactTextField(
                     value = editMac.value,
                     onValueChange = { editMac.value = it },
                     label = "MAC 地址",
@@ -373,7 +382,7 @@ private fun DoorEditItem(
                     modifier = fieldModifier
                 )
 
-                CleanTextField(
+                CompactTextField(
                     value = editKey.value,
                     onValueChange = { editKey.value = it },
                     label = "加密 Key",
@@ -385,7 +394,7 @@ private fun DoorEditItem(
 }
 
 @Composable
-private fun CleanTextField(
+private fun CompactTextField(
     value: String,
     onValueChange: (String) -> Unit,
     label: String,
@@ -395,11 +404,12 @@ private fun CleanTextField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        label = { Text(label) },
-        placeholder = if (placeholder.isNotEmpty()) { { Text(placeholder) } } else null,
+        label = { Text(label, fontSize = 13.sp) },
+        placeholder = if (placeholder.isNotEmpty()) { { Text(placeholder, fontSize = 13.sp) } } else null,
         singleLine = true,
         modifier = modifier,
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(12.dp),
+        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = ColorOSPrimary,
             focusedLabelColor = ColorOSPrimary,
