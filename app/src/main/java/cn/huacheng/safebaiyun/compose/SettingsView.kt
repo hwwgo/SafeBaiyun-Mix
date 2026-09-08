@@ -61,6 +61,31 @@ fun SettingsView(navController: NavController) {
                     largeFont = ConfigManager.getDefaultLargeFont()
                     hasChanges = false
                     showToast("已恢复默认设置")
+                },
+                hasChanges = hasChanges,
+                onSave = {
+                    try {
+                        val timeout = unlockTimeout.toLong()
+                        val interval = pollInterval.toLong()
+                        val result = resultDelay.toLong()
+                        val reset = resetDelay.toLong()
+                        val wait = pollWaitTime.toLong()
+                        if (timeout < 1000 || interval < 100 || result < 100 || reset < 100 || wait < 100) {
+                            showToast("数值不能小于 100ms")
+                            return@SettingsTopBar
+                        }
+                        ConfigManager.setUnlockTimeout(timeout)
+                        ConfigManager.setPollInterval(interval)
+                        ConfigManager.setResultDelay(result)
+                        ConfigManager.setResetDelay(reset)
+                        ConfigManager.setAutoPollOnStart(autoPoll)
+                        ConfigManager.setPollWaitTime(wait)
+                        ConfigManager.setLargeFont(largeFont)
+                        hasChanges = false
+                        showToast("✅ 设置已保存，重启应用后生效")
+                    } catch (e: NumberFormatException) {
+                        showToast("请输入有效的数字")
+                    }
                 }
             )
 
@@ -152,34 +177,7 @@ fun SettingsView(navController: NavController) {
                     unit = "毫秒"
                 )
 
-                SaveButton(
-                    hasChanges = hasChanges,
-                    onClick = {
-                        try {
-                            val timeout = unlockTimeout.toLong()
-                            val interval = pollInterval.toLong()
-                            val result = resultDelay.toLong()
-                            val reset = resetDelay.toLong()
-                            val wait = pollWaitTime.toLong()
-                            if (timeout < 1000 || interval < 100 || result < 100 || reset < 100 || wait < 100) {
-                                showToast("数值不能小于 100ms")
-                                return@SaveButton
-                            }
-                            ConfigManager.setUnlockTimeout(timeout)
-                            ConfigManager.setPollInterval(interval)
-                            ConfigManager.setResultDelay(result)
-                            ConfigManager.setResetDelay(reset)
-                            ConfigManager.setAutoPollOnStart(autoPoll)
-                            ConfigManager.setPollWaitTime(wait)
-                            ConfigManager.setLargeFont(largeFont)
-                            hasChanges = false
-                            showToast("✅ 设置已保存，重启应用后生效")
-                        } catch (e: NumberFormatException) {
-                            showToast("请输入有效的数字")
-                        }
-                    }
-                )
-
+                // 底部占位，不再显示保存按钮
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }
@@ -190,7 +188,9 @@ fun SettingsView(navController: NavController) {
 @Composable
 private fun SettingsTopBar(
     onBack: () -> Unit,
-    onRestore: () -> Unit
+    onRestore: () -> Unit,
+    hasChanges: Boolean,
+    onSave: () -> Unit
 ) {
     TopAppBar(
         title = {
@@ -239,6 +239,19 @@ private fun SettingsTopBar(
             }
         },
         actions = {
+            // 保存按钮（放在恢复默认左边）
+            TextButton(
+                onClick = onSave,
+                enabled = hasChanges,
+                colors = TextButtonDefaults.textButtonColors(
+                    contentColor = if (hasChanges) MaterialTheme.colorScheme.primary
+                                   else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                )
+            ) {
+                Text("保存")
+            }
+
+            // 恢复默认按钮（图标）
             IconButton(
                 onClick = onRestore,
                 modifier = Modifier
@@ -511,7 +524,7 @@ private fun ConfigItem(
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                     label = { Text("数值", fontSize = 12.sp) },
-                    trailingIcon = { 
+                    trailingIcon = {
                         Text(
                             unit,
                             fontSize = 11.sp,
@@ -534,41 +547,5 @@ private fun ConfigItem(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun SaveButton(
-    hasChanges: Boolean,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(48.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(
-                brush = if (hasChanges) {
-                    Brush.horizontalGradient(
-                        colors = listOf(ColorOSGradientStart, ColorOSGradientEnd)
-                    )
-                } else {
-                    Brush.horizontalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.surfaceVariant,
-                            MaterialTheme.colorScheme.surfaceVariant
-                        )
-                    )
-                }
-            )
-            .clickable(enabled = hasChanges) { onClick() },
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = if (hasChanges) "保存设置" else "设置已保存",
-            fontSize = 15.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = if (hasChanges) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }
