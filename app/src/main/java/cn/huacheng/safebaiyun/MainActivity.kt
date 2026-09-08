@@ -70,18 +70,20 @@ class MainActivity : ComponentActivity() {
                             HelpView(navController)
                         }
 
+                        // 修复：统一从右边进入
                         composable("qr_export", enterTransition = {
-                            slideIn { IntOffset(-it.width, 0) }
+                            slideIn { IntOffset(it.width, 0) }
                         }, exitTransition = {
-                            slideOut { IntOffset(-it.width, 0) }
+                            slideOut { IntOffset(it.width, 0) }
                         }) {
                             QRExportView(navController)
                         }
 
+                        // 修复：统一从右边进入
                         composable("qr_import", enterTransition = {
-                            slideIn { IntOffset(-it.width, 0) }
+                            slideIn { IntOffset(it.width, 0) }
                         }, exitTransition = {
-                            slideOut { IntOffset(-it.width, 0) }
+                            slideOut { IntOffset(it.width, 0) }
                         }) {
                             QRImportView(navController)
                         }
