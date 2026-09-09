@@ -59,6 +59,15 @@ fun MainView(navController: NavHostController) {
     var autoPollExecuted by remember { mutableStateOf(false) }
     var scanPermissionResult by remember { mutableStateOf<Boolean?>(null) }
 
+    // 先读取已有的蓝牙连接权限；之前改动时漏掉了这一步，导致 hasPermission 一直保持 false。
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            hasPermission.value = context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
+        } else {
+            hasPermission.value = true
+        }
+    }
+
     val scanPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { result ->
