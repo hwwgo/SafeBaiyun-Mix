@@ -12,6 +12,8 @@ object ConfigManager {
     private const val KEY_RESULT_DELAY = "result_delay"
     private const val KEY_RESET_DELAY = "reset_delay"
     private const val KEY_AUTO_POLL = "auto_poll"
+    private const val KEY_AUTO_SCAN = "auto_scan"
+    private const val KEY_SCAN_DURATION = "scan_duration"
     private const val KEY_POLL_WAIT_TIME = "poll_wait_time"
     private const val KEY_LARGE_FONT = "large_font"
 
@@ -21,6 +23,8 @@ object ConfigManager {
     private const val DEFAULT_RESULT_DELAY = 2000L
     private const val DEFAULT_RESET_DELAY = 1000L
     private const val DEFAULT_AUTO_POLL = false
+    private const val DEFAULT_AUTO_SCAN = true
+    private const val DEFAULT_SCAN_DURATION = 1000L
     private const val DEFAULT_POLL_WAIT_TIME = 5000L
     private const val DEFAULT_LARGE_FONT = false
 
@@ -53,6 +57,16 @@ object ConfigManager {
     fun setAutoPollOnStart(value: Boolean) = prefs.edit().putBoolean(KEY_AUTO_POLL, value).apply()
     fun getDefaultAutoPoll(): Boolean = DEFAULT_AUTO_POLL
 
+    // ---------- 自动扫描门禁 ----------
+    fun getAutoScanEnabled(): Boolean = prefs.getBoolean(KEY_AUTO_SCAN, DEFAULT_AUTO_SCAN)
+    fun setAutoScanEnabled(value: Boolean) = prefs.edit().putBoolean(KEY_AUTO_SCAN, value).apply()
+    fun getDefaultAutoScanEnabled(): Boolean = DEFAULT_AUTO_SCAN
+
+    // ---------- 自动扫描时长 ----------
+    fun getScanDuration(): Long = prefs.getLong(KEY_SCAN_DURATION, DEFAULT_SCAN_DURATION)
+    fun setScanDuration(value: Long) = prefs.edit().putLong(KEY_SCAN_DURATION, value).apply()
+    fun getDefaultScanDuration(): Long = DEFAULT_SCAN_DURATION
+
     // ---------- 轮询等待时间 ----------
     fun getPollWaitTime(): Long = prefs.getLong(KEY_POLL_WAIT_TIME, DEFAULT_POLL_WAIT_TIME)
     fun setPollWaitTime(value: Long) = prefs.edit().putLong(KEY_POLL_WAIT_TIME, value).apply()
@@ -71,6 +85,8 @@ object ConfigManager {
             .putLong(KEY_RESULT_DELAY, DEFAULT_RESULT_DELAY)
             .putLong(KEY_RESET_DELAY, DEFAULT_RESET_DELAY)
             .putBoolean(KEY_AUTO_POLL, DEFAULT_AUTO_POLL)
+            .putBoolean(KEY_AUTO_SCAN, DEFAULT_AUTO_SCAN)
+            .putLong(KEY_SCAN_DURATION, DEFAULT_SCAN_DURATION)
             .putLong(KEY_POLL_WAIT_TIME, DEFAULT_POLL_WAIT_TIME)
             .putBoolean(KEY_LARGE_FONT, DEFAULT_LARGE_FONT)
             .apply()
