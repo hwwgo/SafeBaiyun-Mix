@@ -59,6 +59,7 @@ fun MainView(navController: NavHostController) {
 
     var autoPollExecuted by remember { mutableStateOf(false) }
     var scanPermissionResult by remember { mutableStateOf<Boolean?>(null) }
+    var pendingManualPoll by remember { mutableStateOf(false) }
 
     // 先读取已有的蓝牙连接权限；之前改动时漏掉了这一步，导致 hasPermission 一直保持 false。
     LaunchedEffect(Unit) {
@@ -73,6 +74,63 @@ fun MainView(navController: NavHostController) {
         ActivityResultContracts.RequestMultiplePermissions()
     ) { result ->
         scanPermissionResult = result.values.all { it }
+    }
+
+    fun startManualPolling() {
+        val selectedDoors = doors.value.filter { it.isSelected }
+        if (selectedDoors.isEmpty()) {
+            showToast("请至少选择一个门禁")
+            return
+        }
+
+        scope.launch {
+            isPolling = true
+            pollingCurrentIndex = 0
+            pollingTotal = selectedDoors.size
+            pollingProgress = "准备轮询..."
+
+            var pollDoors = selectedDoors
+            val autoScan = ConfigManager.getAutoScanEnabled()
+
+            if (autoScan && hasBleScanPermission(context)) {
+                pollingProgress = "正在扫描门禁..."
+                val matchedDoor = UnlockRepo.findNearbyConfiguredDoor(
+                    doors = selectedDoors,
+                    durationMs = ConfigManager.getScanDuration()
+                )
+                if (matchedDoor != null) {
+                    pollDoors = listOf(matchedDoor) + selectedDoors.filter { it.id != matchedDoor.id }
+                    pollingProgress = "已找到 ${matchedDoor.name}，正在开锁..."
+                } else {
+                    pollingProgress = "未扫描到门禁，开始轮询..."
+                }
+            }
+
+            pollingTotal = pollDoors.size
+            UnlockRepo.startPolling(
+                scope = scope,
+                doors = pollDoors,
+                onProgress = { index, total, name ->
+                    withContext(Dispatchers.Main) {
+                        pollingCurrentIndex = index
+                        pollingTotal = total
+                        pollingProgress = "正在尝试 $index/$total: $name"
+                    }
+                },
+                onComplete = { result ->
+                    isPolling = false
+                    pollingProgress = if (result != null) "✅ 已开启: ${result.name}" else "❌ 未找到可开门禁"
+                    doors.value = DataRepo.getDoors()
+                }
+            )
+        }
+    }
+
+    LaunchedEffect(scanPermissionResult, pendingManualPoll) {
+        if (pendingManualPoll && scanPermissionResult == true) {
+            pendingManualPoll = false
+            startManualPolling()
+        }
     }
 
     LaunchedEffect(hasPermission.value, doors.value, scanPermissionResult) {
@@ -189,32 +247,25 @@ fun MainView(navController: NavHostController) {
                             isPolling = isPolling,
                             pollingProgress = pollingProgress,
                             onPollStart = {
-                                val selectedDoors = doors.value.filter { it.isSelected }
-                                if (selectedDoors.isEmpty()) {
-                                    showToast("请至少选择一个门禁")
-                                    return@CompactPollButton
-                                }
-                                isPolling = true
-                                pollingCurrentIndex = 0
-                                pollingTotal = selectedDoors.size
-                                pollingProgress = "准备轮询..."
-
-                                UnlockRepo.startPolling(
-                                    scope = scope,
-                                    doors = selectedDoors,
-                                    onProgress = { index, total, name ->
-                                        withContext(Dispatchers.Main) {
-                                            pollingCurrentIndex = index
-                                            pollingTotal = total
-                                            pollingProgress = "正在尝试 $index/$total: $name"
-                                        }
-                                    },
-                                    onComplete = { result ->
-                                        isPolling = false
-                                        pollingProgress = if (result != null) "✅ 已开启: ${result.name}" else "❌ 未找到可开门禁"
-                                        doors.value = DataRepo.getDoors()
+                                if (ConfigManager.getAutoScanEnabled() && !hasBleScanPermission(context)) {
+                                    pendingManualPoll = true
+                                    scanPermissionResult = null
+                                    val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                        arrayOf(Manifest.permission.BLUETOOTH_SCAN)
+                                    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                        arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
+                                    } else {
+                                        emptyArray()
                                     }
-                                )
+                                    if (permissions.isNotEmpty()) {
+                                        scanPermissionLauncher.launch(permissions)
+                                    } else {
+                                        pendingManualPoll = false
+                                        startManualPolling()
+                                    }
+                                } else {
+                                    startManualPolling()
+                                }
                             }
                         )
 
