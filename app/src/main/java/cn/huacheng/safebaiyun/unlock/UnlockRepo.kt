@@ -7,6 +7,9 @@ import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothManager
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanResult
+import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.os.Build
 import android.util.Log
@@ -22,6 +25,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -225,6 +229,79 @@ object UnlockRepo {
                 _unlockStep.value = "已取消"
                 gattInstance?.close()
                 continuation.resume(false)
+            }
+        }
+    }
+
+    // ============================================================
+    //  自动扫描附近已配置门禁
+    // ============================================================
+
+    /**
+     * 扫描附近设备，命中已配置的门禁 MAC 后立即停止扫描。
+     * 不使用 RSSI；只根据 MAC 精确匹配。
+     */
+    suspend fun findNearbyConfiguredDoor(doors: List<DoorDevice>, durationMs: Long): DoorDevice? {
+        if (doors.isEmpty() || durationMs <= 0) return null
+
+        val bluetoothManager = ContextHolder.get()
+            .getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        val adapter = bluetoothManager.adapter ?: return null
+        if (!adapter.isEnabled) return null
+
+        val scanner = adapter.bluetoothLeScanner ?: return null
+        val knownDoors = doors
+            .filter { BluetoothAdapter.checkBluetoothAddress(it.mac) }
+            .associateBy { it.mac.uppercase(java.util.Locale.US) }
+        if (knownDoors.isEmpty()) return null
+
+        return withTimeoutOrNull(durationMs) {
+            suspendCancellableCoroutine { continuation ->
+                val finished = AtomicBoolean(false)
+                lateinit var callback: ScanCallback
+
+                fun finish(result: DoorDevice?) {
+                    if (finished.compareAndSet(false, true)) {
+                        runCatching { scanner.stopScan(callback) }
+                        continuation.resume(result)
+                    }
+                }
+
+                callback = object : ScanCallback() {
+                    override fun onScanResult(callbackType: Int, result: ScanResult) {
+                        val mac = result.device.address?.uppercase(java.util.Locale.US) ?: return
+                        val door = knownDoors[mac]
+                        if (door != null) {
+                            log("自动扫描命中门禁: ${door.name} ($mac)")
+                            finish(door)
+                        }
+                    }
+
+                    override fun onScanFailed(errorCode: Int) {
+                        log("自动扫描失败，错误码: $errorCode")
+                        finish(null)
+                    }
+                }
+
+                continuation.invokeOnCancellation {
+                    if (finished.compareAndSet(false, true)) {
+                        runCatching { scanner.stopScan(callback) }
+                    }
+                }
+
+                try {
+                    scanner.startScan(
+                        null,
+                        ScanSettings.Builder()
+                            .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+                            .build(),
+                        callback
+                    )
+                    log("开始自动扫描，最长 ${durationMs}ms")
+                } catch (e: Exception) {
+                    log("启动自动扫描失败: ${e.javaClass.simpleName}")
+                    finish(null)
+                }
             }
         }
     }
