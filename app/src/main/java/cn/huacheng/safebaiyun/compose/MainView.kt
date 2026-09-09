@@ -57,53 +57,90 @@ fun MainView(navController: NavHostController) {
     var pollingTotal by remember { mutableStateOf(0) }
 
     var autoPollExecuted by remember { mutableStateOf(false) }
+    var scanPermissionResult by remember { mutableStateOf<Boolean?>(null) }
 
-    LaunchedEffect(Unit) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            hasPermission.value = context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
-        } else {
-            hasPermission.value = true
-        }
+    val scanPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { result ->
+        scanPermissionResult = result.values.all { it }
     }
 
-    LaunchedEffect(Unit) {
-        if (hasPermission.value && doors.value.isNotEmpty() && !autoPollExecuted) {
-            val autoPoll = ConfigManager.getAutoPollOnStart()
-            if (autoPoll) {
-                val selectedDoors = doors.value.filter { it.isSelected }
-                if (selectedDoors.isNotEmpty()) {
-                    autoPollExecuted = true
-                    val waitTime = ConfigManager.getPollWaitTime()
-                    val bluetoothReady = UnlockRepo.waitForBluetooth(waitTime)
-                    if (!bluetoothReady) {
-                        showToast("蓝牙未开启，自动轮询已跳过")
-                        return@LaunchedEffect
-                    }
-                    delay(500)
-                    isPolling = true
-                    pollingCurrentIndex = 0
-                    pollingTotal = selectedDoors.size
-                    pollingProgress = "自动轮询中..."
+    LaunchedEffect(hasPermission.value, doors.value, scanPermissionResult) {
+        if (!hasPermission.value || doors.value.isEmpty() || autoPollExecuted) return@LaunchedEffect
 
-                    UnlockRepo.startPolling(
-                        scope = scope,
-                        doors = selectedDoors,
-                        onProgress = { index, total, name ->
-                            withContext(Dispatchers.Main) {
-                                pollingCurrentIndex = index
-                                pollingTotal = total
-                                pollingProgress = "正在尝试 $index/$total: $name"
-                            }
-                        },
-                        onComplete = { result ->
-                            isPolling = false
-                            pollingProgress = if (result != null) "✅ 已开启: ${result.name}" else "❌ 未找到可开门禁"
-                            doors.value = DataRepo.getDoors()
-                        }
-                    )
+        val autoPoll = ConfigManager.getAutoPollOnStart()
+        if (!autoPoll) return@LaunchedEffect
+
+        val selectedDoors = doors.value.filter { it.isSelected }
+        if (selectedDoors.isEmpty()) return@LaunchedEffect
+
+        // 自动扫描只在启用该功能时申请扫描权限；权限被拒绝时继续使用原轮询流程。
+        val autoScan = ConfigManager.getAutoScanEnabled()
+        if (autoScan && !hasBleScanPermission(context)) {
+            if (scanPermissionResult == null) {
+                val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    arrayOf(Manifest.permission.BLUETOOTH_SCAN)
+                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
+                } else {
+                    emptyArray()
+                }
+                if (permissions.isNotEmpty()) {
+                    scanPermissionLauncher.launch(permissions)
+                    return@LaunchedEffect
                 }
             }
         }
+
+        autoPollExecuted = true
+        val waitTime = ConfigManager.getPollWaitTime()
+        val bluetoothReady = UnlockRepo.waitForBluetooth(waitTime)
+        if (!bluetoothReady) {
+            showToast("蓝牙未开启，自动轮询已跳过")
+            return@LaunchedEffect
+        }
+
+        delay(500)
+
+        var pollDoors = selectedDoors
+        isPolling = true
+        pollingCurrentIndex = 0
+        pollingTotal = selectedDoors.size
+        pollingProgress = "自动轮询中..."
+
+        if (autoScan && hasBleScanPermission(context)) {
+            pollingProgress = "正在扫描附近门禁..."
+            val matchedDoor = UnlockRepo.findNearbyConfiguredDoor(
+                doors = selectedDoors,
+                durationMs = ConfigManager.getScanDuration()
+            )
+            if (matchedDoor != null) {
+                // 只根据 MAC 命中，不使用 RSSI；命中后把该门禁放到第一位。
+                pollDoors = listOf(matchedDoor) + selectedDoors.filter { it.id != matchedDoor.id }
+                pollingProgress = "已找到 ${matchedDoor.name}，正在开锁..."
+            } else {
+                pollingProgress = "未扫描到门禁，开始轮询..."
+            }
+        }
+
+        pollingTotal = pollDoors.size
+
+        UnlockRepo.startPolling(
+            scope = scope,
+            doors = pollDoors,
+            onProgress = { index, total, name ->
+                withContext(Dispatchers.Main) {
+                    pollingCurrentIndex = index
+                    pollingTotal = total
+                    pollingProgress = "正在尝试 $index/$total: $name"
+                }
+            },
+            onComplete = { result ->
+                isPolling = false
+                pollingProgress = if (result != null) "✅ 已开启: ${result.name}" else "❌ 未找到可开门禁"
+                doors.value = DataRepo.getDoors()
+            }
+        )
     }
 
     Box(
@@ -708,6 +745,16 @@ private fun CompactUnlockButton(
                 )
             }
         }
+    }
+}
+
+private fun hasBleScanPermission(context: android.content.Context): Boolean {
+    return when {
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
+            context.checkSelfPermission(Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ->
+            context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        else -> true
     }
 }
 

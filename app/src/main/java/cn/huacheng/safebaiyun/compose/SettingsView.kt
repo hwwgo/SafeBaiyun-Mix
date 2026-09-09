@@ -31,6 +31,8 @@ fun SettingsView(navController: NavController) {
     var resultDelay by remember { mutableStateOf(ConfigManager.getResultDelay().toString()) }
     var resetDelay by remember { mutableStateOf(ConfigManager.getResetDelay().toString()) }
     var autoPoll by remember { mutableStateOf(ConfigManager.getAutoPollOnStart()) }
+    var autoScan by remember { mutableStateOf(ConfigManager.getAutoScanEnabled()) }
+    var scanDuration by remember { mutableStateOf(ConfigManager.getScanDuration().toString()) }
     var pollWaitTime by remember { mutableStateOf(ConfigManager.getPollWaitTime().toString()) }
     var largeFont by remember { mutableStateOf(ConfigManager.isLargeFont()) }
     var hasChanges by remember { mutableStateOf(false) }
@@ -58,8 +60,9 @@ fun SettingsView(navController: NavController) {
                         val result = resultDelay.toLong()
                         val reset = resetDelay.toLong()
                         val wait = pollWaitTime.toLong()
-                        if (timeout < 1000 || interval < 100 || result < 100 || reset < 100 || wait < 100) {
-                            showToast("单次开锁超时不能小于1000ms，其它时间不能小于100ms")
+                        val scan = scanDuration.toLong()
+                        if (timeout < 1000 || interval < 100 || result < 100 || reset < 100 || wait < 100 || scan < 100 || scan > 10000) {
+                            showToast("单次开锁超时不能小于1000ms，其它时间不能小于100ms，扫描时间为100-10000ms")
                             return@SettingsTopBar
                         }
                         ConfigManager.setUnlockTimeout(timeout)
@@ -67,6 +70,8 @@ fun SettingsView(navController: NavController) {
                         ConfigManager.setResultDelay(result)
                         ConfigManager.setResetDelay(reset)
                         ConfigManager.setAutoPollOnStart(autoPoll)
+                        ConfigManager.setAutoScanEnabled(autoScan)
+                        ConfigManager.setScanDuration(scan)
                         ConfigManager.setPollWaitTime(wait)
                         ConfigManager.setLargeFont(largeFont)
                         hasChanges = false
@@ -82,6 +87,8 @@ fun SettingsView(navController: NavController) {
                     resultDelay = ConfigManager.getDefaultResultDelay().toString()
                     resetDelay = ConfigManager.getDefaultResetDelay().toString()
                     autoPoll = ConfigManager.getDefaultAutoPoll()
+                    autoScan = ConfigManager.getDefaultAutoScanEnabled()
+                    scanDuration = ConfigManager.getDefaultScanDuration().toString()
                     pollWaitTime = ConfigManager.getDefaultPollWaitTime().toString()
                     largeFont = ConfigManager.getDefaultLargeFont()
                     hasChanges = false
@@ -115,6 +122,26 @@ fun SettingsView(navController: NavController) {
                         autoPoll = it
                         hasChanges = true
                     }
+                )
+
+                AutoScanCard(
+                    autoScan = autoScan,
+                    onToggle = {
+                        autoScan = it
+                        hasChanges = true
+                    }
+                )
+
+                ConfigItem(
+                    label = "自动扫描时间",
+                    description = "自动轮询前扫描附近已配置门禁的最长时间",
+                    value = scanDuration,
+                    onValueChange = {
+                        scanDuration = it
+                        hasChanges = true
+                    },
+                    defaultValue = ConfigManager.getDefaultScanDuration().toString(),
+                    unit = "毫秒"
                 )
 
                 ConfigItem(
@@ -447,6 +474,73 @@ private fun AutoPollCard(
                 onCheckedChange = onToggle,
                 colors = SwitchDefaults.colors(
                     checkedTrackColor = ColorOSPrimary,
+                    checkedThumbColor = Color.White
+                )
+            )
+        }
+    }
+}
+
+@Composable
+private fun AutoScanCard(
+    autoScan: Boolean,
+    onToggle: (Boolean) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(ColorOSSecondary.copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.BluetoothSearching,
+                        contentDescription = null,
+                        tint = ColorOSSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Column {
+                    Text(
+                        text = "自动轮询前扫描门禁",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "先扫描已配置 MAC，命中后优先开锁，不使用信号强度",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Switch(
+                checked = autoScan,
+                onCheckedChange = onToggle,
+                colors = SwitchDefaults.colors(
+                    checkedTrackColor = ColorOSSecondary,
                     checkedThumbColor = Color.White
                 )
             )
