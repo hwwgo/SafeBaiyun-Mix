@@ -1,6 +1,7 @@
 package cn.huacheng.safebaiyun.compose
 
 import android.Manifest
+import android.bluetooth.BluetoothAdapter
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -101,15 +102,21 @@ fun MainView(navController: NavHostController) {
             }
         }
 
-        autoPollExecuted = true
+        // 轮询等待时间是“允许等待蓝牙开启的最长时间”，不是轮询前的固定延时。
+        // 如果蓝牙已经开启，立即继续；如果尚未开启，则在等待窗口内每 200ms 检查一次，
+        // 一旦开启立即开始后续流程，不再继续等待剩余时间。
         val waitTime = ConfigManager.getPollWaitTime()
-        val bluetoothReady = UnlockRepo.waitForBluetooth(waitTime)
+        val bluetoothReady = waitForBluetoothWithin(waitTime)
         if (!bluetoothReady) {
             showToast("蓝牙未开启，自动轮询已跳过")
             return@LaunchedEffect
         }
 
-        delay(500)
+        // 只有确认蓝牙就绪后才标记为已执行，避免启动阶段状态竞争导致自动轮询被提前锁死。
+        autoPollExecuted = true
+
+        // 给蓝牙状态切换留出极短的系统稳定时间，而不是等待配置的 5 秒。
+        delay(100)
 
         var pollDoors = selectedDoors
         isPolling = true
@@ -754,6 +761,24 @@ private fun CompactUnlockButton(
                 )
             }
         }
+    }
+}
+
+private suspend fun waitForBluetoothWithin(timeoutMs: Long): Boolean {
+    val timeout = timeoutMs.coerceAtLeast(0L)
+    val start = System.currentTimeMillis()
+
+    while (true) {
+        val adapter = BluetoothAdapter.getDefaultAdapter()
+        if (adapter != null && adapter.isEnabled) {
+            return true
+        }
+
+        if (System.currentTimeMillis() - start >= timeout) {
+            return false
+        }
+
+        delay(200)
     }
 }
 
