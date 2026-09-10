@@ -69,7 +69,7 @@ fun MainView(navController: NavHostController) {
     var scanPermissionResult by remember { mutableStateOf<Boolean?>(null) }
     var pendingManualPoll by remember { mutableStateOf(false) }
 
-    // ✅ 修复：一次性检查 CONNECT + SCAN 两个权限
+    // 统一检查 CONNECT + SCAN 权限
     LaunchedEffect(Unit) {
         hasPermission.value = hasAllBlePermissions(context)
     }
@@ -82,27 +82,24 @@ fun MainView(navController: NavHostController) {
 
     suspend fun runScanThenPolling(selectedDoors: List<DoorDevice>) {
         try {
-            // 手动和自动轮询共用同一核心流程：先扫描，再轮询。
-            pollingState = PollingState.SCANNING
-            pollingCurrentIndex = 0
-            pollingTotal = 0
-            pollingProgress = "正在扫描门禁..."
+            var pollDoors = selectedDoors
 
-            // ✅ 修复：使用统一的权限检查
-            val matchedDoor = if (hasAllBlePermissions(context)) {
-                UnlockRepo.findNearbyConfiguredDoor(
+            // ✅ 只有开关打开且权限齐全时才扫描；否则跳过扫描，直接进入轮询
+            if (ConfigManager.getAutoScanEnabled() && hasAllBlePermissions(context)) {
+                pollingState = PollingState.SCANNING
+                pollingCurrentIndex = 0
+                pollingTotal = 0
+                pollingProgress = "正在扫描门禁..."
+
+                val matchedDoor = UnlockRepo.findNearbyConfiguredDoor(
                     doors = selectedDoors,
                     durationMs = ConfigManager.getScanDuration()
                 )
-            } else {
-                null
-            }
 
-            var pollDoors = selectedDoors
-
-            if (matchedDoor != null) {
-                // 只根据 MAC 命中，不使用 RSSI；命中后把该门禁放到第一位。
-                pollDoors = listOf(matchedDoor) + selectedDoors.filter { it.id != matchedDoor.id }
+                if (matchedDoor != null) {
+                    // 只根据 MAC 命中，不使用 RSSI；命中后把该门禁放到第一位
+                    pollDoors = listOf(matchedDoor) + selectedDoors.filter { it.id != matchedDoor.id }
+                }
             }
 
             pollingState = PollingState.POLLING
@@ -184,7 +181,6 @@ fun MainView(navController: NavHostController) {
             return@LaunchedEffect
         }
 
-        // 自动轮询的第一步永远是等待蓝牙开启。
         pollingFlowJob?.cancel()
         pollingFlowJob = scope.launch {
             try {
@@ -204,7 +200,6 @@ fun MainView(navController: NavHostController) {
                     return@launch
                 }
 
-                // ✅ 修复：使用统一权限检查；此处正常不会触发（进入主界面时已全部授予）
                 if (!hasAllBlePermissions(context)) {
                     if (scanPermissionResult == null) {
                         val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -236,11 +231,7 @@ fun MainView(navController: NavHostController) {
                 }
 
                 autoPollExecuted = true
-
-                // 给蓝牙状态切换留出极短的系统稳定时间。
                 delay(100)
-
-                // 自动轮询与手动轮询统一：扫描 -> 轮询。
                 runScanThenPolling(selectedDoors)
             } finally {
                 pollingFlowJob = null
@@ -284,7 +275,6 @@ fun MainView(navController: NavHostController) {
                                     return@CompactPollButton
                                 }
 
-                                // ✅ 修复：使用统一权限检查
                                 if (!hasAllBlePermissions(context)) {
                                     pendingManualPoll = true
                                     scanPermissionResult = null
@@ -899,7 +889,7 @@ private suspend fun waitForBluetoothWithin(timeoutMs: Long): Boolean {
 }
 
 /**
- * ✅ 统一权限检查：Android 12+ 需要 BLUETOOTH_CONNECT + BLUETOOTH_SCAN；
+ * 统一权限检查：Android 12+ 需要 BLUETOOTH_CONNECT + BLUETOOTH_SCAN；
  * Android 6~11 需要 BLUETOOTH + ACCESS_FINE_LOCATION。
  */
 private fun hasAllBlePermissions(context: android.content.Context): Boolean {
@@ -916,11 +906,9 @@ private fun hasAllBlePermissions(context: android.content.Context): Boolean {
 
 @Composable
 private fun PermissionView(hasPermission: MutableState<Boolean>) {
-    // ✅ 一次性请求所有权限
     val requestPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { result ->
-        // 全部授予才算通过
         hasPermission.value = result.values.all { it }
         if (!hasPermission.value) {
             showToast("权限未全部授予，请到系统设置中手动开启")
