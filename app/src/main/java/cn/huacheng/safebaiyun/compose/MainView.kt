@@ -37,11 +37,21 @@ import cn.huacheng.safebaiyun.unlock.DoorDevice
 import cn.huacheng.safebaiyun.unlock.UnlockRepo
 import cn.huacheng.safebaiyun.util.ConfigManager
 import cn.huacheng.safebaiyun.util.showToast
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.withContext
+
+private enum class PollingState {
+    IDLE,
+    WAITING_BLUETOOTH,
+    SCANNING,
+    POLLING
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,10 +62,11 @@ fun MainView(navController: NavHostController) {
     val hasPermission = remember { mutableStateOf(false) }
     val doors = remember { mutableStateOf<List<DoorDevice>>(DataRepo.getDoors()) }
 
-    var isPolling by remember { mutableStateOf(false) }
+    var pollingState by remember { mutableStateOf(PollingState.IDLE) }
     var pollingProgress by remember { mutableStateOf("") }
     var pollingCurrentIndex by remember { mutableStateOf(0) }
     var pollingTotal by remember { mutableStateOf(0) }
+    var pollingFlowJob by remember { mutableStateOf<Job?>(null) }
 
     var autoPollExecuted by remember { mutableStateOf(false) }
     var scanPermissionResult by remember { mutableStateOf<Boolean?>(null) }
@@ -76,145 +87,165 @@ fun MainView(navController: NavHostController) {
         scanPermissionResult = result.values.all { it }
     }
 
-    fun startManualPolling() {
-        val selectedDoors = doors.value.filter { it.isSelected }
-        if (selectedDoors.isEmpty()) {
-            showToast("请至少选择一个门禁")
-            return
-        }
-
-        scope.launch {
-            isPolling = true
+    suspend fun runScanThenPolling(selectedDoors: List<DoorDevice>) {
+        try {
+            // 手动和自动轮询共用同一核心流程：先扫描，再轮询。
+            pollingState = PollingState.SCANNING
             pollingCurrentIndex = 0
-            pollingTotal = selectedDoors.size
-            pollingProgress = "准备轮询..."
+            pollingTotal = 0
+            pollingProgress = "正在扫描门禁..."
 
-            var pollDoors = selectedDoors
-            val autoScan = ConfigManager.getAutoScanEnabled()
-
-            if (autoScan && hasBleScanPermission(context)) {
-                pollingProgress = "正在扫描门禁..."
-                val matchedDoor = UnlockRepo.findNearbyConfiguredDoor(
+            val matchedDoor = if (hasBleScanPermission(context)) {
+                UnlockRepo.findNearbyConfiguredDoor(
                     doors = selectedDoors,
                     durationMs = ConfigManager.getScanDuration()
                 )
-                if (matchedDoor != null) {
-                    pollDoors = listOf(matchedDoor) + selectedDoors.filter { it.id != matchedDoor.id }
-                    pollingProgress = "已找到 ${matchedDoor.name}，正在开锁..."
-                } else {
-                    pollingProgress = "未扫描到门禁，开始轮询..."
-                }
+            } else {
+                null
             }
 
+            var pollDoors = selectedDoors
+
+            if (matchedDoor != null) {
+                // 只根据 MAC 命中，不使用 RSSI；命中后把该门禁放到第一位。
+                pollDoors = listOf(matchedDoor) + selectedDoors.filter { it.id != matchedDoor.id }
+            }
+
+            pollingState = PollingState.POLLING
+            pollingCurrentIndex = 0
             pollingTotal = pollDoors.size
-            UnlockRepo.startPolling(
-                scope = scope,
-                doors = pollDoors,
-                onProgress = { index, total, name ->
-                    withContext(Dispatchers.Main) {
-                        pollingCurrentIndex = index
-                        pollingTotal = total
-                        pollingProgress = "正在尝试 $index/$total: $name"
+            pollingProgress = "正在轮询门禁 1/${pollDoors.size}"
+
+            coroutineScope {
+                val job = UnlockRepo.startPolling(
+                    scope = this,
+                    doors = pollDoors,
+                    onProgress = { index, total, name ->
+                        withContext(Dispatchers.Main) {
+                            pollingCurrentIndex = index
+                            pollingTotal = total
+                            pollingProgress = "正在轮询门禁 $index/$total: $name"
+                        }
+                    },
+                    onComplete = { result ->
+                        pollingState = PollingState.IDLE
+                        pollingProgress =
+                            if (result != null) "✅ 已开启: ${result.name}"
+                            else "❌ 未找到可开门禁"
+                        doors.value = DataRepo.getDoors()
                     }
-                },
-                onComplete = { result ->
-                    isPolling = false
-                    pollingProgress = if (result != null) "✅ 已开启: ${result.name}" else "❌ 未找到可开门禁"
-                    doors.value = DataRepo.getDoors()
-                }
-            )
+                )
+                job.join()
+            }
+        } catch (e: CancellationException) {
+            pollingState = PollingState.IDLE
+            pollingProgress = "⏹ 已停止轮询"
+            throw e
+        }
+    }
+
+    fun startPollingFlow(selectedDoors: List<DoorDevice>) {
+        pollingFlowJob?.cancel()
+        pollingFlowJob = scope.launch {
+            try {
+                runScanThenPolling(selectedDoors)
+            } finally {
+                pollingFlowJob = null
+            }
         }
     }
 
     LaunchedEffect(scanPermissionResult, pendingManualPoll) {
-        if (pendingManualPoll && scanPermissionResult == true) {
-            pendingManualPoll = false
-            startManualPolling()
+        if (!pendingManualPoll) return@LaunchedEffect
+
+        when (scanPermissionResult) {
+            true -> {
+                pendingManualPoll = false
+                val selectedDoors = doors.value.filter { it.isSelected }
+                if (selectedDoors.isNotEmpty()) {
+                    startPollingFlow(selectedDoors)
+                }
+            }
+
+            false -> {
+                pendingManualPoll = false
+                showToast("未授予蓝牙扫描权限，无法扫描门禁")
+            }
+
+            null -> Unit
         }
     }
 
     LaunchedEffect(hasPermission.value, doors.value, scanPermissionResult) {
-        if (!hasPermission.value || doors.value.isEmpty() || autoPollExecuted) return@LaunchedEffect
-
-        val autoPoll = ConfigManager.getAutoPollOnStart()
-        if (!autoPoll) return@LaunchedEffect
-
-        val selectedDoors = doors.value.filter { it.isSelected }
-        if (selectedDoors.isEmpty()) return@LaunchedEffect
-
-        // 自动扫描只在启用该功能时申请扫描权限；权限被拒绝时继续使用原轮询流程。
-        val autoScan = ConfigManager.getAutoScanEnabled()
-        if (autoScan && !hasBleScanPermission(context)) {
-            if (scanPermissionResult == null) {
-                val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    arrayOf(Manifest.permission.BLUETOOTH_SCAN)
-                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
-                } else {
-                    emptyArray()
-                }
-                if (permissions.isNotEmpty()) {
-                    scanPermissionLauncher.launch(permissions)
-                    return@LaunchedEffect
-                }
-            }
-        }
-
-        // 轮询等待时间是“允许等待蓝牙开启的最长时间”，不是轮询前的固定延时。
-        // 如果蓝牙已经开启，立即继续；如果尚未开启，则在等待窗口内每 200ms 检查一次，
-        // 一旦开启立即开始后续流程，不再继续等待剩余时间。
-        val waitTime = ConfigManager.getPollWaitTime()
-        val bluetoothReady = waitForBluetoothWithin(waitTime)
-        if (!bluetoothReady) {
-            showToast("蓝牙未开启，自动轮询已跳过")
+        if (!hasPermission.value || doors.value.isEmpty() || autoPollExecuted) {
             return@LaunchedEffect
         }
 
-        // 只有确认蓝牙就绪后才标记为已执行，避免启动阶段状态竞争导致自动轮询被提前锁死。
-        autoPollExecuted = true
-
-        // 给蓝牙状态切换留出极短的系统稳定时间，而不是等待配置的 5 秒。
-        delay(100)
-
-        var pollDoors = selectedDoors
-        isPolling = true
-        pollingCurrentIndex = 0
-        pollingTotal = selectedDoors.size
-        pollingProgress = "自动轮询中..."
-
-        if (autoScan && hasBleScanPermission(context)) {
-            pollingProgress = "正在扫描附近门禁..."
-            val matchedDoor = UnlockRepo.findNearbyConfiguredDoor(
-                doors = selectedDoors,
-                durationMs = ConfigManager.getScanDuration()
-            )
-            if (matchedDoor != null) {
-                // 只根据 MAC 命中，不使用 RSSI；命中后把该门禁放到第一位。
-                pollDoors = listOf(matchedDoor) + selectedDoors.filter { it.id != matchedDoor.id }
-                pollingProgress = "已找到 ${matchedDoor.name}，正在开锁..."
-            } else {
-                pollingProgress = "未扫描到门禁，开始轮询..."
-            }
+        if (!ConfigManager.getAutoPollOnStart()) {
+            return@LaunchedEffect
         }
 
-        pollingTotal = pollDoors.size
+        val selectedDoors = doors.value.filter { it.isSelected }
+        if (selectedDoors.isEmpty()) {
+            return@LaunchedEffect
+        }
 
-        UnlockRepo.startPolling(
-            scope = scope,
-            doors = pollDoors,
-            onProgress = { index, total, name ->
-                withContext(Dispatchers.Main) {
-                    pollingCurrentIndex = index
-                    pollingTotal = total
-                    pollingProgress = "正在尝试 $index/$total: $name"
+        // 自动轮询的第一步永远是等待蓝牙开启。
+        pollingFlowJob?.cancel()
+        pollingFlowJob = scope.launch {
+            try {
+                pollingState = PollingState.WAITING_BLUETOOTH
+                pollingCurrentIndex = 0
+                pollingTotal = 0
+                pollingProgress = "等待蓝牙开启..."
+
+                val waitTime = ConfigManager.getPollWaitTime()
+                val bluetoothReady = waitForBluetoothWithin(waitTime)
+
+                if (!bluetoothReady) {
+                    pollingState = PollingState.IDLE
+                    pollingProgress = "蓝牙未开启，自动轮询已跳过"
+                    autoPollExecuted = true
+                    showToast("蓝牙未开启，自动轮询已跳过")
+                    return@launch
                 }
-            },
-            onComplete = { result ->
-                isPolling = false
-                pollingProgress = if (result != null) "✅ 已开启: ${result.name}" else "❌ 未找到可开门禁"
-                doors.value = DataRepo.getDoors()
+
+                // 蓝牙已开启后，如果还没有扫描权限，再申请扫描权限。
+                if (!hasBleScanPermission(context)) {
+                    if (scanPermissionResult == null) {
+                        val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            arrayOf(Manifest.permission.BLUETOOTH_SCAN)
+                        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
+                        } else {
+                            emptyArray()
+                        }
+
+                        if (permissions.isNotEmpty()) {
+                            pollingProgress = "需要蓝牙扫描权限..."
+                            scanPermissionLauncher.launch(permissions)
+                            return@launch
+                        }
+                    }
+
+                    pollingState = PollingState.IDLE
+                    pollingProgress = "未授予蓝牙扫描权限，自动轮询已跳过"
+                    autoPollExecuted = true
+                    showToast("未授予蓝牙扫描权限，自动轮询已跳过")
+                    return@launch
+                }
+
+                autoPollExecuted = true
+
+                // 给蓝牙状态切换留出极短的系统稳定时间。
+                delay(100)
+
+                // 自动轮询与手动轮询统一：扫描 -> 轮询。
+                runScanThenPolling(selectedDoors)
+            } finally {
+                pollingFlowJob = null
             }
-        )
+        }
     }
 
     Box(
@@ -244,10 +275,17 @@ fun MainView(navController: NavHostController) {
                         CompactPollButton(
                             doors = doors.value,
                             selectedCount = selectedCount,
-                            isPolling = isPolling,
+                            pollingState = pollingState,
                             pollingProgress = pollingProgress,
                             onPollStart = {
-                                if (ConfigManager.getAutoScanEnabled() && !hasBleScanPermission(context)) {
+                                val selectedDoors = doors.value.filter { it.isSelected }
+                                if (selectedDoors.isEmpty()) {
+                                    showToast("请至少选择一个门禁")
+                                    return@CompactPollButton
+                                }
+
+                                // 手动轮询也始终先扫描，再进入轮询。
+                                if (!hasBleScanPermission(context)) {
                                     pendingManualPoll = true
                                     scanPermissionResult = null
                                     val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -257,25 +295,29 @@ fun MainView(navController: NavHostController) {
                                     } else {
                                         emptyArray()
                                     }
+
                                     if (permissions.isNotEmpty()) {
                                         scanPermissionLauncher.launch(permissions)
                                     } else {
                                         pendingManualPoll = false
-                                        startManualPolling()
+                                        startPollingFlow(selectedDoors)
                                     }
                                 } else {
-                                    startManualPolling()
+                                    startPollingFlow(selectedDoors)
                                 }
                             }
                         )
 
-                        if (isPolling && pollingTotal > 0) {
+                        if (pollingState != PollingState.IDLE) {
                             CompactProgressBar(
+                                state = pollingState,
                                 current = pollingCurrentIndex,
                                 total = pollingTotal,
                                 onStop = {
+                                    pollingFlowJob?.cancel()
+                                    pollingFlowJob = null
                                     UnlockRepo.stopPolling()
-                                    isPolling = false
+                                    pollingState = PollingState.IDLE
                                     pollingProgress = "⏹ 已停止轮询"
                                 }
                             )
@@ -391,11 +433,12 @@ private fun CompactIconButton(
 private fun CompactPollButton(
     doors: List<DoorDevice>,
     selectedCount: Int,
-    isPolling: Boolean,
+    pollingState: PollingState,
     pollingProgress: String,
     onPollStart: () -> Unit
 ) {
     val hasDoors = doors.isNotEmpty()
+    val isBusy = pollingState != PollingState.IDLE
 
     Box(
         modifier = Modifier
@@ -403,7 +446,7 @@ private fun CompactPollButton(
             .height(48.dp)
             .clip(RoundedCornerShape(14.dp))
             .background(
-                brush = if (isPolling) {
+                brush = if (isBusy) {
                     Brush.horizontalGradient(
                         colors = listOf(
                             MaterialTheme.colorScheme.secondaryContainer,
@@ -416,10 +459,10 @@ private fun CompactPollButton(
                     )
                 }
             )
-            .clickable(enabled = !isPolling && hasDoors) { onPollStart() },
+            .clickable(enabled = !isBusy && hasDoors) { onPollStart() },
         contentAlignment = Alignment.Center
     ) {
-        if (isPolling) {
+        if (isBusy) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
@@ -462,6 +505,7 @@ private fun CompactPollButton(
 
 @Composable
 private fun CompactProgressBar(
+    state: PollingState,
     current: Int,
     total: Int,
     onStop: () -> Unit
@@ -472,15 +516,30 @@ private fun CompactProgressBar(
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        LinearProgressIndicator(
-            progress = current.toFloat() / total,
-            modifier = Modifier
-                .weight(1f)
-                .height(4.dp)
-                .clip(RoundedCornerShape(2.dp)),
-            color = ColorOSPrimary,
-            trackColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+        if (state == PollingState.WAITING_BLUETOOTH || state == PollingState.SCANNING) {
+            LinearProgressIndicator(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp)),
+                color = ColorOSPrimary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        } else {
+            LinearProgressIndicator(
+                progress = if (total > 0) {
+                    (current.toFloat() / total).coerceIn(0f, 1f)
+                } else {
+                    0f
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp)),
+                color = ColorOSPrimary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        }
         Spacer(modifier = Modifier.width(8.dp))
         IconButton(
             onClick = onStop,
