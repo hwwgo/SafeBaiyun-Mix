@@ -1,7 +1,6 @@
 package cn.huacheng.safebaiyun.compose
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -248,18 +247,16 @@ private fun SettingsTopBar(
             }
         },
         navigationIcon = {
+            // ✅ 去掉灰色背景，返回图标不再有"阴影"
             IconButton(
                 onClick = onBack,
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                modifier = Modifier.size(36.dp)
             ) {
                 Icon(
                     Icons.Default.ArrowBack,
                     contentDescription = "返回",
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
         },
@@ -274,18 +271,16 @@ private fun SettingsTopBar(
                 )
             }
 
+            // ✅ 恢复按钮同样去掉灰色背景，保持风格一致
             IconButton(
                 onClick = onRestore,
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                modifier = Modifier.size(36.dp)
             ) {
                 Icon(
                     Icons.Default.Restore,
                     contentDescription = "恢复默认",
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
         },
@@ -508,13 +503,14 @@ private fun AutoScanCard(
                     modifier = Modifier
                         .size(36.dp)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(ColorOSSecondary.copy(alpha = 0.1f)),
+                        // ✅ 图标底色也统一改为 ColorOSPrimary
+                        .background(ColorOSPrimary.copy(alpha = 0.1f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         Icons.Default.BluetoothSearching,
                         contentDescription = null,
-                        tint = ColorOSSecondary,
+                        tint = ColorOSPrimary,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -536,11 +532,12 @@ private fun AutoScanCard(
                 }
             }
 
+            // ✅ 开关颜色统一为 ColorOSPrimary，与自动轮询开关一致
             Switch(
                 checked = autoScan,
                 onCheckedChange = onToggle,
                 colors = SwitchDefaults.colors(
-                    checkedTrackColor = ColorOSSecondary,
+                    checkedTrackColor = ColorOSPrimary,
                     checkedThumbColor = Color.White
                 )
             )
@@ -613,7 +610,7 @@ private fun ConfigItem(
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                     label = { Text("数值", fontSize = 12.sp) },
-                    trailingIcon = { 
+                    trailingIcon = {
                         Text(
                             unit,
                             fontSize = 11.sp,
@@ -638,4 +635,3 @@ private fun ConfigItem(
         }
     }
 }
-
