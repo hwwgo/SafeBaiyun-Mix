@@ -8,7 +8,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -24,13 +23,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
-import cn.huacheng.safebaiyun.R
 import cn.huacheng.safebaiyun.theme.*
 import cn.huacheng.safebaiyun.unlock.DataRepo
 import cn.huacheng.safebaiyun.unlock.DoorDevice
@@ -72,13 +69,9 @@ fun MainView(navController: NavHostController) {
     var scanPermissionResult by remember { mutableStateOf<Boolean?>(null) }
     var pendingManualPoll by remember { mutableStateOf(false) }
 
-    // 先读取已有的蓝牙连接权限；之前改动时漏掉了这一步，导致 hasPermission 一直保持 false。
+    // ✅ 修复：一次性检查 CONNECT + SCAN 两个权限
     LaunchedEffect(Unit) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            hasPermission.value = context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
-        } else {
-            hasPermission.value = true
-        }
+        hasPermission.value = hasAllBlePermissions(context)
     }
 
     val scanPermissionLauncher = rememberLauncherForActivityResult(
@@ -95,7 +88,8 @@ fun MainView(navController: NavHostController) {
             pollingTotal = 0
             pollingProgress = "正在扫描门禁..."
 
-            val matchedDoor = if (hasBleScanPermission(context)) {
+            // ✅ 修复：使用统一的权限检查
+            val matchedDoor = if (hasAllBlePermissions(context)) {
                 UnlockRepo.findNearbyConfiguredDoor(
                     doors = selectedDoors,
                     durationMs = ConfigManager.getScanDuration()
@@ -210,28 +204,34 @@ fun MainView(navController: NavHostController) {
                     return@launch
                 }
 
-                // 蓝牙已开启后，如果还没有扫描权限，再申请扫描权限。
-                if (!hasBleScanPermission(context)) {
+                // ✅ 修复：使用统一权限检查；此处正常不会触发（进入主界面时已全部授予）
+                if (!hasAllBlePermissions(context)) {
                     if (scanPermissionResult == null) {
                         val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                            arrayOf(Manifest.permission.BLUETOOTH_SCAN)
+                            arrayOf(
+                                Manifest.permission.BLUETOOTH_CONNECT,
+                                Manifest.permission.BLUETOOTH_SCAN
+                            )
                         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
+                            arrayOf(
+                                Manifest.permission.BLUETOOTH,
+                                Manifest.permission.ACCESS_FINE_LOCATION
+                            )
                         } else {
                             emptyArray()
                         }
 
                         if (permissions.isNotEmpty()) {
-                            pollingProgress = "需要蓝牙扫描权限..."
+                            pollingProgress = "需要蓝牙权限..."
                             scanPermissionLauncher.launch(permissions)
                             return@launch
                         }
                     }
 
                     pollingState = PollingState.IDLE
-                    pollingProgress = "未授予蓝牙扫描权限，自动轮询已跳过"
+                    pollingProgress = "未授予蓝牙权限，自动轮询已跳过"
                     autoPollExecuted = true
-                    showToast("未授予蓝牙扫描权限，自动轮询已跳过")
+                    showToast("未授予蓝牙权限，自动轮询已跳过")
                     return@launch
                 }
 
@@ -284,14 +284,20 @@ fun MainView(navController: NavHostController) {
                                     return@CompactPollButton
                                 }
 
-                                // 手动轮询也始终先扫描，再进入轮询。
-                                if (!hasBleScanPermission(context)) {
+                                // ✅ 修复：使用统一权限检查
+                                if (!hasAllBlePermissions(context)) {
                                     pendingManualPoll = true
                                     scanPermissionResult = null
                                     val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                        arrayOf(Manifest.permission.BLUETOOTH_SCAN)
+                                        arrayOf(
+                                            Manifest.permission.BLUETOOTH_CONNECT,
+                                            Manifest.permission.BLUETOOTH_SCAN
+                                        )
                                     } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                        arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
+                                        arrayOf(
+                                            Manifest.permission.BLUETOOTH,
+                                            Manifest.permission.ACCESS_FINE_LOCATION
+                                        )
                                     } else {
                                         emptyArray()
                                     }
@@ -892,11 +898,17 @@ private suspend fun waitForBluetoothWithin(timeoutMs: Long): Boolean {
     }
 }
 
-private fun hasBleScanPermission(context: android.content.Context): Boolean {
+/**
+ * ✅ 统一权限检查：Android 12+ 需要 BLUETOOTH_CONNECT + BLUETOOTH_SCAN；
+ * Android 6~11 需要 BLUETOOTH + ACCESS_FINE_LOCATION。
+ */
+private fun hasAllBlePermissions(context: android.content.Context): Boolean {
     return when {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
+            context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED &&
             context.checkSelfPermission(Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ->
+            context.checkSelfPermission(Manifest.permission.BLUETOOTH) == PackageManager.PERMISSION_GRANTED &&
             context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
         else -> true
     }
@@ -904,10 +916,30 @@ private fun hasBleScanPermission(context: android.content.Context): Boolean {
 
 @Composable
 private fun PermissionView(hasPermission: MutableState<Boolean>) {
-    val requestPermissionLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-            hasPermission.value = isGranted
+    // ✅ 一次性请求所有权限
+    val requestPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { result ->
+        // 全部授予才算通过
+        hasPermission.value = result.values.all { it }
+        if (!hasPermission.value) {
+            showToast("权限未全部授予，请到系统设置中手动开启")
         }
+    }
+
+    val permissions = remember {
+        when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> arrayOf(
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.BLUETOOTH_SCAN
+            )
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> arrayOf(
+                Manifest.permission.BLUETOOTH,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            )
+            else -> emptyArray()
+        }
+    }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -928,8 +960,10 @@ private fun PermissionView(hasPermission: MutableState<Boolean>) {
         Spacer(modifier = Modifier.height(16.dp))
         Button(
             onClick = {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    requestPermissionLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT)
+                if (permissions.isNotEmpty()) {
+                    requestPermissionLauncher.launch(permissions)
+                } else {
+                    hasPermission.value = true
                 }
             },
             shape = RoundedCornerShape(12.dp),
