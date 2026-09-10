@@ -106,7 +106,6 @@ fun SettingsView(navController: NavController) {
 
                 InfoCard()
 
-                // 大字体模式开关
                 LargeFontCard(
                     largeFont = largeFont,
                     onToggle = {
@@ -133,7 +132,7 @@ fun SettingsView(navController: NavController) {
 
                 ConfigItem(
                     label = "自动扫描时间",
-                    description = "自动轮询前扫描附近已配置门禁的最长时间",
+                    description = "轮询前扫描附近已配置门禁的最长时间",
                     value = scanDuration,
                     onValueChange = {
                         scanDuration = it
@@ -247,7 +246,7 @@ private fun SettingsTopBar(
             }
         },
         navigationIcon = {
-            // ✅ 去掉灰色背景，返回图标不再有"阴影"
+            // 去掉灰色背景，返回图标不再有"阴影"
             IconButton(
                 onClick = onBack,
                 modifier = Modifier.size(36.dp)
@@ -271,7 +270,7 @@ private fun SettingsTopBar(
                 )
             }
 
-            // ✅ 恢复按钮同样去掉灰色背景，保持风格一致
+            // 恢复按钮同样去掉灰色背景
             IconButton(
                 onClick = onRestore,
                 modifier = Modifier.size(36.dp)
@@ -503,7 +502,6 @@ private fun AutoScanCard(
                     modifier = Modifier
                         .size(36.dp)
                         .clip(RoundedCornerShape(10.dp))
-                        // ✅ 图标底色也统一改为 ColorOSPrimary
                         .background(ColorOSPrimary.copy(alpha = 0.1f)),
                     contentAlignment = Alignment.Center
                 ) {
@@ -518,21 +516,22 @@ private fun AutoScanCard(
                 Spacer(modifier = Modifier.width(10.dp))
 
                 Column {
+                    // ✅ 改名：更中性的"轮询前扫描门禁"
                     Text(
-                        text = "自动轮询前扫描门禁",
+                        text = "轮询前扫描门禁",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "先扫描已配置 MAC，命中后优先开锁，不使用信号强度",
+                        text = "手动/自动轮询前，先扫描已配置的 MAC，命中后优先开锁",
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            // ✅ 开关颜色统一为 ColorOSPrimary，与自动轮询开关一致
+            // 开关颜色统一为 ColorOSPrimary
             Switch(
                 checked = autoScan,
                 onCheckedChange = onToggle,
