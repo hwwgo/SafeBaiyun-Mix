@@ -7,9 +7,6 @@ import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothManager
-import android.bluetooth.le.ScanCallback
-import android.bluetooth.le.ScanResult
-import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.os.Build
 import android.util.Log
@@ -20,7 +17,6 @@ import cn.huacheng.safebaiyun.util.showToast
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -241,17 +237,18 @@ object UnlockRepo {
      * 探测附近已配置的门禁。
      *
      * 平安回家等门禁不广播 BLE 广告包，因此无法用广播扫描发现它们。
-     * 本方法改为依次"快速连接探测"：能在短超时内连上的，就认为在附近。
+     * 本方法按 doors 列表顺序（即用户在界面上排序后的顺序）依次探测，
+     * 每个门禁最多等待 perDeviceTimeoutMs 毫秒，命中即返回。
      *
-     * @param doors 待探测门禁列表
-     * @param durationMs 探测总时间上限（毫秒）
+     * @param doors 待探测门禁列表（调用方应传入已勾选并排好序的列表）
+     * @param perDeviceTimeoutMs 单个门禁的探测超时（毫秒）
      * @return 第一个成功连接的门禁；全部失败返回 null
      */
     suspend fun findNearbyConfiguredDoor(
         doors: List<DoorDevice>,
-        durationMs: Long
+        perDeviceTimeoutMs: Long
     ): DoorDevice? {
-        if (doors.isEmpty() || durationMs <= 0) return null
+        if (doors.isEmpty() || perDeviceTimeoutMs <= 0) return null
 
         val bluetoothManager = ContextHolder.get()
             .getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
@@ -261,29 +258,29 @@ object UnlockRepo {
         val validDoors = doors.filter { BluetoothAdapter.checkBluetoothAddress(it.mac) }
         if (validDoors.isEmpty()) return null
 
-        // 每个门禁的探测超时：按总时长 / 门禁数量动态分配，限制在 800~2000ms
-        val perDeviceTimeout = (durationMs / validDoors.size).coerceIn(800L, 2000L)
+        // 单个门禁探测超时，限制在 500~3000ms 之间
+        val timeout = perDeviceTimeoutMs.coerceIn(500L, 3000L)
 
-        log("开始连接探测，共 ${validDoors.size} 个门禁，每个超时 ${perDeviceTimeout}ms")
+        log("开始连接探测，共 ${validDoors.size} 个门禁，每个超时 ${timeout}ms")
 
-        return withTimeoutOrNull(durationMs) {
-            for (door in validDoors) {
-                if (!kotlin.coroutines.coroutineContext.isActive) break
+        for ((index, door) in validDoors.withIndex()) {
+            if (!kotlin.coroutines.coroutineContext.isActive) break
 
-                val ok = quickConnectProbe(adapter, door.mac, perDeviceTimeout)
-                if (ok) {
-                    log("探测命中门禁: ${door.name} (${door.mac})")
-                    return@withTimeoutOrNull door
-                }
-                log("探测未命中: ${door.name} (${door.mac})")
+            log("探测第 ${index + 1}/${validDoors.size} 个: ${door.name} (${door.mac})")
 
-                // 给 BLE 栈一点释放时间，避免连续连接冲突
-                delay(80)
+            val ok = quickConnectProbe(adapter, door.mac, timeout)
+            if (ok) {
+                log("探测命中门禁: ${door.name} (${door.mac})")
+                return door
             }
-            null
-        }.also {
-            if (it == null) log("连接探测结束：附近没有已配置门禁")
+            log("探测未命中: ${door.name} (${door.mac})")
+
+            // 给 BLE 栈一点释放时间，避免连续连接冲突
+            delay(80)
         }
+
+        log("连接探测结束：附近没有已配置门禁")
+        return null
     }
 
     /**
@@ -344,7 +341,7 @@ object UnlockRepo {
     }
 
     // ============================================================
-    //  一键轮询功能（P1 修复：支持真正的协程取消）
+    //  一键轮询功能
     // ============================================================
 
     /**
@@ -405,7 +402,7 @@ object UnlockRepo {
     }
 
     /**
-     * 停止当前轮询（P1 新增）
+     * 停止当前轮询
      */
     fun stopPolling() {
         pollJob?.cancel()
@@ -414,7 +411,7 @@ object UnlockRepo {
     }
 
     /**
-     * 启动轮询（P1 新增，使用 Job 管理生命周期）
+     * 启动轮询（使用 Job 管理生命周期）
      */
     fun startPolling(
         scope: CoroutineScope,
@@ -438,13 +435,10 @@ object UnlockRepo {
 
     /**
      * 等待蓝牙开启，最多等待 timeoutMs 毫秒
-     * 在 timeoutMs 时间内，一旦检测到蓝牙开启立即返回 true
-     * 超时则返回 false
      */
     suspend fun waitForBluetooth(timeoutMs: Long): Boolean {
         val startTime = System.currentTimeMillis()
         while (System.currentTimeMillis() - startTime < timeoutMs) {
-            // 检查是否被取消
             if (!kotlin.coroutines.coroutineContext.isActive) {
                 return false
             }
@@ -452,9 +446,8 @@ object UnlockRepo {
             if (adapter != null && adapter.isEnabled) {
                 return true
             }
-            delay(200) // 每 200ms 检查一次
+            delay(200)
         }
-        // 最后再检查一次
         val adapter = BluetoothAdapter.getDefaultAdapter()
         return adapter != null && adapter.isEnabled
     }
@@ -467,7 +460,7 @@ object UnlockRepo {
 
     @OptIn(DelicateCoroutinesApi::class)
     private fun log(msg: String) {
-        Log.d(TAG, msg)  // P1 修复：println -> Android Log
+        Log.d(TAG, msg)
         val current = _logFlow.value
         _logFlow.value = if (current.size >= MAX_LOG_LINES) {
             current.drop(current.size - MAX_LOG_LINES + 1) + msg
