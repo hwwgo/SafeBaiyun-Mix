@@ -24,7 +24,7 @@ object ConfigManager {
     private const val DEFAULT_RESET_DELAY = 1000L
     private const val DEFAULT_AUTO_POLL = false
     private const val DEFAULT_AUTO_SCAN = true
-    private const val DEFAULT_SCAN_DURATION = 1000L
+    private const val DEFAULT_SCAN_DURATION = 1500L   // 单个门禁探测时长
     private const val DEFAULT_POLL_WAIT_TIME = 5000L
     private const val DEFAULT_LARGE_FONT = false
 
@@ -62,7 +62,7 @@ object ConfigManager {
     fun setAutoScanEnabled(value: Boolean) = prefs.edit().putBoolean(KEY_AUTO_SCAN, value).apply()
     fun getDefaultAutoScanEnabled(): Boolean = DEFAULT_AUTO_SCAN
 
-    // ---------- 自动扫描时长 ----------
+    // ---------- 单个门禁探测时长 ----------
     fun getScanDuration(): Long = prefs.getLong(KEY_SCAN_DURATION, DEFAULT_SCAN_DURATION)
     fun setScanDuration(value: Long) = prefs.edit().putLong(KEY_SCAN_DURATION, value).apply()
     fun getDefaultScanDuration(): Long = DEFAULT_SCAN_DURATION
