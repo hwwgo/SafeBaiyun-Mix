@@ -234,14 +234,23 @@ object UnlockRepo {
     }
 
     // ============================================================
-    //  自动扫描附近已配置门禁
+    //  探测附近已配置门禁（连接探测方式）
     // ============================================================
 
     /**
-     * 扫描附近设备，命中已配置的门禁 MAC 后立即停止扫描。
-     * 不使用 RSSI；只根据 MAC 精确匹配。
+     * 探测附近已配置的门禁。
+     *
+     * 平安回家等门禁不广播 BLE 广告包，因此无法用广播扫描发现它们。
+     * 本方法改为依次"快速连接探测"：能在短超时内连上的，就认为在附近。
+     *
+     * @param doors 待探测门禁列表
+     * @param durationMs 探测总时间上限（毫秒）
+     * @return 第一个成功连接的门禁；全部失败返回 null
      */
-    suspend fun findNearbyConfiguredDoor(doors: List<DoorDevice>, durationMs: Long): DoorDevice? {
+    suspend fun findNearbyConfiguredDoor(
+        doors: List<DoorDevice>,
+        durationMs: Long
+    ): DoorDevice? {
         if (doors.isEmpty() || durationMs <= 0) return null
 
         val bluetoothManager = ContextHolder.get()
@@ -249,61 +258,89 @@ object UnlockRepo {
         val adapter = bluetoothManager.adapter ?: return null
         if (!adapter.isEnabled) return null
 
-        val scanner = adapter.bluetoothLeScanner ?: return null
-        val knownDoors = doors
-            .filter { BluetoothAdapter.checkBluetoothAddress(it.mac) }
-            .associateBy { it.mac.uppercase(java.util.Locale.US) }
-        if (knownDoors.isEmpty()) return null
+        val validDoors = doors.filter { BluetoothAdapter.checkBluetoothAddress(it.mac) }
+        if (validDoors.isEmpty()) return null
+
+        // 每个门禁的探测超时：按总时长 / 门禁数量动态分配，限制在 800~2000ms
+        val perDeviceTimeout = (durationMs / validDoors.size).coerceIn(800L, 2000L)
+
+        log("开始连接探测，共 ${validDoors.size} 个门禁，每个超时 ${perDeviceTimeout}ms")
 
         return withTimeoutOrNull(durationMs) {
-            suspendCancellableCoroutine { continuation ->
+            for (door in validDoors) {
+                if (!kotlin.coroutines.coroutineContext.isActive) break
+
+                val ok = quickConnectProbe(adapter, door.mac, perDeviceTimeout)
+                if (ok) {
+                    log("探测命中门禁: ${door.name} (${door.mac})")
+                    return@withTimeoutOrNull door
+                }
+                log("探测未命中: ${door.name} (${door.mac})")
+
+                // 给 BLE 栈一点释放时间，避免连续连接冲突
+                delay(80)
+            }
+            null
+        }.also {
+            if (it == null) log("连接探测结束：附近没有已配置门禁")
+        }
+    }
+
+    /**
+     * 快速连接探测：尝试连接指定 MAC，能在 timeoutMs 内连上就返回 true，
+     * 并立即断开释放资源。不做服务发现，仅验证链路可达。
+     */
+    private suspend fun quickConnectProbe(
+        adapter: BluetoothAdapter,
+        mac: String,
+        timeoutMs: Long
+    ): Boolean {
+        return withTimeoutOrNull(timeoutMs) {
+            suspendCancellableCoroutine { cont ->
+                var gatt: BluetoothGatt? = null
                 val finished = AtomicBoolean(false)
-                lateinit var callback: ScanCallback
 
-                fun finish(result: DoorDevice?) {
+                fun finish(result: Boolean) {
                     if (finished.compareAndSet(false, true)) {
-                        runCatching { scanner.stopScan(callback) }
-                        continuation.resume(result)
+                        runCatching { gatt?.disconnect() }
+                        runCatching { gatt?.close() }
+                        if (cont.isActive) cont.resume(result)
                     }
                 }
 
-                callback = object : ScanCallback() {
-                    override fun onScanResult(callbackType: Int, result: ScanResult) {
-                        val mac = result.device.address?.uppercase(java.util.Locale.US) ?: return
-                        val door = knownDoors[mac]
-                        if (door != null) {
-                            log("自动扫描命中门禁: ${door.name} ($mac)")
-                            finish(door)
+                val callback = object : BluetoothGattCallback() {
+                    override fun onConnectionStateChange(
+                        g: BluetoothGatt?,
+                        status: Int,
+                        newState: Int
+                    ) {
+                        when (newState) {
+                            BluetoothGatt.STATE_CONNECTED -> finish(true)
+                            BluetoothGatt.STATE_DISCONNECTED -> finish(false)
                         }
-                    }
-
-                    override fun onScanFailed(errorCode: Int) {
-                        log("自动扫描失败，错误码: $errorCode")
-                        finish(null)
-                    }
-                }
-
-                continuation.invokeOnCancellation {
-                    if (finished.compareAndSet(false, true)) {
-                        runCatching { scanner.stopScan(callback) }
                     }
                 }
 
                 try {
-                    scanner.startScan(
-                        null,
-                        ScanSettings.Builder()
-                            .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
-                            .build(),
-                        callback
-                    )
-                    log("开始自动扫描，最长 ${durationMs}ms")
+                    val device = adapter.getRemoteDevice(mac)
+                    gatt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        device.connectGatt(
+                            ContextHolder.get(),
+                            false,
+                            callback,
+                            BluetoothDevice.TRANSPORT_LE
+                        )
+                    } else {
+                        device.connectGatt(ContextHolder.get(), false, callback)
+                    }
                 } catch (e: Exception) {
-                    log("启动自动扫描失败: ${e.javaClass.simpleName}")
-                    finish(null)
+                    log("探测连接异常 ${mac}: ${e.javaClass.simpleName}")
+                    finish(false)
                 }
+
+                cont.invokeOnCancellation { finish(false) }
             }
-        }
+        } ?: false
     }
 
     // ============================================================
