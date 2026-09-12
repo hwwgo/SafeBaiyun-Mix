@@ -60,8 +60,9 @@ fun SettingsView(navController: NavController) {
                         val reset = resetDelay.toLong()
                         val wait = pollWaitTime.toLong()
                         val scan = scanDuration.toLong()
-                        if (timeout < 1000 || interval < 100 || result < 100 || reset < 100 || wait < 100 || scan < 100 || scan > 10000) {
-                            showToast("单次开锁超时不能小于1000ms，其它时间不能小于100ms，扫描时间为100-10000ms")
+                        if (timeout < 1000 || interval < 100 || result < 100 || reset < 100 || wait < 100 ||
+                            scan < 500 || scan > 3000) {
+                            showToast("单次开锁超时不能小于1000ms，其它时间不能小于100ms，单门禁探测时间 500-3000ms")
                             return@SettingsTopBar
                         }
                         ConfigManager.setUnlockTimeout(timeout)
@@ -131,8 +132,8 @@ fun SettingsView(navController: NavController) {
                 )
 
                 ConfigItem(
-                    label = "自动扫描时间",
-                    description = "轮询前扫描附近已配置门禁的最长时间",
+                    label = "单个门禁探测时间",
+                    description = "轮询前探测每个门禁的最长时间，命中后立即优先开锁",
                     value = scanDuration,
                     onValueChange = {
                         scanDuration = it
@@ -246,7 +247,6 @@ private fun SettingsTopBar(
             }
         },
         navigationIcon = {
-            // 去掉灰色背景，返回图标不再有"阴影"
             IconButton(
                 onClick = onBack,
                 modifier = Modifier.size(36.dp)
@@ -270,7 +270,6 @@ private fun SettingsTopBar(
                 )
             }
 
-            // 恢复按钮同样去掉灰色背景
             IconButton(
                 onClick = onRestore,
                 modifier = Modifier.size(36.dp)
@@ -516,22 +515,20 @@ private fun AutoScanCard(
                 Spacer(modifier = Modifier.width(10.dp))
 
                 Column {
-                    // ✅ 改名：更中性的"轮询前扫描门禁"
                     Text(
-                        text = "轮询前扫描门禁",
+                        text = "轮询前探测附近门禁",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "手动/自动轮询前，先扫描已配置的 MAC，命中后优先开锁",
+                        text = "轮询前按顺序探测已勾选的门禁，命中后优先开锁",
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            // 开关颜色统一为 ColorOSPrimary
             Switch(
                 checked = autoScan,
                 onCheckedChange = onToggle,
