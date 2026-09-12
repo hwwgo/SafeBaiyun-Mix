@@ -84,20 +84,21 @@ fun MainView(navController: NavHostController) {
         try {
             var pollDoors = selectedDoors
 
-            // ✅ 只有开关打开且权限齐全时才扫描；否则跳过扫描，直接进入轮询
+            // ✅ 只有开关打开且权限齐全时才探测；否则跳过，直接进入轮询
             if (ConfigManager.getAutoScanEnabled() && hasAllBlePermissions(context)) {
                 pollingState = PollingState.SCANNING
                 pollingCurrentIndex = 0
                 pollingTotal = 0
-                pollingProgress = "正在扫描门禁..."
+                pollingProgress = "正在探测附近门禁..."
 
+                // ✅ 参数名改为 perDeviceTimeoutMs，语义为"单个门禁探测时长"
                 val matchedDoor = UnlockRepo.findNearbyConfiguredDoor(
                     doors = selectedDoors,
-                    durationMs = ConfigManager.getScanDuration()
+                    perDeviceTimeoutMs = ConfigManager.getScanDuration()
                 )
 
                 if (matchedDoor != null) {
-                    // 只根据 MAC 命中，不使用 RSSI；命中后把该门禁放到第一位
+                    // 命中后把该门禁放到第一位
                     pollDoors = listOf(matchedDoor) + selectedDoors.filter { it.id != matchedDoor.id }
                 }
             }
