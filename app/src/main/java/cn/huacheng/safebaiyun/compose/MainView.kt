@@ -82,30 +82,36 @@ fun MainView(navController: NavHostController) {
 
     suspend fun runScanThenPolling(selectedDoors: List<DoorDevice>) {
         try {
-            // ========== 阶段一：探测（独立流程） ==========
-            if (ConfigManager.getAutoScanEnabled() && hasAllBlePermissions(context)) {
+            val n = selectedDoors.size
+            val doProbe = ConfigManager.getAutoScanEnabled() && hasAllBlePermissions(context)
+            val probeSteps = if (doProbe) n else 0
+            val totalSteps = probeSteps + n
+
+            // ========== 阶段一：探测 ==========
+            if (doProbe) {
                 pollingState = PollingState.SCANNING
                 pollingCurrentIndex = 0
-                pollingTotal = selectedDoors.size
-                pollingProgress = "正在探测门禁 1/${selectedDoors.size}"
+                pollingTotal = totalSteps
+                pollingProgress = "正在探测门禁 1/$n"
 
                 val matchedDoor = UnlockRepo.findNearbyConfiguredDoor(
                     doors = selectedDoors,
                     perDeviceTimeoutMs = ConfigManager.getScanDuration(),
-                    onProgress = { index, total, name ->
+                    onProgress = { index, _, name ->
                         withContext(Dispatchers.Main) {
                             pollingCurrentIndex = index
-                            pollingTotal = total
-                            pollingProgress = "正在探测门禁 $index/$total: $name"
+                            pollingTotal = totalSteps
+                            pollingProgress = "正在探测门禁 $index/$n: $name"
                         }
                     }
                 )
 
+                // 探测结束，进度停在 50%（probeSteps / totalSteps）
+                pollingCurrentIndex = probeSteps
+                pollingTotal = totalSteps
+
                 if (matchedDoor != null) {
-                    // 探测命中 → 直接开锁这个门禁
                     pollingState = PollingState.POLLING
-                    pollingCurrentIndex = 1
-                    pollingTotal = 1
                     pollingProgress = "正在开锁: ${matchedDoor.name}"
 
                     val success = try {
@@ -115,31 +121,33 @@ fun MainView(navController: NavHostController) {
                     }
 
                     if (success) {
-                        // 成功 → 结束，不进入轮询
+                        // 命中并成功 → 进度推到 100%，结束
+                        pollingCurrentIndex = totalSteps
+                        pollingTotal = totalSteps
                         pollingState = PollingState.IDLE
                         pollingProgress = "✅ 已开启: ${matchedDoor.name}"
                         doors.value = DataRepo.getDoors()
                         return
                     }
-                    // 命中但开锁失败 → 落到阶段二
+                    // 命中但失败 → 落到阶段二
                 }
             }
 
-            // ========== 阶段二：轮询（保底，从头到尾依次尝试） ==========
+            // ========== 阶段二：轮询 ==========
             pollingState = PollingState.POLLING
-            pollingCurrentIndex = 0
-            pollingTotal = selectedDoors.size
-            pollingProgress = "正在轮询门禁 1/${selectedDoors.size}"
+            pollingCurrentIndex = probeSteps
+            pollingTotal = totalSteps
+            pollingProgress = "正在轮询门禁 1/$n"
 
             coroutineScope {
                 val job = UnlockRepo.startPolling(
                     scope = this,
                     doors = selectedDoors,   // 保持原始顺序，不重排
-                    onProgress = { index, total, name ->
+                    onProgress = { index, _, name ->
                         withContext(Dispatchers.Main) {
-                            pollingCurrentIndex = index
-                            pollingTotal = total
-                            pollingProgress = "正在轮询门禁 $index/$total: $name"
+                            pollingCurrentIndex = probeSteps + index
+                            pollingTotal = totalSteps
+                            pollingProgress = "正在轮询门禁 $index/$n: $name"
                         }
                     },
                     onComplete = { result ->
@@ -547,7 +555,7 @@ private fun CompactProgressBar(
                 trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
         } else {
-            // 探测（SCANNING）和轮询（POLLING）都显示确定进度
+            // 探测和轮询共用一条总进度条
             LinearProgressIndicator(
                 progress = if (total > 0) {
                     (current.toFloat() / total).coerceIn(0f, 1f)
