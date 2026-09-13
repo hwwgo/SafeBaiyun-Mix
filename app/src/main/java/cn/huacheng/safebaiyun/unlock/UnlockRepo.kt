@@ -242,11 +242,13 @@ object UnlockRepo {
      *
      * @param doors 待探测门禁列表（调用方应传入已勾选并排好序的列表）
      * @param perDeviceTimeoutMs 单个门禁的探测超时（毫秒）
+     * @param onProgress 进度回调（当前索引，总数，当前门禁名称）
      * @return 第一个成功连接的门禁；全部失败返回 null
      */
     suspend fun findNearbyConfiguredDoor(
         doors: List<DoorDevice>,
-        perDeviceTimeoutMs: Long
+        perDeviceTimeoutMs: Long,
+        onProgress: suspend (index: Int, total: Int, doorName: String) -> Unit = { _, _, _ -> }
     ): DoorDevice? {
         if (doors.isEmpty() || perDeviceTimeoutMs <= 0) return null
 
@@ -265,6 +267,9 @@ object UnlockRepo {
 
         for ((index, door) in validDoors.withIndex()) {
             if (!kotlin.coroutines.coroutineContext.isActive) break
+
+            // 报告探测进度
+            onProgress(index + 1, validDoors.size, door.name)
 
             log("探测第 ${index + 1}/${validDoors.size} 个: ${door.name} (${door.mac})")
 
