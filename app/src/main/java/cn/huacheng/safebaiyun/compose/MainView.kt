@@ -69,7 +69,6 @@ fun MainView(navController: NavHostController) {
     var scanPermissionResult by remember { mutableStateOf<Boolean?>(null) }
     var pendingManualPoll by remember { mutableStateOf(false) }
 
-    // 统一检查 CONNECT + SCAN 权限
     LaunchedEffect(Unit) {
         hasPermission.value = hasAllBlePermissions(context)
     }
@@ -87,53 +86,49 @@ fun MainView(navController: NavHostController) {
             val probeSteps = if (doProbe) n else 0
             val totalSteps = probeSteps + n
 
-            // ========== 阶段一：探测 ==========
+            // ========== 阶段一：探测 + 开锁（合并） ==========
             if (doProbe) {
                 pollingState = PollingState.SCANNING
                 pollingCurrentIndex = 0
                 pollingTotal = totalSteps
                 pollingProgress = "正在探测门禁 1/$n"
 
-                val matchedDoor = UnlockRepo.findNearbyConfiguredDoor(
+                val matchedDoor = UnlockRepo.probeAndUnlock(
                     doors = selectedDoors,
                     perDeviceTimeoutMs = ConfigManager.getScanDuration(),
-                    onProgress = { index, _, name ->
+                    onProbe = { index, _, name ->
                         withContext(Dispatchers.Main) {
                             pollingCurrentIndex = index
                             pollingTotal = totalSteps
                             pollingProgress = "正在探测门禁 $index/$n: $name"
                         }
+                    },
+                    onUnlock = { _, _, name ->
+                        withContext(Dispatchers.Main) {
+                            pollingProgress = "正在开锁: $name"
+                        }
                     }
                 )
 
-                // 探测结束，进度停在 50%（probeSteps / totalSteps）
+                if (matchedDoor != null) {
+                    // 探测并开锁成功 → 结束，不走轮询
+                    pollingCurrentIndex = totalSteps
+                    pollingTotal = totalSteps
+                    pollingState = PollingState.IDLE
+                    pollingProgress = "✅ 已开启: ${matchedDoor.name}"
+                    doors.value = DataRepo.getDoors()
+                    return
+                }
+
+                // 返回 null 有两种情况：
+                //   1) 所有门禁都连不上（附近没门禁）
+                //   2) 连上了但开锁失败（由 UnlockRepo 内部提前跳出探测）
+                // 无论哪种，都进入轮询兜底
                 pollingCurrentIndex = probeSteps
                 pollingTotal = totalSteps
-
-                if (matchedDoor != null) {
-                    pollingState = PollingState.POLLING
-                    pollingProgress = "正在开锁: ${matchedDoor.name}"
-
-                    val success = try {
-                        UnlockRepo.tryUnlock(matchedDoor.mac, matchedDoor.key)
-                    } catch (e: CancellationException) {
-                        throw e
-                    }
-
-                    if (success) {
-                        // 命中并成功 → 进度推到 100%，结束
-                        pollingCurrentIndex = totalSteps
-                        pollingTotal = totalSteps
-                        pollingState = PollingState.IDLE
-                        pollingProgress = "✅ 已开启: ${matchedDoor.name}"
-                        doors.value = DataRepo.getDoors()
-                        return
-                    }
-                    // 命中但失败 → 落到阶段二
-                }
             }
 
-            // ========== 阶段二：轮询 ==========
+            // ========== 阶段二：轮询（兜底） ==========
             pollingState = PollingState.POLLING
             pollingCurrentIndex = probeSteps
             pollingTotal = totalSteps
@@ -142,7 +137,7 @@ fun MainView(navController: NavHostController) {
             coroutineScope {
                 val job = UnlockRepo.startPolling(
                     scope = this,
-                    doors = selectedDoors,   // 保持原始顺序，不重排
+                    doors = selectedDoors,
                     onProgress = { index, _, name ->
                         withContext(Dispatchers.Main) {
                             pollingCurrentIndex = probeSteps + index
@@ -545,7 +540,6 @@ private fun CompactProgressBar(
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (state == PollingState.WAITING_BLUETOOTH) {
-            // 只有"等待蓝牙"是无限循环进度条
             LinearProgressIndicator(
                 modifier = Modifier
                     .weight(1f)
@@ -555,7 +549,6 @@ private fun CompactProgressBar(
                 trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
         } else {
-            // 探测和轮询共用一条总进度条
             LinearProgressIndicator(
                 progress = if (total > 0) {
                     (current.toFloat() / total).coerceIn(0f, 1f)
@@ -922,10 +915,6 @@ private suspend fun waitForBluetoothWithin(timeoutMs: Long): Boolean {
     }
 }
 
-/**
- * 统一权限检查：Android 12+ 需要 BLUETOOTH_CONNECT + BLUETOOTH_SCAN；
- * Android 6~11 需要 BLUETOOTH + ACCESS_FINE_LOCATION。
- */
 private fun hasAllBlePermissions(context: android.content.Context): Boolean {
     return when {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
