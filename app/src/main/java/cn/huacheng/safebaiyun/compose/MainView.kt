@@ -82,36 +82,59 @@ fun MainView(navController: NavHostController) {
 
     suspend fun runScanThenPolling(selectedDoors: List<DoorDevice>) {
         try {
-            var pollDoors = selectedDoors
-
-            // ✅ 只有开关打开且权限齐全时才探测；否则跳过，直接进入轮询
+            // ========== 阶段一：探测（独立流程） ==========
             if (ConfigManager.getAutoScanEnabled() && hasAllBlePermissions(context)) {
                 pollingState = PollingState.SCANNING
                 pollingCurrentIndex = 0
-                pollingTotal = 0
-                pollingProgress = "正在探测附近门禁..."
+                pollingTotal = selectedDoors.size
+                pollingProgress = "正在探测门禁 1/${selectedDoors.size}"
 
-                // ✅ 参数名改为 perDeviceTimeoutMs，语义为"单个门禁探测时长"
                 val matchedDoor = UnlockRepo.findNearbyConfiguredDoor(
                     doors = selectedDoors,
-                    perDeviceTimeoutMs = ConfigManager.getScanDuration()
+                    perDeviceTimeoutMs = ConfigManager.getScanDuration(),
+                    onProgress = { index, total, name ->
+                        withContext(Dispatchers.Main) {
+                            pollingCurrentIndex = index
+                            pollingTotal = total
+                            pollingProgress = "正在探测门禁 $index/$total: $name"
+                        }
+                    }
                 )
 
                 if (matchedDoor != null) {
-                    // 命中后把该门禁放到第一位
-                    pollDoors = listOf(matchedDoor) + selectedDoors.filter { it.id != matchedDoor.id }
+                    // 探测命中 → 直接开锁这个门禁
+                    pollingState = PollingState.POLLING
+                    pollingCurrentIndex = 1
+                    pollingTotal = 1
+                    pollingProgress = "正在开锁: ${matchedDoor.name}"
+
+                    val success = try {
+                        UnlockRepo.tryUnlock(matchedDoor.mac, matchedDoor.key)
+                    } catch (e: CancellationException) {
+                        throw e
+                    }
+
+                    if (success) {
+                        // 成功 → 结束，不进入轮询
+                        pollingState = PollingState.IDLE
+                        pollingProgress = "✅ 已开启: ${matchedDoor.name}"
+                        doors.value = DataRepo.getDoors()
+                        return
+                    }
+                    // 命中但开锁失败 → 落到阶段二
                 }
             }
 
+            // ========== 阶段二：轮询（保底，从头到尾依次尝试） ==========
             pollingState = PollingState.POLLING
             pollingCurrentIndex = 0
-            pollingTotal = pollDoors.size
-            pollingProgress = "正在轮询门禁 1/${pollDoors.size}"
+            pollingTotal = selectedDoors.size
+            pollingProgress = "正在轮询门禁 1/${selectedDoors.size}"
 
             coroutineScope {
                 val job = UnlockRepo.startPolling(
                     scope = this,
-                    doors = pollDoors,
+                    doors = selectedDoors,   // 保持原始顺序，不重排
                     onProgress = { index, total, name ->
                         withContext(Dispatchers.Main) {
                             pollingCurrentIndex = index
@@ -513,7 +536,8 @@ private fun CompactProgressBar(
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (state == PollingState.WAITING_BLUETOOTH || state == PollingState.SCANNING) {
+        if (state == PollingState.WAITING_BLUETOOTH) {
+            // 只有"等待蓝牙"是无限循环进度条
             LinearProgressIndicator(
                 modifier = Modifier
                     .weight(1f)
@@ -523,6 +547,7 @@ private fun CompactProgressBar(
                 trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
         } else {
+            // 探测（SCANNING）和轮询（POLLING）都显示确定进度
             LinearProgressIndicator(
                 progress = if (total > 0) {
                     (current.toFloat() / total).coerceIn(0f, 1f)
