@@ -81,6 +81,9 @@ fun MainView(navController: NavHostController) {
 
     suspend fun runScanThenPolling(selectedDoors: List<DoorDevice>) {
         try {
+            // ✅ 记录起点时间
+            val startTime = System.currentTimeMillis()
+
             val n = selectedDoors.size
             val doProbe = ConfigManager.getAutoScanEnabled() && hasAllBlePermissions(context)
             val probeSteps = if (doProbe) n else 0
@@ -111,19 +114,25 @@ fun MainView(navController: NavHostController) {
                 )
 
                 if (matchedDoor != null) {
-                    // 探测并开锁成功 → 结束，不走轮询
+                    // ✅ 探测并开锁成功 → 结束
+                    val elapsed = System.currentTimeMillis() - startTime
                     pollingCurrentIndex = totalSteps
                     pollingTotal = totalSteps
                     pollingState = PollingState.IDLE
                     pollingProgress = "✅ 已开启: ${matchedDoor.name}"
                     doors.value = DataRepo.getDoors()
+
+                    // 先弹"已开门"，1.5 秒后再弹"用时"
+                    withContext(Dispatchers.Main) {
+                        showToast("✅ 已成功开门！")
+                    }
+                    scope.launch {
+                        delay(1500)
+                        showToast("用时 ${elapsed}ms")
+                    }
                     return
                 }
 
-                // 返回 null 有两种情况：
-                //   1) 所有门禁都连不上（附近没门禁）
-                //   2) 连上了但开锁失败（由 UnlockRepo 内部提前跳出探测）
-                // 无论哪种，都进入轮询兜底
                 pollingCurrentIndex = probeSteps
                 pollingTotal = totalSteps
             }
@@ -147,9 +156,18 @@ fun MainView(navController: NavHostController) {
                     },
                     onComplete = { result ->
                         pollingState = PollingState.IDLE
-                        pollingProgress =
-                            if (result != null) "✅ 已开启: ${result.name}"
-                            else "❌ 未找到可开门禁"
+                        if (result != null) {
+                            // ✅ 轮询成功 → 弹两个 Toast
+                            val elapsed = System.currentTimeMillis() - startTime
+                            pollingProgress = "✅ 已开启: ${result.name}"
+                            scope.launch {
+                                showToast("✅ 已成功开门！")
+                                delay(1500)
+                                showToast("用时 ${elapsed}ms")
+                            }
+                        } else {
+                            pollingProgress = "❌ 未找到可开门禁"
+                        }
                         doors.value = DataRepo.getDoors()
                     }
                 )
