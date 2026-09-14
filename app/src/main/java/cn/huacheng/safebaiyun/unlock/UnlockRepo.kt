@@ -56,12 +56,12 @@ object UnlockRepo {
 
     private enum class ProbeOutcome {
         UNLOCKED,       // 连上了，并且开锁成功
-        UNLOCK_FAILED,  // 连上了，但开锁失败（服务/挑战/写指令任一环节）
+        UNLOCK_FAILED,  // 连上了，但开锁失败
         NOT_CONNECTED   // 连接阶段失败或超时，门禁不在附近
     }
 
     // ============================================================
-    //  单门禁开锁入口（轮询兜底使用，逻辑不变）
+    //  单门禁开锁入口（轮询兜底使用）
     // ============================================================
 
     suspend fun tryUnlock(mac: String, key: String): Boolean {
@@ -233,24 +233,9 @@ object UnlockRepo {
     }
 
     // ============================================================
-    //  探测并开锁（方案二 + 命中失败直接跳出）
+    //  探测并开锁（合并方案）
     // ============================================================
 
-    /**
-     * 依次探测已配置门禁：
-     *   - 连接阶段用 perDeviceTimeoutMs（短超时）判断"在不在附近"
-     *   - 一旦连上，立即在同一连接上走开锁流程（用 ConfigManager.getUnlockTimeout() 长超时）
-     *   - 开锁成功 → 立即返回该门禁
-     *   - 开锁失败 → 立刻跳出探测，返回 null（交给轮询兜底）
-     *   - 连接超时 → 继续探测下一个门禁
-     *   - 全部连接失败 → 返回 null（交给轮询兜底）
-     *
-     * @param doors 待探测门禁列表（已勾选，按用户排序）
-     * @param perDeviceTimeoutMs 单个门禁的连接探测超时
-     * @param onProbe 探测进度回调（index 从 1 开始）
-     * @param onUnlock 开锁阶段回调（index 从 1 开始）
-     * @return 成功开锁的门禁；其他情况返回 null
-     */
     suspend fun probeAndUnlock(
         doors: List<DoorDevice>,
         perDeviceTimeoutMs: Long,
@@ -292,7 +277,6 @@ object UnlockRepo {
                     return door
                 }
                 ProbeOutcome.UNLOCK_FAILED -> {
-                    // ✅ 命中但开锁失败 → 直接跳出探测，交给轮询兜底
                     log("⚠️ ${door.name} 已连接但开锁失败，跳过剩余探测，进入轮询兜底")
                     return null
                 }
@@ -307,13 +291,6 @@ object UnlockRepo {
         return null
     }
 
-    /**
-     * 单门禁"探测 + 开锁"：
-     * 用一个 BluetoothGattCallback 贯穿连接和开锁两个阶段。
-     * 两段超时分别用：
-     *   - connectTimeoutJob：连接阶段（连接未建立就超时）
-     *   - unlockTimeoutJob：开锁阶段（连接已建立后走服务发现/挑战响应）
-     */
     private suspend fun probeAndUnlockSingle(
         adapter: BluetoothAdapter,
         door: DoorDevice,
@@ -358,7 +335,6 @@ object UnlockRepo {
                     isConnected = true
                     connectTimeoutJob?.cancel()
 
-                    // 进入开锁阶段：通知界面 + 启动开锁超时
                     if (!unlockPhaseStarted) {
                         unlockPhaseStarted = true
                         timerScope.launch {
@@ -467,7 +443,6 @@ object UnlockRepo {
             }
         }
 
-        // 连接阶段超时
         connectTimeoutJob = timerScope.launch {
             delay(connectTimeoutMs)
             if (!isCompleted && !isConnected) {
@@ -492,7 +467,7 @@ object UnlockRepo {
     }
 
     // ============================================================
-    //  一键轮询功能（兜底，逻辑不变）
+    //  一键轮询功能（兜底，Toast 由 MainView 统一处理）
     // ============================================================
 
     suspend fun pollAllDoors(
@@ -525,7 +500,7 @@ object UnlockRepo {
 
             if (success) {
                 log("✅ 成功开启门禁: ${door.name}")
-                showToast("✅ 已成功开门！")
+                // ✅ Toast 由调用方 MainView 统一处理（含用时显示）
                 return door
             } else {
                 log("❌ 第 ${index + 1} 个门禁开门失败，继续尝试下一个...")
