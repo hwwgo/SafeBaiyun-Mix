@@ -282,7 +282,8 @@ object UnlockRepo {
                 }
                 ProbeOutcome.NOT_CONNECTED -> {
                     log("❌ 第 ${index + 1} 个未连接: ${door.name}，继续探测下一个...")
-                    delay(80)
+                    // ✅ 使用用户配置的"门禁切换间隔"，与轮询保持一致
+                    delay(ConfigManager.getPollInterval())
                 }
             }
         }
@@ -315,7 +316,7 @@ object UnlockRepo {
             connectTimeoutJob?.cancel()
             unlockTimeoutJob?.cancel()
             timerScope.cancel()
-            runCatching { gatt?.disconnect() }
+            // ✅ 只 close，不再 disconnect（避免阻塞 200~500ms）
             runCatching { gatt?.close() }
         }
 
@@ -467,7 +468,7 @@ object UnlockRepo {
     }
 
     // ============================================================
-    //  一键轮询功能（兜底，Toast 由 MainView 统一处理）
+    //  一键轮询功能（兜底）
     // ============================================================
 
     suspend fun pollAllDoors(
@@ -500,7 +501,7 @@ object UnlockRepo {
 
             if (success) {
                 log("✅ 成功开启门禁: ${door.name}")
-                // ✅ Toast 由调用方 MainView 统一处理（含用时显示）
+                // Toast 由调用方 MainView 统一处理（含用时显示）
                 return door
             } else {
                 log("❌ 第 ${index + 1} 个门禁开门失败，继续尝试下一个...")
