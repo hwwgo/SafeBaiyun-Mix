@@ -19,7 +19,7 @@ object ConfigManager {
 
     // 默认值
     private const val DEFAULT_UNLOCK_TIMEOUT = 10000L
-    private const val DEFAULT_POLL_INTERVAL = 300L
+    private const val DEFAULT_POLL_INTERVAL = 100L   // 门禁切换间隔（探测/轮询共用）
     private const val DEFAULT_RESULT_DELAY = 2000L
     private const val DEFAULT_RESET_DELAY = 1000L
     private const val DEFAULT_AUTO_POLL = false
@@ -37,7 +37,7 @@ object ConfigManager {
     fun setUnlockTimeout(value: Long) = prefs.edit().putLong(KEY_UNLOCK_TIMEOUT, value).apply()
     fun getDefaultUnlockTimeout(): Long = DEFAULT_UNLOCK_TIMEOUT
 
-    // ---------- 轮询间隔 ----------
+    // ---------- 门禁切换间隔（探测/轮询共用） ----------
     fun getPollInterval(): Long = prefs.getLong(KEY_POLL_INTERVAL, DEFAULT_POLL_INTERVAL)
     fun setPollInterval(value: Long) = prefs.edit().putLong(KEY_POLL_INTERVAL, value).apply()
     fun getDefaultPollInterval(): Long = DEFAULT_POLL_INTERVAL
