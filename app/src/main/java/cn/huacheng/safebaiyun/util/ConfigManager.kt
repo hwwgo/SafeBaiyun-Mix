@@ -18,14 +18,14 @@ object ConfigManager {
     private const val KEY_LARGE_FONT = "large_font"
 
     // 默认值
-    private const val DEFAULT_UNLOCK_TIMEOUT = 10000L
+    private const val DEFAULT_UNLOCK_TIMEOUT = 2000L
     private const val DEFAULT_POLL_INTERVAL = 100L   // 门禁切换间隔（探测/轮询共用）
-    private const val DEFAULT_RESULT_DELAY = 2000L
+    private const val DEFAULT_RESULT_DELAY = 1000L
     private const val DEFAULT_RESET_DELAY = 1000L
     private const val DEFAULT_AUTO_POLL = false
     private const val DEFAULT_AUTO_SCAN = true
-    private const val DEFAULT_SCAN_DURATION = 1500L   // 单个门禁探测时长
-    private const val DEFAULT_POLL_WAIT_TIME = 5000L
+    private const val DEFAULT_SCAN_DURATION = 2000L   // 单个门禁探测时长
+    private const val DEFAULT_POLL_WAIT_TIME = 2000L
     private const val DEFAULT_LARGE_FONT = false
 
     fun init(context: Context) {
