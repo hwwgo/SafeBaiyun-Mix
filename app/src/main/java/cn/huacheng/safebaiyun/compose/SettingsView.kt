@@ -60,7 +60,7 @@ fun SettingsView(navController: NavController) {
                         val reset = resetDelay.toLong()
                         val wait = pollWaitTime.toLong()
                         val scan = scanDuration.toLong()
-                        if (timeout < 1000 || interval < 100 || result < 100 || reset < 100 || wait < 100 ||
+                        if (timeout < 1000 || interval < 50 || result < 100 || reset < 100 || wait < 100 ||
                             scan < 500 || scan > 3000) {
                             showToast("单次开锁超时不能小于1000ms，其它时间不能小于100ms，单门禁探测时间 500-3000ms")
                             return@SettingsTopBar
@@ -168,8 +168,8 @@ fun SettingsView(navController: NavController) {
                 )
 
                 ConfigItem(
-                    label = "轮询间隔",
-                    description = "轮询时，尝试两个门禁之间的等待时间",
+                    label = "门禁切换间隔",
+                    description = "探测或轮询时，切换到下一个门禁前的等待时间",
                     value = pollInterval,
                     onValueChange = {
                         pollInterval = it
