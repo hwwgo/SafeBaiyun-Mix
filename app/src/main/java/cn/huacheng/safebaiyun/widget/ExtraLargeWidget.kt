@@ -11,7 +11,7 @@ import androidx.glance.GlanceTheme
 import androidx.glance.ImageProvider
 import androidx.glance.action.ActionParameters
 import androidx.glance.action.actionParametersOf
-import androidx.glance.action.actionRunCallback
+import androidx.glance.appwidget.action.actionRunCallback   // ✅ 修正导入路径
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
@@ -98,7 +98,6 @@ object ExtraLargeWidget : GlanceAppWidget() {
                 style = TextStyle(
                     fontWeight = FontWeight.Medium,
                     fontSize = 14.sp,
-                    // ✅ 修复
                     color = GlanceTheme.colors.onSurface
                 ),
                 modifier = GlanceModifier.padding(top = 4.dp)
@@ -139,7 +138,6 @@ object ExtraLargeWidget : GlanceAppWidget() {
                 text = name,
                 style = TextStyle(
                     fontSize = 13.sp,
-                    // ✅ 修复
                     color = GlanceTheme.colors.onSurface
                 ),
                 maxLines = 1
