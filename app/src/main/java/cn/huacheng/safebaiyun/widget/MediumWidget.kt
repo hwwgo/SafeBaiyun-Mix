@@ -28,21 +28,11 @@ import androidx.glance.text.TextStyle
 import cn.huacheng.safebaiyun.ShortcutActivity
 import cn.huacheng.safebaiyun.R
 
-/**
- *
- *@description:
- *@author: guangzhou
- *@create: 2024-05-06
- */
-
 class MediumReceiver : GlanceAppWidgetReceiver() {
-    override val glanceAppWidget: GlanceAppWidget
-        get() = MediumWidget
+    override val glanceAppWidget: GlanceAppWidget get() = MediumWidget
 }
 
 object MediumWidget : GlanceAppWidget() {
-
-
     override val sizeMode: SizeMode = SizeMode.Single
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -66,9 +56,21 @@ object MediumWidget : GlanceAppWidget() {
             Column {
                 Text(
                     text = "白云通",
-                    style = TextStyle(fontWeight = FontWeight.Medium, fontSize = 16.sp),
+                    style = TextStyle(
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 16.sp,
+                        // ✅ 修复：使用主题前景色，深色主题下自动变为浅色
+                        color = GlanceTheme.colors.onSurface
+                    )
                 )
-                Text(text = "点击解锁", style = TextStyle(fontSize = 14.sp))
+                Text(
+                    text = "点击解锁",
+                    style = TextStyle(
+                        fontSize = 14.sp,
+                        // ✅ 修复
+                        color = GlanceTheme.colors.onSurface
+                    )
+                )
             }
             Spacer(modifier = GlanceModifier.defaultWeight())
             CircleIconButton(
@@ -78,9 +80,6 @@ object MediumWidget : GlanceAppWidget() {
                 contentColor = GlanceTheme.colors.onPrimary,
                 onClick = actionStartActivity<ShortcutActivity>()
             )
-
         }
     }
-
 }
-
