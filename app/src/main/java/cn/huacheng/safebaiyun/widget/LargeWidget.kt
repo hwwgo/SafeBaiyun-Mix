@@ -33,21 +33,11 @@ import androidx.glance.text.TextStyle
 import cn.huacheng.safebaiyun.R
 import cn.huacheng.safebaiyun.ShortcutActivity
 
-/**
- *
- *@description:
- *@author: guangzhou
- *@create: 2024-05-06
- */
-
 class LargeReceiver : GlanceAppWidgetReceiver() {
-    override val glanceAppWidget: GlanceAppWidget
-        get() = LargeWidget
+    override val glanceAppWidget: GlanceAppWidget get() = LargeWidget
 }
 
 object LargeWidget : GlanceAppWidget() {
-
-
     override val sizeMode: SizeMode = SizeMode.Single
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -69,7 +59,11 @@ object LargeWidget : GlanceAppWidget() {
                 .padding(start = 16.dp, end = 16.dp, bottom = 20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(modifier = GlanceModifier.fillMaxWidth().padding(top = 8.dp)) {
+            Row(
+                modifier = GlanceModifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp)
+            ) {
                 Image(
                     modifier = GlanceModifier.size(68.dp, 96.dp),
                     provider = ImageProvider(R.drawable.guangzhou),
@@ -88,15 +82,23 @@ object LargeWidget : GlanceAppWidget() {
                 }
             }
             Spacer(modifier = GlanceModifier.defaultWeight())
-
             Text(
                 text = "平安白云门禁",
-                style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 16.sp),
+                style = TextStyle(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    // ✅ 修复
+                    color = GlanceTheme.colors.onSurface
+                )
             )
-            Text(text = "点击解锁门禁", style = TextStyle(fontSize = 14.sp))
+            Text(
+                text = "点击解锁门禁",
+                style = TextStyle(
+                    fontSize = 14.sp,
+                    // ✅ 修复
+                    color = GlanceTheme.colors.onSurface
+                )
+            )
         }
-
     }
-
 }
-
