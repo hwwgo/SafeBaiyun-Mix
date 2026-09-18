@@ -9,19 +9,30 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import cn.huacheng.safebaiyun.unlock.DataRepo
 import cn.huacheng.safebaiyun.unlock.UnlockRepo
 import cn.huacheng.safebaiyun.util.showToast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -36,17 +47,50 @@ class ShortcutActivity : ComponentActivity() {
         const val EXTRA_DOOR_ID = "door_id"
     }
 
-    // P0 修复：使用 Activity 级别的协程作用域
     private val activityScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // ✅ 清空上次的开锁状态，避免新界面短暂显示旧结果
+        UnlockRepo.resetUnlockStep()
+
         setContent {
-            Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(modifier = Modifier.size(48.dp))
+            // ✅ 订阅实时开锁状态
+            val unlockStep by UnlockRepo.unlockStep.collectAsState()
+            val displayText = unlockStep.ifEmpty { "准备开锁..." }
+
+            // ✅ 根据状态决定文字颜色
+            val textColor = when {
+                unlockStep.contains("成功") -> cn.huacheng.safebaiyun.theme.ColorOSSuccess
+                unlockStep.contains("失败") || unlockStep.contains("超时") ->
+                    cn.huacheng.safebaiyun.theme.ColorOSError
+                else -> MaterialTheme.colorScheme.onBackground
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(48.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = displayText,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = textColor,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 32.dp)
+                    )
+                }
             }
         }
+
         if (intent.action == Intent.ACTION_CREATE_SHORTCUT) {
             createShortcut()
         } else {
@@ -78,18 +122,15 @@ class ShortcutActivity : ComponentActivity() {
             return
         }
 
-        // 优先从 Intent 取指定门禁 id（改为 String）
         val targetDoorId = intent.getStringExtra(EXTRA_DOOR_ID)
-
         val doors = DataRepo.getDoors()
 
-        val doorToUnlock = if (targetDoorId != null) {
-            doors.find { it.id == targetDoorId }
-        } else {
-            // 兼容旧逻辑：取第一个有效门禁
-            doors.firstOrNull { it.mac.isNotEmpty() && it.key.isNotEmpty() }
-                ?: doors.firstOrNull()
-        }
+        // ✅ 优先匹配指定 doorId；找不到或无效时，fallback 到第一个有效门禁
+        val doorToUnlock = targetDoorId
+            ?.let { id -> doors.find { it.id == id } }
+            ?.takeIf { it.mac.isNotEmpty() && it.key.isNotEmpty() }
+            ?: doors.firstOrNull { it.mac.isNotEmpty() && it.key.isNotEmpty() }
+            ?: doors.firstOrNull()
 
         if (doorToUnlock == null || doorToUnlock.mac.isEmpty() || doorToUnlock.key.isEmpty()) {
             showToast("请先初始化门禁")
@@ -100,9 +141,12 @@ class ShortcutActivity : ComponentActivity() {
 
         showToast("正在解锁 ${doorToUnlock.name}")
 
-        // P0 修复：使用 tryUnlock 替代旧的 unlock
         activityScope.launch {
-            UnlockRepo.tryUnlock(doorToUnlock.mac, doorToUnlock.key)
+            val success = UnlockRepo.tryUnlock(doorToUnlock.mac, doorToUnlock.key)
+            // ✅ 成功时短暂停留，让用户看到"✅ 开锁成功"状态
+            if (success) {
+                delay(800)
+            }
             finish()
         }
     }
