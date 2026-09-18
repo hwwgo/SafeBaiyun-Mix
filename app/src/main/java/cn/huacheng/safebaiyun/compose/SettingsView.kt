@@ -133,7 +133,7 @@ fun SettingsView(navController: NavController) {
 
                 ConfigItem(
                     label = "单个门禁探测时间",
-                    description = "轮询前探测每个门禁的最长时间，命中后立即优先开锁",
+                    description = "开锁前探测每个门禁的最长时间，命中后立即优先开锁",
                     value = scanDuration,
                     onValueChange = {
                         scanDuration = it
@@ -144,8 +144,8 @@ fun SettingsView(navController: NavController) {
                 )
 
                 ConfigItem(
-                    label = "轮询等待时间",
-                    description = "自动轮询时等待蓝牙开启的最长时间",
+                    label = "开锁等待时间",
+                    description = "自动开锁时等待蓝牙开启的最长时间",
                     value = pollWaitTime,
                     onValueChange = {
                         pollWaitTime = it
@@ -169,7 +169,7 @@ fun SettingsView(navController: NavController) {
 
                 ConfigItem(
                     label = "门禁切换间隔",
-                    description = "探测或轮询时，切换到下一个门禁前的等待时间",
+                    description = "探测或开锁时，切换到下一个门禁前的等待时间",
                     value = pollInterval,
                     onValueChange = {
                         pollInterval = it
@@ -449,13 +449,13 @@ private fun AutoPollCard(
 
                 Column {
                     Text(
-                        text = "打开软件自动轮询",
+                        text = "打开软件自动开锁",   // ✅ 已修改
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "启动应用后自动执行一键轮询",
+                        text = "启动应用后自动执行一键开锁",   // ✅ 已修改
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -516,13 +516,13 @@ private fun AutoScanCard(
 
                 Column {
                     Text(
-                        text = "轮询前探测附近门禁",
+                        text = "开锁前探测附近门禁",   // ✅ 已修改
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "轮询前按顺序探测已勾选的门禁，命中后优先开锁",
+                        text = "开锁前按顺序探测已勾选的门禁，命中后优先开锁",   // ✅ 已修改
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
