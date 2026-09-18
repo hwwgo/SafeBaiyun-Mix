@@ -11,7 +11,7 @@ import androidx.glance.GlanceTheme
 import androidx.glance.ImageProvider
 import androidx.glance.action.ActionParameters
 import androidx.glance.action.actionParametersOf
-import androidx.glance.appwidget.action.actionRunCallback   // ✅ 修正导入路径
+import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
@@ -36,6 +36,39 @@ import androidx.glance.text.TextStyle
 import cn.huacheng.safebaiyun.R
 import cn.huacheng.safebaiyun.ShortcutActivity
 
+// ============================================================
+//  顶层变量 & ActionCallback
+//  ✅ 必须放在顶层，Glance 才能通过反射正确定位类
+// ============================================================
+
+/** 传递门禁 ID 的参数 key */
+val KEY_DOOR_ID = ActionParameters.Key<String>("door_id")
+
+/**
+ * 解锁门禁的回调 —— 点击特大号部件中某个门禁按钮时触发。
+ * 从参数里取出 doorId，启动 ShortcutActivity 并指定该门禁。
+ */
+class UnlockDoorAction : ActionCallback {
+    override suspend fun onAction(
+        context: Context,
+        glanceId: GlanceId,
+        parameters: ActionParameters
+    ) {
+        val doorId = parameters[KEY_DOOR_ID]
+        if (doorId != null) {
+            val intent = Intent(context, ShortcutActivity::class.java).apply {
+                putExtra(ShortcutActivity.EXTRA_DOOR_ID, doorId)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            context.startActivity(intent)
+        }
+    }
+}
+
+// ============================================================
+//  Receiver & Widget
+// ============================================================
+
 /**
  * 三开门大部件 —— 同时展示最多 3 个门禁，每个一键解锁
  * 尺寸：约 4×2 格（宽幅大部件）
@@ -46,9 +79,6 @@ class ExtraLargeReceiver : GlanceAppWidgetReceiver() {
 
 object ExtraLargeWidget : GlanceAppWidget() {
     override val sizeMode: SizeMode = SizeMode.Single
-
-    /** Intent 参数 key：门禁 ID（String） */
-    private val KEY_DOOR_ID = ActionParameters.Key<String>("door_id")
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
@@ -142,30 +172,6 @@ object ExtraLargeWidget : GlanceAppWidget() {
                 ),
                 maxLines = 1
             )
-        }
-    }
-
-    /**
-     * 解锁门禁的回调 Action
-     */
-    class UnlockDoorAction : ActionCallback {
-        override suspend fun onAction(
-            context: Context,
-            glanceId: GlanceId,
-            parameters: ActionParameters
-        ) {
-            val doorId = parameters[KEY_DOOR_ID]
-            if (doorId != null) {
-                val intent = Intent(context, ShortcutActivity::class.java).apply {
-                    putExtra(ShortcutActivity.EXTRA_DOOR_ID, doorId)
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                }
-                context.startActivity(intent)
-            }
-        }
-
-        companion object {
-            private val KEY_DOOR_ID = ActionParameters.Key<String>("door_id")
         }
     }
 }
