@@ -37,7 +37,8 @@ object MediumWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
-            GlanceTheme {
+            // ✅ 使用 ColorOS 主题
+            ColorOSGlanceTheme {
                 WidgetContent()
             }
         }
@@ -59,7 +60,6 @@ object MediumWidget : GlanceAppWidget() {
                     style = TextStyle(
                         fontWeight = FontWeight.Medium,
                         fontSize = 16.sp,
-                        // ✅ 修复：使用主题前景色，深色主题下自动变为浅色
                         color = GlanceTheme.colors.onSurface
                     )
                 )
@@ -67,8 +67,7 @@ object MediumWidget : GlanceAppWidget() {
                     text = "点击解锁",
                     style = TextStyle(
                         fontSize = 14.sp,
-                        // ✅ 修复
-                        color = GlanceTheme.colors.onSurface
+                        color = GlanceTheme.colors.onSurfaceVariant
                     )
                 )
             }
