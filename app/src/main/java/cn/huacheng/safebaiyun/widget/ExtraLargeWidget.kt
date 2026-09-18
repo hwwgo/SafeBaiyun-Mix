@@ -46,7 +46,6 @@ val KEY_DOOR_ID = ActionParameters.Key<String>("door_id")
 
 /**
  * 解锁门禁的回调 —— 点击特大号部件中某个门禁按钮时触发。
- * 从参数里取出 doorId，启动 ShortcutActivity 并指定该门禁。
  */
 class UnlockDoorAction : ActionCallback {
     override suspend fun onAction(
@@ -69,10 +68,6 @@ class UnlockDoorAction : ActionCallback {
 //  Receiver & Widget
 // ============================================================
 
-/**
- * 三开门大部件 —— 同时展示最多 3 个门禁，每个一键解锁
- * 尺寸：约 4×2 格（宽幅大部件）
- */
 class ExtraLargeReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget get() = ExtraLargeWidget
 }
@@ -82,7 +77,8 @@ object ExtraLargeWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
-            GlanceTheme {
+            // ✅ 使用 ColorOS 主题
+            ColorOSGlanceTheme {
                 WidgetContent(context)
             }
         }
@@ -90,7 +86,6 @@ object ExtraLargeWidget : GlanceAppWidget() {
 
     @Composable
     private fun WidgetContent(context: Context) {
-        // 从 DataRepo 读取前 3 个门禁（Glance 环境可直接读 SP）
         val doors = cn.huacheng.safebaiyun.unlock.DataRepo.getDoors().take(3)
         Column(
             modifier = GlanceModifier
@@ -101,7 +96,6 @@ object ExtraLargeWidget : GlanceAppWidget() {
                 .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 三按钮行
             Row(
                 modifier = GlanceModifier
                     .fillMaxWidth()
@@ -117,27 +111,22 @@ object ExtraLargeWidget : GlanceAppWidget() {
                     )
                     Spacer(modifier = GlanceModifier.defaultWeight())
                 }
-                // 不足 3 个时补空位占位
                 repeat(3 - doors.size) {
                     Spacer(modifier = GlanceModifier.defaultWeight())
                 }
             }
-            // 底部标题
             Text(
                 text = "白云通 · 三键快开",
                 style = TextStyle(
                     fontWeight = FontWeight.Medium,
                     fontSize = 14.sp,
-                    color = GlanceTheme.colors.onSurface
+                    color = GlanceTheme.colors.onSurfaceVariant
                 ),
                 modifier = GlanceModifier.padding(top = 4.dp)
             )
         }
     }
 
-    /**
-     * 单个门禁按钮：图标 + 名称 + 开门 CircleButton
-     */
     @Composable
     private fun DoorButton(
         context: Context,
@@ -156,8 +145,16 @@ object ExtraLargeWidget : GlanceAppWidget() {
                 CircleIconButton(
                     imageProvider = ImageProvider(R.drawable.unlock),
                     contentDescription = "解锁$name",
-                    backgroundColor = if (hasConfig) GlanceTheme.colors.primary else GlanceTheme.colors.surfaceVariant,
-                    contentColor = if (hasConfig) GlanceTheme.colors.onPrimary else GlanceTheme.colors.onSurfaceVariant,
+                    backgroundColor = if (hasConfig) {
+                        GlanceTheme.colors.primary
+                    } else {
+                        GlanceTheme.colors.surfaceVariant
+                    },
+                    contentColor = if (hasConfig) {
+                        GlanceTheme.colors.onPrimary
+                    } else {
+                        GlanceTheme.colors.onSurfaceVariant
+                    },
                     onClick = actionRunCallback<UnlockDoorAction>(
                         actionParametersOf(KEY_DOOR_ID to doorId)
                     )
