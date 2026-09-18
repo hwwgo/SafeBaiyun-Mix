@@ -61,26 +61,42 @@ object UnlockRepo {
     }
 
     // ============================================================
-    //  单门禁开锁入口（轮询兜底使用）
+    //  单门禁开锁入口（单门禁按钮 + 一键开锁的轮询兜底都走这里）
     // ============================================================
 
     suspend fun tryUnlock(mac: String, key: String): Boolean {
         _unlockStep.value = "准备开锁..."
         val bluetoothManager = ContextHolder.get()
             .getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-        val bluetoothAdapter = bluetoothManager.adapter
+
+        // ✅ 新增：蓝牙未开启时，等待用户在"开锁等待时间"内打开
+        var bluetoothAdapter = bluetoothManager.adapter
         if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled) {
-            _unlockStep.value = "蓝牙未开启"
-            showToast("蓝牙未开启")
-            return false
+            _unlockStep.value = "等待蓝牙开启..."
+            val waitTime = ConfigManager.getPollWaitTime()
+            val ready = waitForBluetooth(waitTime)
+            if (!ready) {
+                _unlockStep.value = "蓝牙未开启"
+                showToast("蓝牙未开启")
+                return false
+            }
+            // 蓝牙打开后重新获取适配器
+            bluetoothAdapter = bluetoothManager.adapter
+            if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled) {
+                _unlockStep.value = "蓝牙未开启"
+                showToast("蓝牙未开启")
+                return false
+            }
         }
+
         if (!BluetoothAdapter.checkBluetoothAddress(mac)) {
             _unlockStep.value = "MAC地址错误"
             showToast("Mac地址格式错误")
             return false
         }
+
         val result = withTimeoutOrNull(ConfigManager.getUnlockTimeout()) {
-            doUnlockSuspend(bluetoothAdapter, mac, key)
+            doUnlockSuspend(bluetoothAdapter!!, mac, key)
         } ?: false.also { _unlockStep.value = "❌ 开锁超时" }
         if (result) {
             _unlockStep.value = "✅ 开锁成功"
@@ -282,7 +298,6 @@ object UnlockRepo {
                 }
                 ProbeOutcome.NOT_CONNECTED -> {
                     log("❌ 第 ${index + 1} 个未连接: ${door.name}，继续探测下一个...")
-                    // ✅ 使用用户配置的"门禁切换间隔"，与轮询保持一致
                     delay(ConfigManager.getPollInterval())
                 }
             }
@@ -316,7 +331,6 @@ object UnlockRepo {
             connectTimeoutJob?.cancel()
             unlockTimeoutJob?.cancel()
             timerScope.cancel()
-            // ✅ 只 close，不再 disconnect（避免阻塞 200~500ms）
             runCatching { gatt?.close() }
         }
 
@@ -501,7 +515,6 @@ object UnlockRepo {
 
             if (success) {
                 log("✅ 成功开启门禁: ${door.name}")
-                // Toast 由调用方 MainView 统一处理（含用时显示）
                 return door
             } else {
                 log("❌ 第 ${index + 1} 个门禁开门失败，继续尝试下一个...")
