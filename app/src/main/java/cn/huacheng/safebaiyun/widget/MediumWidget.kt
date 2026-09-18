@@ -37,8 +37,7 @@ object MediumWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
-            // ✅ 使用 ColorOS 主题
-            ColorOSGlanceTheme {
+            GlanceTheme {
                 WidgetContent()
             }
         }
@@ -48,7 +47,7 @@ object MediumWidget : GlanceAppWidget() {
     private fun WidgetContent() {
         Row(
             modifier = GlanceModifier
-                .background(GlanceTheme.colors.surface)
+                .background(WidgetSurface)      // ✅ ColorOS 风格背景
                 .fillMaxWidth()
                 .cornerRadius(50.dp)
                 .padding(start = 24.dp, top = 12.dp, bottom = 12.dp, end = 12.dp),
@@ -60,14 +59,14 @@ object MediumWidget : GlanceAppWidget() {
                     style = TextStyle(
                         fontWeight = FontWeight.Medium,
                         fontSize = 16.sp,
-                        color = GlanceTheme.colors.onSurface
+                        color = WidgetOnSurface   // ✅
                     )
                 )
                 Text(
                     text = "点击解锁",
                     style = TextStyle(
                         fontSize = 14.sp,
-                        color = GlanceTheme.colors.onSurfaceVariant
+                        color = WidgetOnSurfaceVariant   // ✅
                     )
                 )
             }
@@ -75,8 +74,8 @@ object MediumWidget : GlanceAppWidget() {
             CircleIconButton(
                 imageProvider = ImageProvider(R.drawable.unlock),
                 contentDescription = "",
-                backgroundColor = GlanceTheme.colors.primary,
-                contentColor = GlanceTheme.colors.onPrimary,
+                backgroundColor = WidgetPrimary,      // ✅ ColorOS 绿
+                contentColor = WidgetOnPrimary,
                 onClick = actionStartActivity<ShortcutActivity>()
             )
         }
