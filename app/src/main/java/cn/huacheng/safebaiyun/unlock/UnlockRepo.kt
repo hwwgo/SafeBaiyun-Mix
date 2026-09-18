@@ -43,6 +43,11 @@ object UnlockRepo {
     private val _unlockStep = MutableStateFlow("")
     val unlockStep: StateFlow<String> = _unlockStep
 
+    // ✅ 新增：重置开锁状态（供 ShortcutActivity 进入时清空使用）
+    fun resetUnlockStep() {
+        _unlockStep.value = ""
+    }
+
     // ---------- 轮询控制 ----------
     private var pollJob: Job? = null
 
