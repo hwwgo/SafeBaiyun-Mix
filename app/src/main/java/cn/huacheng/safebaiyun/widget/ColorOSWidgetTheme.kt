@@ -1,68 +1,47 @@
 package cn.huacheng.safebaiyun.widget
 
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-import androidx.glance.GlanceTheme
-import androidx.glance.appwidget.isSystemInDarkTheme
 import androidx.glance.color.ColorProvider
-import androidx.glance.color.ColorProviders
 import cn.huacheng.safebaiyun.theme.ColorOSError
 import cn.huacheng.safebaiyun.theme.ColorOSPrimary
 import cn.huacheng.safebaiyun.theme.ColorOSSecondary
 import cn.huacheng.safebaiyun.theme.ColorOSTertiary
 
-/**
- * 桌面小部件的 ColorOS 风格主题包装器
- *
- * 使用主界面的 ColorOS 色系，浅色/深色自动适配，与 App 内视觉统一。
- */
-@Composable
-fun ColorOSGlanceTheme(content: @Composable () -> Unit) {
-    val isDark = isSystemInDarkTheme()
-    val colors = if (isDark) darkColorProviders() else lightColorProviders()
-    GlanceTheme(colors = colors, content = content)
-}
+// ============================================================
+//  桌面部件 ColorOS 配色
+//
+//  Glance 的 ColorProvider 需要 day/night 两色，系统自动根据
+//  深浅模式挑选。这里定义所有 widget 要用的颜色常量。
+// ============================================================
 
-/** 浅色模式 */
-@Composable
-private fun lightColorProviders() = ColorProviders(
-    primary = ColorProvider(ColorOSPrimary),
-    onPrimary = ColorProvider(Color.White),
-    primaryContainer = ColorProvider(ColorOSPrimary.copy(alpha = 0.12f)),
-    onPrimaryContainer = ColorProvider(ColorOSPrimary),
-    secondary = ColorProvider(ColorOSSecondary),
-    onSecondary = ColorProvider(Color.White),
-    tertiary = ColorProvider(ColorOSTertiary),
-    onTertiary = ColorProvider(Color.White),
-    error = ColorProvider(ColorOSError),
-    onError = ColorProvider(Color.White),
-    background = ColorProvider(Color(0xFFFFFFFF)),
-    onBackground = ColorProvider(Color(0xFF1A1A1A)),
-    surface = ColorProvider(Color(0xFFFFFFFF)),
-    onSurface = ColorProvider(Color(0xFF1A1A1A)),
-    surfaceVariant = ColorProvider(Color(0xFFF2F2F2)),
-    onSurfaceVariant = ColorProvider(Color(0xFF666666)),
-    outline = ColorProvider(Color(0xFFD0D0D0)),
+// -------- 品牌色（深浅模式一致） --------
+val WidgetPrimary = ColorProvider(day = ColorOSPrimary, night = ColorOSPrimary)
+val WidgetOnPrimary = ColorProvider(day = Color.White, night = Color.White)
+val WidgetSecondary = ColorProvider(day = ColorOSSecondary, night = ColorOSSecondary)
+val WidgetTertiary = ColorProvider(day = ColorOSTertiary, night = ColorOSTertiary)
+val WidgetError = ColorProvider(day = ColorOSError, night = ColorOSError)
+
+// -------- 表面与文字（深浅模式区分） --------
+// 卡片背景
+val WidgetSurface = ColorProvider(
+    day = Color(0xFFFFFFFF),
+    night = Color(0xFF1E1E1E)
 )
 
-/** 深色模式 */
-@Composable
-private fun darkColorProviders() = ColorProviders(
-    primary = ColorProvider(ColorOSPrimary),
-    onPrimary = ColorProvider(Color.White),
-    primaryContainer = ColorProvider(ColorOSPrimary.copy(alpha = 0.25f)),
-    onPrimaryContainer = ColorProvider(ColorOSPrimary),
-    secondary = ColorProvider(ColorOSSecondary),
-    onSecondary = ColorProvider(Color.White),
-    tertiary = ColorProvider(ColorOSTertiary),
-    onTertiary = ColorProvider(Color.White),
-    error = ColorProvider(ColorOSError),
-    onError = ColorProvider(Color.White),
-    background = ColorProvider(Color(0xFF121212)),
-    onBackground = ColorProvider(Color.White),
-    surface = ColorProvider(Color(0xFF1E1E1E)),
-    onSurface = ColorProvider(Color.White),
-    surfaceVariant = ColorProvider(Color(0xFF2A2A2A)),
-    onSurfaceVariant = ColorProvider(Color(0xFFB0B0B0)),
-    outline = ColorProvider(Color(0xFF444444)),
+// 卡片主文字
+val WidgetOnSurface = ColorProvider(
+    day = Color(0xFF1A1A1A),
+    night = Color(0xFFFFFFFF)
+)
+
+// 卡片次要背景（未激活按钮）
+val WidgetSurfaceVariant = ColorProvider(
+    day = Color(0xFFF2F2F2),
+    night = Color(0xFF2A2A2A)
+)
+
+// 卡片次要文字
+val WidgetOnSurfaceVariant = ColorProvider(
+    day = Color(0xFF666666),
+    night = Color(0xFFB0B0B0)
 )
