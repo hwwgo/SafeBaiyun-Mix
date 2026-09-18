@@ -42,7 +42,8 @@ object LargeWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
-            GlanceTheme {
+            // ✅ 使用 ColorOS 主题
+            ColorOSGlanceTheme {
                 WidgetContent()
             }
         }
@@ -87,7 +88,6 @@ object LargeWidget : GlanceAppWidget() {
                 style = TextStyle(
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
-                    // ✅ 修复
                     color = GlanceTheme.colors.onSurface
                 )
             )
@@ -95,8 +95,7 @@ object LargeWidget : GlanceAppWidget() {
                 text = "点击解锁门禁",
                 style = TextStyle(
                     fontSize = 14.sp,
-                    // ✅ 修复
-                    color = GlanceTheme.colors.onSurface
+                    color = GlanceTheme.colors.onSurfaceVariant
                 )
             )
         }
