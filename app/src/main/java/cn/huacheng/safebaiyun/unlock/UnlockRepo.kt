@@ -69,7 +69,7 @@ object UnlockRepo {
         val bluetoothManager = ContextHolder.get()
             .getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
 
-        // ✅ 新增：蓝牙未开启时，等待用户在"开锁等待时间"内打开
+        // ✅ 蓝牙未开启时，等待用户在"开锁等待时间"内打开
         var bluetoothAdapter = bluetoothManager.adapter
         if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled) {
             _unlockStep.value = "等待蓝牙开启..."
@@ -87,6 +87,8 @@ object UnlockRepo {
                 showToast("蓝牙未开启")
                 return false
             }
+            // ✅ 修复：蓝牙已就绪，恢复"准备开锁..."状态
+            _unlockStep.value = "准备开锁..."
         }
 
         if (!BluetoothAdapter.checkBluetoothAddress(mac)) {
