@@ -81,7 +81,6 @@ fun MainView(navController: NavHostController) {
 
     suspend fun runScanThenPolling(selectedDoors: List<DoorDevice>) {
         try {
-            // ✅ 记录起点时间
             val startTime = System.currentTimeMillis()
 
             val n = selectedDoors.size
@@ -114,7 +113,6 @@ fun MainView(navController: NavHostController) {
                 )
 
                 if (matchedDoor != null) {
-                    // ✅ 探测并开锁成功 → 结束
                     val elapsed = System.currentTimeMillis() - startTime
                     pollingCurrentIndex = totalSteps
                     pollingTotal = totalSteps
@@ -122,7 +120,6 @@ fun MainView(navController: NavHostController) {
                     pollingProgress = "✅ 已开启: ${matchedDoor.name}"
                     doors.value = DataRepo.getDoors()
 
-                    // 先弹"已开门"，1.5 秒后再弹"用时"
                     withContext(Dispatchers.Main) {
                         showToast("✅ 已成功开门！")
                     }
@@ -157,7 +154,6 @@ fun MainView(navController: NavHostController) {
                     onComplete = { result ->
                         pollingState = PollingState.IDLE
                         if (result != null) {
-                            // ✅ 轮询成功 → 弹两个 Toast
                             val elapsed = System.currentTimeMillis() - startTime
                             pollingProgress = "✅ 已开启: ${result.name}"
                             scope.launch {
@@ -534,7 +530,8 @@ private fun CompactPollButton(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "一键轮询开锁 (${selectedCount}/${doors.size})",
+                    // ✅ 改动一：文案简化
+                    text = "一键开锁 (${selectedCount}/${doors.size})",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color.White
@@ -806,6 +803,8 @@ private fun CompactDoorCard(
                         if (!isUnlocking) {
                             isUnlocking = true
                             unlockStep = "准备开锁..."
+                            // ✅ 改动二：记录开始时间
+                            val startTime = System.currentTimeMillis()
                             scope.launch {
                                 val job = launch {
                                     stepState.collectLatest { step ->
@@ -813,10 +812,20 @@ private fun CompactDoorCard(
                                     }
                                 }
                                 val success = UnlockRepo.tryUnlock(door.mac, door.key)
+                                // ✅ 改动二：计算用时
+                                val elapsed = System.currentTimeMillis() - startTime
                                 delay(ConfigManager.getResultDelay())
                                 job.cancel()
                                 if (!unlockStep.contains("成功") && !unlockStep.contains("失败") && !unlockStep.contains("超时")) {
                                     unlockStep = if (success) "✅ 开锁成功" else "❌ 开锁失败"
+                                }
+                                // ✅ 改动二：成功后弹两个 Toast（成功 + 用时）
+                                if (success) {
+                                    launch {
+                                        showToast("✅ 已成功开门！")
+                                        delay(1500)
+                                        showToast("用时 ${elapsed}ms")
+                                    }
                                 }
                                 delay(ConfigManager.getResetDelay())
                                 isUnlocking = false
