@@ -41,12 +41,8 @@ import cn.huacheng.safebaiyun.ShortcutActivity
 //  ✅ 必须放在顶层，Glance 才能通过反射正确定位类
 // ============================================================
 
-/** 传递门禁 ID 的参数 key */
 val KEY_DOOR_ID = ActionParameters.Key<String>("door_id")
 
-/**
- * 解锁门禁的回调 —— 点击特大号部件中某个门禁按钮时触发。
- */
 class UnlockDoorAction : ActionCallback {
     override suspend fun onAction(
         context: Context,
@@ -77,8 +73,7 @@ object ExtraLargeWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
-            // ✅ 使用 ColorOS 主题
-            ColorOSGlanceTheme {
+            GlanceTheme {
                 WidgetContent(context)
             }
         }
@@ -92,7 +87,7 @@ object ExtraLargeWidget : GlanceAppWidget() {
                 .fillMaxWidth()
                 .height(170.dp)
                 .cornerRadius(24.dp)
-                .background(GlanceTheme.colors.surface)
+                .background(WidgetSurface)   // ✅
                 .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -120,7 +115,7 @@ object ExtraLargeWidget : GlanceAppWidget() {
                 style = TextStyle(
                     fontWeight = FontWeight.Medium,
                     fontSize = 14.sp,
-                    color = GlanceTheme.colors.onSurfaceVariant
+                    color = WidgetOnSurfaceVariant   // ✅
                 ),
                 modifier = GlanceModifier.padding(top = 4.dp)
             )
@@ -145,16 +140,8 @@ object ExtraLargeWidget : GlanceAppWidget() {
                 CircleIconButton(
                     imageProvider = ImageProvider(R.drawable.unlock),
                     contentDescription = "解锁$name",
-                    backgroundColor = if (hasConfig) {
-                        GlanceTheme.colors.primary
-                    } else {
-                        GlanceTheme.colors.surfaceVariant
-                    },
-                    contentColor = if (hasConfig) {
-                        GlanceTheme.colors.onPrimary
-                    } else {
-                        GlanceTheme.colors.onSurfaceVariant
-                    },
+                    backgroundColor = if (hasConfig) WidgetPrimary else WidgetSurfaceVariant,
+                    contentColor = if (hasConfig) WidgetOnPrimary else WidgetOnSurfaceVariant,
                     onClick = actionRunCallback<UnlockDoorAction>(
                         actionParametersOf(KEY_DOOR_ID to doorId)
                     )
@@ -165,7 +152,7 @@ object ExtraLargeWidget : GlanceAppWidget() {
                 text = name,
                 style = TextStyle(
                     fontSize = 13.sp,
-                    color = GlanceTheme.colors.onSurface
+                    color = WidgetOnSurface   // ✅
                 ),
                 maxLines = 1
             )
