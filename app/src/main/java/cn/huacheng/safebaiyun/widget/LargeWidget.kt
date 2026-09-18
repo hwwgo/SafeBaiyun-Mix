@@ -42,8 +42,7 @@ object LargeWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
-            // ✅ 使用 ColorOS 主题
-            ColorOSGlanceTheme {
+            GlanceTheme {
                 WidgetContent()
             }
         }
@@ -56,7 +55,7 @@ object LargeWidget : GlanceAppWidget() {
                 .fillMaxWidth()
                 .height(170.dp)
                 .cornerRadius(24.dp)
-                .background(GlanceTheme.colors.surface)
+                .background(WidgetSurface)   // ✅
                 .padding(start = 16.dp, end = 16.dp, bottom = 20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -76,8 +75,8 @@ object LargeWidget : GlanceAppWidget() {
                     CircleIconButton(
                         imageProvider = ImageProvider(R.drawable.unlock),
                         contentDescription = "",
-                        backgroundColor = GlanceTheme.colors.primary,
-                        contentColor = GlanceTheme.colors.onPrimary,
+                        backgroundColor = WidgetPrimary,   // ✅
+                        contentColor = WidgetOnPrimary,
                         onClick = actionStartActivity<ShortcutActivity>()
                     )
                 }
@@ -88,14 +87,14 @@ object LargeWidget : GlanceAppWidget() {
                 style = TextStyle(
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
-                    color = GlanceTheme.colors.onSurface
+                    color = WidgetOnSurface   // ✅
                 )
             )
             Text(
                 text = "点击解锁门禁",
                 style = TextStyle(
                     fontSize = 14.sp,
-                    color = GlanceTheme.colors.onSurfaceVariant
+                    color = WidgetOnSurfaceVariant   // ✅
                 )
             )
         }
