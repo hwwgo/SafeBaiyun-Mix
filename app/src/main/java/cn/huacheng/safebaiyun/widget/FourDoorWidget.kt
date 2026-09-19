@@ -72,7 +72,6 @@ object FourDoorWidget : GlanceAppWidget() {
                 modifier = GlanceModifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // 用固定列宽 + SpaceEvenly 效果
                 if (doors.isNotEmpty()) {
                     doors.forEachIndexed { index, door ->
                         DoorColumn(
@@ -85,7 +84,6 @@ object FourDoorWidget : GlanceAppWidget() {
                         }
                     }
                 }
-                // 不足 4 个时补空位（保持布局均匀）
                 repeat(4 - doors.size) {
                     Spacer(modifier = GlanceModifier.defaultWeight())
                 }
@@ -103,7 +101,6 @@ object FourDoorWidget : GlanceAppWidget() {
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = GlanceModifier.width(60.dp)
         ) {
-            // 自定义圆形按钮：34dp 直径
             Box(
                 modifier = GlanceModifier
                     .size(34.dp)
