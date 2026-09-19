@@ -128,6 +128,17 @@
                 android:resource="@xml/extra_large_widget_config" />
         </receiver>
 
+        <receiver
+            android:name=".widget.FourDoorReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/four_door_widget_config" />
+        </receiver>
+
     </application>
 
 </manifest>
