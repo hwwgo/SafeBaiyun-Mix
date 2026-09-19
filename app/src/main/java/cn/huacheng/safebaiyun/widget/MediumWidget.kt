@@ -17,8 +17,8 @@ import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.components.CircleIconButton
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
-import androidx.glance.appwidget.state.currentState
 import androidx.glance.background
+import androidx.glance.currentState         // ✅ 修改：正确的 import
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
@@ -39,11 +39,10 @@ object MediumWidget : GlanceAppWidget() {
     override val sizeMode: SizeMode = SizeMode.Single
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        // ✅ 读取该 widget 绑定的门禁 ID
-        val prefs = currentState<Preferences>()
+        // ✅ 读取该 widget 绑定的门禁 ID（显式类型）
+        val prefs: Preferences = currentState()
         val boundDoorId = prefs[doorIdKey]
 
-        // 优先用绑定的；找不到（未配置或被删）时 fallback 到第一个
         val door = boundDoorId
             ?.let { id -> DataRepo.getDoors().find { it.id == id } }
             ?: DataRepo.getDoors().firstOrNull()
