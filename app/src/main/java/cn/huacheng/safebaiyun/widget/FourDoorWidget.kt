@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
@@ -116,7 +117,8 @@ object FourDoorWidget : GlanceAppWidget() {
                 Image(
                     provider = ImageProvider(R.drawable.unlock),
                     contentDescription = "解锁$name",
-                    modifier = GlanceModifier.size(18.dp)
+                    modifier = GlanceModifier.size(18.dp),
+                    colorFilter = ColorFilter.tint(WidgetOnPrimary)   // ✅ 染成白色
                 )
             }
             Spacer(modifier = GlanceModifier.height(3.dp))
