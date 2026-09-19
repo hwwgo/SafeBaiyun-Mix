@@ -35,7 +35,7 @@ import cn.huacheng.safebaiyun.unlock.DataRepo
 import kotlinx.coroutines.launch
 
 /**
- * 中号 / 大号 widget 的配置 Activity
+ * 小号 / 中号 / 大号 widget 的配置 Activity
  *
  * 在用户添加 widget 到桌面时自动启动，让用户选择该 widget 绑定哪个门禁。
  */
@@ -152,7 +152,8 @@ class MediumWidgetConfigActivity : ComponentActivity() {
                     prefs[doorIdKey] = doorId
                 }
 
-                // 触发 widget 重新渲染
+                // 触发 widget 重新渲染（小号/中号/大号都刷新一遍）
+                SmallWidget.update(this@MediumWidgetConfigActivity, glanceId)
                 MediumWidget.update(this@MediumWidgetConfigActivity, glanceId)
                 LargeWidget.update(this@MediumWidgetConfigActivity, glanceId)
 
