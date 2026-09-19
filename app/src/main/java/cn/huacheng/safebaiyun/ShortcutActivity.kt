@@ -26,6 +26,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import cn.huacheng.safebaiyun.theme.ColorOSError
+import cn.huacheng.safebaiyun.theme.ColorOSSuccess
+import cn.huacheng.safebaiyun.theme.SafeBaiyunTheme
 import cn.huacheng.safebaiyun.unlock.DataRepo
 import cn.huacheng.safebaiyun.unlock.UnlockRepo
 import cn.huacheng.safebaiyun.util.showToast
@@ -52,41 +55,42 @@ class ShortcutActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // ✅ 清空上次的开锁状态，避免新界面短暂显示旧结果
+        // 清空上次的开锁状态，避免新界面短暂显示旧结果
         UnlockRepo.resetUnlockStep()
 
         setContent {
-            // ✅ 订阅实时开锁状态
-            val unlockStep by UnlockRepo.unlockStep.collectAsState()
-            val displayText = unlockStep.ifEmpty { "准备开锁..." }
+            // ✅ 使用项目自定义主题，跟随深色/浅色模式
+            //    dynamicColor 保持默认（与 MainActivity 一致）
+            SafeBaiyunTheme {
+                val unlockStep by UnlockRepo.unlockStep.collectAsState()
+                val displayText = unlockStep.ifEmpty { "准备开锁..." }
 
-            // ✅ 根据状态决定文字颜色
-            val textColor = when {
-                unlockStep.contains("成功") -> cn.huacheng.safebaiyun.theme.ColorOSSuccess
-                unlockStep.contains("失败") || unlockStep.contains("超时") ->
-                    cn.huacheng.safebaiyun.theme.ColorOSError
-                else -> MaterialTheme.colorScheme.onBackground
-            }
+                val textColor = when {
+                    unlockStep.contains("成功") -> ColorOSSuccess
+                    unlockStep.contains("失败") || unlockStep.contains("超时") -> ColorOSError
+                    else -> MaterialTheme.colorScheme.onBackground
+                }
 
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background),
+                    contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(modifier = Modifier.size(48.dp))
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = displayText,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = textColor,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 32.dp)
-                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(48.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = displayText,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = textColor,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 32.dp)
+                        )
+                    }
                 }
             }
         }
@@ -125,7 +129,7 @@ class ShortcutActivity : ComponentActivity() {
         val targetDoorId = intent.getStringExtra(EXTRA_DOOR_ID)
         val doors = DataRepo.getDoors()
 
-        // ✅ 优先匹配指定 doorId；找不到或无效时，fallback 到第一个有效门禁
+        // 优先匹配指定 doorId；找不到或无效时，fallback 到第一个有效门禁
         val doorToUnlock = targetDoorId
             ?.let { id -> doors.find { it.id == id } }
             ?.takeIf { it.mac.isNotEmpty() && it.key.isNotEmpty() }
@@ -143,7 +147,6 @@ class ShortcutActivity : ComponentActivity() {
 
         activityScope.launch {
             val success = UnlockRepo.tryUnlock(doorToUnlock.mac, doorToUnlock.key)
-            // ✅ 成功时短暂停留，让用户看到"✅ 开锁成功"状态
             if (success) {
                 delay(800)
             }
