@@ -506,9 +506,3 @@ cd SafeBaiyun-Mix
 如果你有新的功能建议或者 Bug，也欢迎提交 Issue。
 
 SafeBaiyun-Mix — 让回家开门变得更简单。
-
-```
-
----
-
-直接把上面整段内容复制到 `README.md` 即可，GitHub 上会正确渲染所有表格、代码块、引用块和链接。
