@@ -22,7 +22,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -31,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.lifecycle.lifecycleScope
+import cn.huacheng.safebaiyun.theme.SafeBaiyunTheme     // ✅ 项目自定义主题
 import cn.huacheng.safebaiyun.unlock.DataRepo
 import kotlinx.coroutines.launch
 
@@ -63,7 +63,8 @@ class MediumWidgetConfigActivity : ComponentActivity() {
         val doors = DataRepo.getDoors()
 
         setContent {
-            MaterialTheme {
+            // ✅ 使用项目自定义主题，跟随深色/浅色模式
+            SafeBaiyunTheme {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -93,7 +94,10 @@ class MediumWidgetConfigActivity : ComponentActivity() {
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("暂无门禁，请先在 App 中添加")
+                                Text(
+                                    text = "暂无门禁，请先在 App 中添加",
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
                             }
                         } else {
                             LazyColumn(
