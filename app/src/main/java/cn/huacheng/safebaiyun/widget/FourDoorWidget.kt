@@ -7,23 +7,27 @@ import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
+import androidx.glance.Image
 import androidx.glance.ImageProvider
 import androidx.glance.action.actionParametersOf
+import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.actionRunCallback
-import androidx.glance.appwidget.components.CircleIconButton
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.layout.Alignment
+import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
+import androidx.glance.layout.size
+import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
@@ -55,28 +59,33 @@ object FourDoorWidget : GlanceAppWidget() {
     private fun WidgetContent() {
         val doors = DataRepo.getDoors().take(4)
 
-        Column(
+        Box(
             modifier = GlanceModifier
                 .fillMaxWidth()
-                .height(70.dp)
-                .cornerRadius(20.dp)
+                .height(62.dp)
+                .cornerRadius(18.dp)
                 .background(WidgetSurface)
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 6.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center
         ) {
             Row(
                 modifier = GlanceModifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                doors.forEach { door ->
-                    DoorColumn(
-                        doorId = door.id,
-                        name = door.name,
-                        hasConfig = door.mac.isNotEmpty() && door.key.isNotEmpty()
-                    )
-                    Spacer(modifier = GlanceModifier.defaultWeight())
+                // 用固定列宽 + SpaceEvenly 效果
+                if (doors.isNotEmpty()) {
+                    doors.forEachIndexed { index, door ->
+                        DoorColumn(
+                            doorId = door.id,
+                            name = door.name,
+                            hasConfig = door.mac.isNotEmpty() && door.key.isNotEmpty()
+                        )
+                        if (index != doors.lastIndex) {
+                            Spacer(modifier = GlanceModifier.defaultWeight())
+                        }
+                    }
                 }
-                // 不足 4 个时补空位
+                // 不足 4 个时补空位（保持布局均匀）
                 repeat(4 - doors.size) {
                     Spacer(modifier = GlanceModifier.defaultWeight())
                 }
@@ -91,22 +100,33 @@ object FourDoorWidget : GlanceAppWidget() {
         hasConfig: Boolean
     ) {
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = GlanceModifier.width(60.dp)
         ) {
-            CircleIconButton(
-                imageProvider = ImageProvider(R.drawable.unlock),
-                contentDescription = "解锁$name",
-                backgroundColor = if (hasConfig) WidgetPrimary else WidgetSurfaceVariant,
-                contentColor = if (hasConfig) WidgetOnPrimary else WidgetOnSurfaceVariant,
-                onClick = actionRunCallback<UnlockDoorAction>(
-                    actionParametersOf(KEY_DOOR_ID to doorId)
+            // 自定义圆形按钮：34dp 直径
+            Box(
+                modifier = GlanceModifier
+                    .size(34.dp)
+                    .cornerRadius(17.dp)
+                    .background(if (hasConfig) WidgetPrimary else WidgetSurfaceVariant)
+                    .clickable(
+                        actionRunCallback<UnlockDoorAction>(
+                            actionParametersOf(KEY_DOOR_ID to doorId)
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    provider = ImageProvider(R.drawable.unlock),
+                    contentDescription = "解锁$name",
+                    modifier = GlanceModifier.size(18.dp)
                 )
-            )
-            Spacer(modifier = GlanceModifier.height(2.dp))
+            }
+            Spacer(modifier = GlanceModifier.height(3.dp))
             Text(
                 text = name,
                 style = TextStyle(
-                    fontSize = 11.sp,
+                    fontSize = 10.sp,
                     fontWeight = FontWeight.Medium,
                     color = WidgetOnSurface
                 ),
