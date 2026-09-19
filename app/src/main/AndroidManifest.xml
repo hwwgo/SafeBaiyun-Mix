@@ -57,7 +57,6 @@
             </intent-filter>
         </activity>
 
-        <!-- ✅ 新增 launchMode="singleTop"，防止连续点击启动多个实例 -->
         <activity
             android:name=".ShortcutActivity"
             android:exported="true"
@@ -74,6 +73,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity-alias>
+
+        <!-- ✅ 新增：中号/大号 widget 的配置 Activity -->
+        <activity
+            android:name=".widget.MediumWidgetConfigActivity"
+            android:exported="true"
+            android:theme="@style/Theme.SafeBaiyun">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
 
         <receiver
             android:name=".widget.MediumReceiver"
