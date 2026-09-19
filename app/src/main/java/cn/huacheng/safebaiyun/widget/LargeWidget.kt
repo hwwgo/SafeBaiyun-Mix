@@ -19,7 +19,7 @@ import androidx.glance.appwidget.components.CircleIconButton
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
-import androidx.glance.currentState         // ✅ 修改
+import androidx.glance.currentState
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
@@ -44,15 +44,15 @@ object LargeWidget : GlanceAppWidget() {
     override val sizeMode: SizeMode = SizeMode.Single
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        // ✅ 读取该 widget 绑定的门禁 ID（显式类型）
-        val prefs: Preferences = currentState()
-        val boundDoorId = prefs[doorIdKey]
-
-        val door = boundDoorId
-            ?.let { id -> DataRepo.getDoors().find { it.id == id } }
-            ?: DataRepo.getDoors().firstOrNull()
-
         provideContent {
+            // ✅ 在 Composable 作用域内读取 state
+            val prefs: Preferences = currentState()
+            val boundDoorId = prefs[doorIdKey]
+
+            val door = boundDoorId
+                ?.let { doorId -> DataRepo.getDoors().find { it.id == doorId } }
+                ?: DataRepo.getDoors().firstOrNull()
+
             GlanceTheme {
                 WidgetContent(
                     doorId = door?.id,
