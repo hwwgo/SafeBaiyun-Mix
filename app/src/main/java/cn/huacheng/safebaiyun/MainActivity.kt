@@ -1,5 +1,6 @@
 package cn.huacheng.safebaiyun
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -28,6 +29,22 @@ import cn.huacheng.safebaiyun.util.ConfigManager
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // ✅ 关键修复：如果本次启动来自 widget 点击，
+        //    ColorOS 可能会拦截 ShortcutActivity 并强行拉起 MainActivity。
+        //    检测到标识后，立即转交给 ShortcutActivity 并 finish 自己，
+        //    用户完全看不到 MainActivity 的界面。
+        if (intent?.getBooleanExtra("from_widget_click", false) == true) {
+            val doorId = intent.getStringExtra(ShortcutActivity.EXTRA_DOOR_ID)
+            val newIntent = Intent(this, ShortcutActivity::class.java).apply {
+                putExtra(ShortcutActivity.EXTRA_DOOR_ID, doorId)
+                // 不再带 from_widget_click，避免再次被拦截后循环
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            }
+            startActivity(newIntent)
+            finish()
+            return
+        }
 
         ConfigManager.init(this)
         UnlockRepo.init(lifecycleScope)
