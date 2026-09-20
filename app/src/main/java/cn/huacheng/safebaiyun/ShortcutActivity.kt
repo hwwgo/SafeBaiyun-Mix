@@ -26,6 +26,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -38,6 +39,7 @@ import cn.huacheng.safebaiyun.unlock.DoorDevice
 import cn.huacheng.safebaiyun.unlock.UnlockRepo
 import cn.huacheng.safebaiyun.util.ConfigManager
 import cn.huacheng.safebaiyun.util.showToast
+import cn.huacheng.safebaiyun.widget.WidgetUnlockBus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -45,9 +47,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * 快捷开门 Activity
+ * 快捷开门 Activity（对话框形式）
  *
- * ✅ 以对话框形式浮动显示，不会"跳主界面"
+ * ✅ 优先从 WidgetUnlockBus 读取 doorId（跨 Activity 传递），
+ *    其次从 Intent extra 读取（正常启动路径）。
  */
 class ShortcutActivity : ComponentActivity() {
 
@@ -59,6 +62,9 @@ class ShortcutActivity : ComponentActivity() {
 
     private val activityScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var pendingUnlock: (() -> Unit)? = null
+
+    /** 解析出的最终目标 doorId */
+    private var resolvedDoorId: String? = null
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -78,7 +84,12 @@ class ShortcutActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Log.d(TAG, "onCreate, action=${intent.action}, doorId=${intent.getStringExtra(EXTRA_DOOR_ID)}")
+        Log.d(TAG, "onCreate, action=${intent.action}")
+
+        // ✅ 优先从 WidgetUnlockBus 读取（跨 MainActivity/ShortcutActivity 传递）
+        val busDoorId = WidgetUnlockBus.consume()
+        resolvedDoorId = busDoorId ?: intent.getStringExtra(EXTRA_DOOR_ID)
+        Log.d(TAG, "resolvedDoorId=$resolvedDoorId (busDoorId=$busDoorId)")
 
         UnlockRepo.resetUnlockStep()
 
@@ -93,11 +104,10 @@ class ShortcutActivity : ComponentActivity() {
                     else -> MaterialTheme.colorScheme.onBackground
                 }
 
-                // ✅ 对话框形式：外圈半透明背景 + 中间圆角卡片
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(androidx.compose.ui.graphics.Color(0x66000000)),
+                        .background(Color(0x66000000)),
                     contentAlignment = Alignment.Center
                 ) {
                     Box(
@@ -167,7 +177,7 @@ class ShortcutActivity : ComponentActivity() {
     }
 
     private fun unlock() {
-        val targetDoorId = intent.getStringExtra(EXTRA_DOOR_ID)
+        val targetDoorId = resolvedDoorId
 
         if (targetDoorId == ALL_DOORS_ID) {
             unlockAllDoors()
