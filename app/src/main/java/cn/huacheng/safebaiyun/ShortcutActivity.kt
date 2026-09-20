@@ -49,14 +49,12 @@ import kotlinx.coroutines.launch
  *   - 传 [ALL_DOORS_ID] → 一键开锁（探测 + 轮询所有勾选门禁）
  *   - 未传 → 开第一个有效门禁
  *
- * ✅ 权限不足时，本 Activity 自己请求权限，授权后自动继续开锁，不跳转主界面。
+ * ✅ 开锁只需要 BLUETOOTH_CONNECT 权限，不需要 BLUETOOTH_SCAN。
  */
 class ShortcutActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_DOOR_ID = "door_id"
-
-        /** 特殊标识：代表"一键开锁" */
         const val ALL_DOORS_ID = "__ALL_DOORS__"
     }
 
@@ -71,10 +69,8 @@ class ShortcutActivity : ComponentActivity() {
     ) { result ->
         val allGranted = result.values.all { it }
         if (allGranted) {
-            // ✅ 全部授予 → 继续开锁
             pendingUnlock?.invoke()
         } else {
-            // ❌ 用户拒绝 → 提示并跳转主界面
             showToast("未授予蓝牙权限")
             startActivity(Intent(this, MainActivity::class.java))
             finish()
@@ -139,16 +135,16 @@ class ShortcutActivity : ComponentActivity() {
 
     /**
      * 检查蓝牙权限，不足时请求，足够时直接开锁
+     *
+     * ✅ 开锁只需要 BLUETOOTH_CONNECT，不需要 BLUETOOTH_SCAN
      */
     private fun checkPermissionThenUnlock() {
         val neededPermissions = when {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> arrayOf(
-                Manifest.permission.BLUETOOTH_CONNECT,
-                Manifest.permission.BLUETOOTH_SCAN
+                Manifest.permission.BLUETOOTH_CONNECT   // ✅ 只需要 CONNECT
             )
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> arrayOf(
-                Manifest.permission.BLUETOOTH,
-                Manifest.permission.ACCESS_FINE_LOCATION
+                Manifest.permission.BLUETOOTH
             )
             else -> emptyArray()
         }
@@ -158,10 +154,8 @@ class ShortcutActivity : ComponentActivity() {
         }
 
         if (missing.isEmpty()) {
-            // ✅ 权限齐全，直接开锁
             unlock()
         } else {
-            // ⏳ 权限不足，先请求，授权后自动继续
             pendingUnlock = { unlock() }
             permissionLauncher.launch(missing.toTypedArray())
         }
@@ -170,13 +164,11 @@ class ShortcutActivity : ComponentActivity() {
     private fun unlock() {
         val targetDoorId = intent.getStringExtra(EXTRA_DOOR_ID)
 
-        // ✅ 判断是否为一键开锁
         if (targetDoorId == ALL_DOORS_ID) {
             unlockAllDoors()
             return
         }
 
-        // 单门禁开锁
         val doors = DataRepo.getDoors()
         val doorToUnlock = targetDoorId
             ?.let { id -> doors.find { it.id == id } }
@@ -202,9 +194,6 @@ class ShortcutActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * 一键开锁流程：探测 + 轮询（与主界面逻辑一致）
-     */
     private fun unlockAllDoors() {
         val selectedDoors = DataRepo.getDoors().filter { it.isSelected }
 
