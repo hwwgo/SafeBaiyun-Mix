@@ -30,7 +30,9 @@ import cn.huacheng.safebaiyun.theme.ColorOSError
 import cn.huacheng.safebaiyun.theme.ColorOSSuccess
 import cn.huacheng.safebaiyun.theme.SafeBaiyunTheme
 import cn.huacheng.safebaiyun.unlock.DataRepo
+import cn.huacheng.safebaiyun.unlock.DoorDevice
 import cn.huacheng.safebaiyun.unlock.UnlockRepo
+import cn.huacheng.safebaiyun.util.ConfigManager
 import cn.huacheng.safebaiyun.util.showToast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -42,12 +44,17 @@ import kotlinx.coroutines.launch
  * 快捷开门 Activity（桌面快捷方式 / 部件按钮 启动）
  *
  * 通过 Intent extra [EXTRA_DOOR_ID] 指定要开的门禁 ID。
- * 未传则开第一个有效门禁（向后兼容）。
+ *   - 传具体门禁 id → 开该门禁
+ *   - 传 [ALL_DOORS_ID] → 一键开锁（探测 + 轮询所有勾选门禁）
+ *   - 未传 → 开第一个有效门禁
  */
 class ShortcutActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_DOOR_ID = "door_id"
+
+        /** 特殊标识：代表"一键开锁" */
+        const val ALL_DOORS_ID = "__ALL_DOORS__"
     }
 
     private val activityScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -55,12 +62,9 @@ class ShortcutActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 清空上次的开锁状态，避免新界面短暂显示旧结果
         UnlockRepo.resetUnlockStep()
 
         setContent {
-            // ✅ 使用项目自定义主题，跟随深色/浅色模式
-            //    dynamicColor 保持默认（与 MainActivity 一致）
             SafeBaiyunTheme {
                 val unlockStep by UnlockRepo.unlockStep.collectAsState()
                 val displayText = unlockStep.ifEmpty { "准备开锁..." }
@@ -77,9 +81,7 @@ class ShortcutActivity : ComponentActivity() {
                         .background(MaterialTheme.colorScheme.background),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         CircularProgressIndicator(modifier = Modifier.size(48.dp))
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
@@ -127,9 +129,15 @@ class ShortcutActivity : ComponentActivity() {
         }
 
         val targetDoorId = intent.getStringExtra(EXTRA_DOOR_ID)
-        val doors = DataRepo.getDoors()
 
-        // 优先匹配指定 doorId；找不到或无效时，fallback 到第一个有效门禁
+        // ✅ 判断是否为一键开锁
+        if (targetDoorId == ALL_DOORS_ID) {
+            unlockAllDoors()
+            return
+        }
+
+        // 单门禁开锁
+        val doors = DataRepo.getDoors()
         val doorToUnlock = targetDoorId
             ?.let { id -> doors.find { it.id == id } }
             ?.takeIf { it.mac.isNotEmpty() && it.key.isNotEmpty() }
@@ -147,6 +155,55 @@ class ShortcutActivity : ComponentActivity() {
 
         activityScope.launch {
             val success = UnlockRepo.tryUnlock(doorToUnlock.mac, doorToUnlock.key)
+            if (success) {
+                delay(800)
+            }
+            finish()
+        }
+    }
+
+    /**
+     * 一键开锁流程：探测 + 轮询（与主界面逻辑一致）
+     */
+    private fun unlockAllDoors() {
+        val selectedDoors = DataRepo.getDoors().filter { it.isSelected }
+
+        if (selectedDoors.isEmpty()) {
+            showToast("请先在 App 中勾选要开锁的门禁")
+            startActivity(Intent(this, MainActivity::class.java))
+            finish()
+            return
+        }
+
+        showToast("正在一键开锁 ${selectedDoors.size} 个门禁")
+
+        activityScope.launch {
+            val startTime = System.currentTimeMillis()
+            var success = false
+
+            try {
+                // 阶段一：探测（如果开启）
+                val doProbe = ConfigManager.getAutoScanEnabled()
+                var matched: DoorDevice? = null
+
+                if (doProbe) {
+                    matched = UnlockRepo.probeAndUnlock(
+                        doors = selectedDoors,
+                        perDeviceTimeoutMs = ConfigManager.getScanDuration()
+                    )
+                }
+
+                if (matched != null) {
+                    success = true
+                } else {
+                    // 阶段二：轮询兜底
+                    val pollResult = UnlockRepo.pollAllDoors(selectedDoors)
+                    success = pollResult != null
+                }
+            } catch (_: Exception) {
+                success = false
+            }
+
             if (success) {
                 delay(800)
             }
