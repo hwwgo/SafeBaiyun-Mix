@@ -1,143 +1,353 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+
+<manifest
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Android 12 以下使用的传统蓝牙权限 -->
-    <uses-permission android:name="android.permission.BLUETOOTH"
-        android:maxSdkVersion="30" />
-    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
+
+    <!-- ===================================================== -->
+    <!-- Bluetooth -->
+    <!-- ===================================================== -->
+
+    <!-- Android 11 及以下 -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
         android:maxSdkVersion="30" />
 
-    <!-- Android 12+ 蓝牙权限 -->
-    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+
+
+    <!-- Android 12+ -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_CONNECT" />
+
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
         android:usesPermissionFlags="neverForLocation"
         tools:targetApi="s" />
 
-    <!-- Android 11 及以下扫描 BLE 需要定位权限 -->
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"
+
+    <!-- Android 11 及以下 BLE 扫描 -->
+    <uses-permission
+        android:name="android.permission.ACCESS_FINE_LOCATION"
         android:maxSdkVersion="30" />
 
-    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
-    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
 
-    <uses-permission android:name="android.permission.CAMERA" />
-    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
-    <uses-permission android:name="com.android.launcher.permission.INSTALL_SHORTCUT" />
+    <uses-feature
+        android:name="android.hardware.bluetooth"
+        android:required="false" />
+
+    <uses-feature
+        android:name="android.hardware.bluetooth_le"
+        android:required="false" />
+
+
+    <!-- ===================================================== -->
+    <!-- Camera -->
+    <!-- ===================================================== -->
+
+    <uses-permission
+        android:name="android.permission.CAMERA" />
+
+    <uses-feature
+        android:name="android.hardware.camera.any"
+        android:required="false" />
+
+
+    <!-- ===================================================== -->
+    <!-- Legacy launcher shortcut -->
+    <!-- ===================================================== -->
+
+    <uses-permission
+        android:name="com.android.launcher.permission.INSTALL_SHORTCUT" />
+
+
+    <!-- ===================================================== -->
+    <!-- Application -->
+    <!-- ===================================================== -->
 
     <application
+
         android:name="cn.huacheng.safebaiyun.BaiYunApplication"
+
         android:allowBackup="true"
+
         android:dataExtractionRules="@xml/data_extraction_rules"
+
         android:fullBackupContent="@xml/backup_rules"
+
         android:icon="@mipmap/ic_launcher"
+
         android:label="@string/app_name"
+
         android:roundIcon="@mipmap/ic_launcher_round"
+
         android:supportsRtl="true"
+
         android:theme="@style/Theme.SafeBaiyun"
+
         tools:targetApi="31">
 
+
+        <!-- ================================================= -->
+        <!-- FileProvider -->
+        <!-- ================================================= -->
+
         <provider
+
             android:name="androidx.core.content.FileProvider"
+
             android:authorities="${applicationId}.fileprovider"
+
             android:exported="false"
+
             android:grantUriPermissions="true">
+
             <meta-data
+
                 android:name="android.support.FILE_PROVIDER_PATHS"
+
                 android:resource="@xml/file_provider_paths" />
+
         </provider>
 
+
+        <!-- ================================================= -->
+        <!-- MainActivity -->
+        <!-- ================================================= -->
+
+        <!--
+            正常点击 App 图标进入这里。
+
+            不负责 Widget 快捷开锁。
+        -->
         <activity
+
             android:name="cn.huacheng.safebaiyun.MainActivity"
+
             android:exported="true"
+
             android:theme="@style/Theme.SafeBaiyun">
+
             <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
+
+                <action
+                    android:name="android.intent.action.MAIN" />
+
+                <category
+                    android:name="android.intent.category.LAUNCHER" />
+
             </intent-filter>
+
         </activity>
 
+
+        <!-- ================================================= -->
+        <!-- ShortcutActivity -->
+        <!-- ================================================= -->
+
+        <!--
+            所有快捷开锁入口统一进入这里：
+            
+            Widget
+            Activity Launcher
+            桌面快捷方式
+        -->
         <activity
+
             android:name=".ShortcutActivity"
+
             android:exported="true"
-            android:launchMode="singleTop" />
+
+            android:launchMode="singleTop"
+
+            android:noHistory="false"
+
+            android:excludeFromRecents="true" />
+
+
+        <!-- ================================================= -->
+        <!-- QuickUnlockActivity -->
+        <!-- ================================================= -->
 
         <activity-alias
+
             android:name="cn.huacheng.safebaiyun.QuickUnlockActivity"
+
             android:exported="true"
+
             android:icon="@mipmap/ic_launcher"
+
             android:label="@string/unlock_door"
+
             android:targetActivity=".ShortcutActivity">
+
             <intent-filter>
-                <action android:name="android.intent.action.CREATE_SHORTCUT" />
-                <category android:name="android.intent.category.LAUNCHER" />
+
+                <action
+                    android:name="android.intent.action.CREATE_SHORTCUT" />
+
+                <category
+                    android:name="android.intent.category.LAUNCHER" />
+
             </intent-filter>
+
         </activity-alias>
 
-        <!-- 小号/中号/大号 widget 的配置 Activity -->
+
+        <!-- ================================================= -->
+        <!-- Widget 配置 Activity -->
+        <!-- ================================================= -->
+
         <activity
+
             android:name=".widget.MediumWidgetConfigActivity"
+
             android:exported="true"
+
             android:theme="@style/Theme.SafeBaiyun">
+
             <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+
+                <action
+                    android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+
             </intent-filter>
+
         </activity>
 
+
+        <!-- ================================================= -->
+        <!-- Small Widget -->
+        <!-- ================================================= -->
+
         <receiver
+
             android:name=".widget.SmallReceiver"
+
             android:exported="true">
+
             <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+
+                <action
+                    android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+
             </intent-filter>
+
             <meta-data
+
                 android:name="android.appwidget.provider"
+
                 android:resource="@xml/small_widget_config" />
+
         </receiver>
 
+
+        <!-- ================================================= -->
+        <!-- Medium Widget -->
+        <!-- ================================================= -->
+
         <receiver
+
             android:name=".widget.MediumReceiver"
+
             android:exported="true">
+
             <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+
+                <action
+                    android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+
             </intent-filter>
+
             <meta-data
+
                 android:name="android.appwidget.provider"
+
                 android:resource="@xml/medium_widget_config" />
+
         </receiver>
 
+
+        <!-- ================================================= -->
+        <!-- Large Widget -->
+        <!-- ================================================= -->
+
         <receiver
+
             android:name=".widget.LargeReceiver"
+
             android:exported="true">
+
             <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+
+                <action
+                    android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+
             </intent-filter>
+
             <meta-data
+
                 android:name="android.appwidget.provider"
+
                 android:resource="@xml/large_widget_config" />
+
         </receiver>
 
+
+        <!-- ================================================= -->
+        <!-- Extra Large Widget -->
+        <!-- ================================================= -->
+
         <receiver
+
             android:name=".widget.ExtraLargeReceiver"
+
             android:exported="true">
+
             <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+
+                <action
+                    android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+
             </intent-filter>
+
             <meta-data
+
                 android:name="android.appwidget.provider"
+
                 android:resource="@xml/extra_large_widget_config" />
+
         </receiver>
 
+
+        <!-- ================================================= -->
+        <!-- Four Door Widget -->
+        <!-- ================================================= -->
+
         <receiver
+
             android:name=".widget.FourDoorReceiver"
+
             android:exported="true">
+
             <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+
+                <action
+                    android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+
             </intent-filter>
+
             <meta-data
+
                 android:name="android.appwidget.provider"
+
                 android:resource="@xml/four_door_widget_config" />
+
         </receiver>
+
 
     </application>
 
