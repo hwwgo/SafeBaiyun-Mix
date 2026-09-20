@@ -49,7 +49,9 @@ import kotlinx.coroutines.launch
  *   - 传 [ALL_DOORS_ID] → 一键开锁（探测 + 轮询所有勾选门禁）
  *   - 未传 → 开第一个有效门禁
  *
- * ✅ 开锁只需要 BLUETOOTH_CONNECT 权限，不需要 BLUETOOTH_SCAN。
+ * ✅ 冷启动修复：
+ *   - 权限请求延迟到 Activity 就绪后再发起
+ *   - 数据读取失败时不再直接跳转主界面
  */
 class ShortcutActivity : ComponentActivity() {
 
@@ -59,8 +61,6 @@ class ShortcutActivity : ComponentActivity() {
     }
 
     private val activityScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
-
-    /** 权限授权后要执行的开锁动作 */
     private var pendingUnlock: (() -> Unit)? = null
 
     /** 权限请求 launcher */
@@ -69,11 +69,17 @@ class ShortcutActivity : ComponentActivity() {
     ) { result ->
         val allGranted = result.values.all { it }
         if (allGranted) {
+            // ✅ 权限授予 → 继续开锁
             pendingUnlock?.invoke()
         } else {
-            showToast("未授予蓝牙权限")
-            startActivity(Intent(this, MainActivity::class.java))
-            finish()
+            // ❌ 权限被拒绝 → 友好提示
+            showToast("未授予蓝牙权限，无法开锁")
+            // 延迟后跳转主界面，让用户手动授权
+            activityScope.launch {
+                delay(2000)
+                startActivity(Intent(this@ShortcutActivity, MainActivity::class.java))
+                finish()
+            }
         }
         pendingUnlock = null
     }
@@ -119,7 +125,11 @@ class ShortcutActivity : ComponentActivity() {
         if (intent.action == Intent.ACTION_CREATE_SHORTCUT) {
             createShortcut()
         } else {
-            checkPermissionThenUnlock()
+            // ✅ 关键修复：延迟 300ms 再检查权限，等 Activity 完全就绪
+            activityScope.launch {
+                delay(300)
+                checkPermissionThenUnlock()
+            }
         }
     }
 
@@ -135,13 +145,12 @@ class ShortcutActivity : ComponentActivity() {
 
     /**
      * 检查蓝牙权限，不足时请求，足够时直接开锁
-     *
      * ✅ 开锁只需要 BLUETOOTH_CONNECT，不需要 BLUETOOTH_SCAN
      */
     private fun checkPermissionThenUnlock() {
         val neededPermissions = when {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> arrayOf(
-                Manifest.permission.BLUETOOTH_CONNECT   // ✅ 只需要 CONNECT
+                Manifest.permission.BLUETOOTH_CONNECT
             )
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> arrayOf(
                 Manifest.permission.BLUETOOTH
@@ -156,11 +165,15 @@ class ShortcutActivity : ComponentActivity() {
         if (missing.isEmpty()) {
             unlock()
         } else {
+            // ✅ 权限缺失 → 请求权限
             pendingUnlock = { unlock() }
             permissionLauncher.launch(missing.toTypedArray())
         }
     }
 
+    /**
+     * 开锁入口
+     */
     private fun unlock() {
         val targetDoorId = intent.getStringExtra(EXTRA_DOOR_ID)
 
@@ -169,23 +182,30 @@ class ShortcutActivity : ComponentActivity() {
             return
         }
 
-        val doors = DataRepo.getDoors()
-        val doorToUnlock = targetDoorId
-            ?.let { id -> doors.find { it.id == id } }
-            ?.takeIf { it.mac.isNotEmpty() && it.key.isNotEmpty() }
-            ?: doors.firstOrNull { it.mac.isNotEmpty() && it.key.isNotEmpty() }
-            ?: doors.firstOrNull()
-
-        if (doorToUnlock == null || doorToUnlock.mac.isEmpty() || doorToUnlock.key.isEmpty()) {
-            showToast("请先初始化门禁")
-            startActivity(Intent(this, MainActivity::class.java))
-            finish()
-            return
-        }
-
-        showToast("正在解锁 ${doorToUnlock.name}")
-
         activityScope.launch {
+            var doors = DataRepo.getDoors()
+
+            // ✅ 冷启动时序保护：如果为空，等 300ms 再读一次
+            if (doors.isEmpty()) {
+                delay(300)
+                doors = DataRepo.getDoors()
+            }
+
+            val doorToUnlock = targetDoorId
+                ?.let { id -> doors.find { it.id == id } }
+                ?.takeIf { it.mac.isNotEmpty() && it.key.isNotEmpty() }
+                ?: doors.firstOrNull { it.mac.isNotEmpty() && it.key.isNotEmpty() }
+                ?: doors.firstOrNull()
+
+            if (doorToUnlock == null || doorToUnlock.mac.isEmpty() || doorToUnlock.key.isEmpty()) {
+                showToast("未找到可开锁的门禁，请先打开 App 配置")
+                delay(1500)
+                finish()
+                return@launch
+            }
+
+            showToast("正在解锁 ${doorToUnlock.name}")
+
             val success = UnlockRepo.tryUnlock(doorToUnlock.mac, doorToUnlock.key)
             if (success) {
                 delay(800)
@@ -195,18 +215,27 @@ class ShortcutActivity : ComponentActivity() {
     }
 
     private fun unlockAllDoors() {
-        val selectedDoors = DataRepo.getDoors().filter { it.isSelected }
-
-        if (selectedDoors.isEmpty()) {
-            showToast("请先在 App 中勾选要开锁的门禁")
-            startActivity(Intent(this, MainActivity::class.java))
-            finish()
-            return
-        }
-
-        showToast("正在一键开锁 ${selectedDoors.size} 个门禁")
-
         activityScope.launch {
+            var doors = DataRepo.getDoors()
+
+            // ✅ 冷启动时序保护
+            if (doors.isEmpty()) {
+                delay(300)
+                doors = DataRepo.getDoors()
+            }
+
+            val selectedDoors = doors.filter { it.isSelected }
+                .ifEmpty { doors }
+
+            if (selectedDoors.isEmpty()) {
+                showToast("未找到可开锁的门禁，请先打开 App 配置")
+                delay(1500)
+                finish()
+                return@launch
+            }
+
+            showToast("正在一键开锁 ${selectedDoors.size} 个门禁")
+
             var success = false
             try {
                 val doProbe = ConfigManager.getAutoScanEnabled()
