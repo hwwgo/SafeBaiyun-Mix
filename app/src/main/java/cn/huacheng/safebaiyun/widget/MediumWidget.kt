@@ -29,6 +29,7 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import cn.huacheng.safebaiyun.R
+import cn.huacheng.safebaiyun.ShortcutActivity
 import cn.huacheng.safebaiyun.unlock.DataRepo
 
 class MediumReceiver : GlanceAppWidgetReceiver() {
@@ -40,18 +41,22 @@ object MediumWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
-            // ✅ 在 Composable 作用域内读取 state
             val prefs: Preferences = currentState()
             val boundDoorId = prefs[doorIdKey]
 
-            val door = boundDoorId
-                ?.let { doorId -> DataRepo.getDoors().find { it.id == doorId } }
-                ?: DataRepo.getDoors().firstOrNull()
+            // ✅ 判断是否绑定了"一键开锁"
+            val displayName = when {
+                boundDoorId == ShortcutActivity.ALL_DOORS_ID -> "一键开锁"
+                else -> boundDoorId
+                    ?.let { doorId -> DataRepo.getDoors().find { it.id == doorId }?.name }
+                    ?: DataRepo.getDoors().firstOrNull()?.name
+                    ?: "无门禁"
+            }
 
             GlanceTheme {
                 WidgetContent(
-                    doorId = door?.id,
-                    doorName = door?.name ?: "无门禁"
+                    doorId = boundDoorId,
+                    doorName = displayName
                 )
             }
         }
