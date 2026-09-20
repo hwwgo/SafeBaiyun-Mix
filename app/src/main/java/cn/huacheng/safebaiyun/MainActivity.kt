@@ -58,10 +58,9 @@ import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
-    // ✅ 三态：等待中 / widget 开锁 overlay / 正常主界面
-    private val readyState = mutableStateOf(false)
-    private val overlayModeState = mutableStateOf(false)
-    private val overlayDoorIdState = mutableStateOf<String?>(null)
+    // 0 = 等待中（显示纯背景），1 = widget overlay，2 = 正常主界面
+    private val uiMode = mutableStateOf(0)
+    private val overlayDoorId = mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -69,22 +68,22 @@ class MainActivity : ComponentActivity() {
         ConfigManager.init(this)
         UnlockRepo.init(lifecycleScope)
 
-        // 先立即检查一次（热启动场景可能已经有值）
+        // 立即检查一次（热启动时可能已有值）
         val immediateId = WidgetUnlockBus.consume()
         if (immediateId != null) {
-            overlayDoorIdState.value = immediateId
-            overlayModeState.value = true
-            readyState.value = true
+            overlayDoorId.value = immediateId
+            uiMode.value = 1
         } else {
-            // 冷启动场景：延迟 150ms 再检查（等 ActionCallback 执行）
+            // 冷启动：等 150ms 再看（等 WidgetUnlockAction 执行完）
             lifecycleScope.launch {
                 delay(150)
                 val doorId = WidgetUnlockBus.consume()
                 if (doorId != null) {
-                    overlayDoorIdState.value = doorId
-                    overlayModeState.value = true
+                    overlayDoorId.value = doorId
+                    uiMode.value = 1
+                } else {
+                    uiMode.value = 2
                 }
-                readyState.value = true
             }
         }
 
@@ -94,22 +93,19 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    when {
-                        !readyState.value -> {
-                            // 短暂等待：显示纯背景
-                            Box(Modifier.fillMaxSize())
-                        }
-                        overlayModeState.value -> {
-                            // Widget 触发：显示开锁 overlay
-                            WidgetUnlockOverlay(
-                                doorId = overlayDoorIdState.value,
-                                onFinish = { finish() }
-                            )
-                        }
-                        else -> {
-                            // 正常主界面
-                            MainNavHost()
-                        }
+                    val mode = uiMode.value
+                    if (mode == 0) {
+                        // 等待中：显示纯背景，避免闪烁
+                        Box(Modifier.fillMaxSize())
+                    } else if (mode == 1) {
+                        // Widget 触发：显示开锁 overlay
+                        WidgetUnlockOverlay(
+                            doorId = overlayDoorId.value,
+                            onFinish = { finish() }
+                        )
+                    } else {
+                        // 正常打开 App：显示主界面
+                        MainNavContent()
                     }
                 }
             }
@@ -117,60 +113,60 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun MainNavHost() {
+    private fun MainNavContent() {
         val navController = rememberNavController()
         NavHost(
             navController = navController,
             startDestination = "main",
         ) {
-            composable("main", enterTransition = {
-                slideIn { IntOffset(-it.width, 0) }
-            }, exitTransition = {
-                slideOut { IntOffset(-it.width, 0) }
-            }) {
+            composable(
+                route = "main",
+                enterTransition = { slideIn { IntOffset(-it.width, 0) } },
+                exitTransition = { slideOut { IntOffset(-it.width, 0) } }
+            ) {
                 MainView(navController)
             }
 
-            composable("manage_doors", enterTransition = {
-                slideIn { IntOffset(it.width, 0) }
-            }, exitTransition = {
-                slideOut { IntOffset(it.width, 0) }
-            }) {
+            composable(
+                route = "manage_doors",
+                enterTransition = { slideIn { IntOffset(it.width, 0) } },
+                exitTransition = { slideOut { IntOffset(it.width, 0) } }
+            ) {
                 ManageDoorsView(
                     navController = navController,
                     onSaved = { }
                 )
             }
 
-            composable("helper", enterTransition = {
-                slideIn { IntOffset(it.width, 0) }
-            }, exitTransition = {
-                slideOut { IntOffset(it.width, 0) }
-            }) {
+            composable(
+                route = "helper",
+                enterTransition = { slideIn { IntOffset(it.width, 0) } },
+                exitTransition = { slideOut { IntOffset(it.width, 0) } }
+            ) {
                 HelpView(navController)
             }
 
-            composable("qr_export", enterTransition = {
-                slideIn { IntOffset(it.width, 0) }
-            }, exitTransition = {
-                slideOut { IntOffset(it.width, 0) }
-            }) {
+            composable(
+                route = "qr_export",
+                enterTransition = { slideIn { IntOffset(it.width, 0) } },
+                exitTransition = { slideOut { IntOffset(it.width, 0) } }
+            ) {
                 QRExportView(navController)
             }
 
-            composable("qr_import", enterTransition = {
-                slideIn { IntOffset(it.width, 0) }
-            }, exitTransition = {
-                slideOut { IntOffset(it.width, 0) }
-            }) {
+            composable(
+                route = "qr_import",
+                enterTransition = { slideIn { IntOffset(it.width, 0) } },
+                exitTransition = { slideOut { IntOffset(it.width, 0) } }
+            ) {
                 QRImportView(navController)
             }
 
-            composable("settings", enterTransition = {
-                slideIn { IntOffset(it.width, 0) }
-            }, exitTransition = {
-                slideOut { IntOffset(it.width, 0) }
-            }) {
+            composable(
+                route = "settings",
+                enterTransition = { slideIn { IntOffset(it.width, 0) } },
+                exitTransition = { slideOut { IntOffset(it.width, 0) } }
+            ) {
                 SettingsView(navController)
             }
         }
@@ -194,7 +190,6 @@ class MainActivity : ComponentActivity() {
             else -> MaterialTheme.colorScheme.onSurface
         }
 
-        // 启动开锁流程
         LaunchedEffect(doorId) {
             delay(100)
 
@@ -204,14 +199,14 @@ class MainActivity : ComponentActivity() {
                     == PackageManager.PERMISSION_GRANTED
             } else true
 
-            if (!hasConnect) {
+            if (hasConnect == false) {
                 showToast("请先授予蓝牙权限")
                 delay(2000)
                 onFinish()
                 return@LaunchedEffect
             }
 
-            // 读取门禁
+            // 读取门禁（冷启动时序保护）
             var doors = DataRepo.getDoors()
             if (doors.isEmpty()) {
                 delay(300)
@@ -239,7 +234,7 @@ class MainActivity : ComponentActivity() {
             onFinish()
         }
 
-        // 对话框样式：半透明背景 + 中间圆角卡片
+        // 对话框样式
         Box(
             modifier = Modifier
                 .fillMaxSize()
