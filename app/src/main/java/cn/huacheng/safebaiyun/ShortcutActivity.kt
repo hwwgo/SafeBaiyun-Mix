@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -24,6 +25,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -45,7 +47,7 @@ import kotlinx.coroutines.launch
 /**
  * 快捷开门 Activity
  *
- * ✅ taskAffinity="" 独立任务栈，finish 后回到桌面而不是 MainActivity
+ * ✅ 以对话框形式浮动显示，不会"跳主界面"
  */
 class ShortcutActivity : ComponentActivity() {
 
@@ -68,7 +70,7 @@ class ShortcutActivity : ComponentActivity() {
             showToast("未授予蓝牙权限，无法开锁")
             activityScope.launch {
                 delay(2000)
-                finishAndRemoveTask()
+                finish()
             }
         }
         pendingUnlock = null
@@ -91,23 +93,31 @@ class ShortcutActivity : ComponentActivity() {
                     else -> MaterialTheme.colorScheme.onBackground
                 }
 
+                // ✅ 对话框形式：外圈半透明背景 + 中间圆角卡片
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.background),
+                        .background(androidx.compose.ui.graphics.Color(0x66000000)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(modifier = Modifier.size(48.dp))
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = displayText,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = textColor,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(horizontal = 32.dp)
-                        )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(MaterialTheme.colorScheme.surface)
+                            .padding(horizontal = 32.dp, vertical = 32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator(modifier = Modifier.size(48.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = displayText,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = textColor,
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
                 }
             }
@@ -116,9 +126,8 @@ class ShortcutActivity : ComponentActivity() {
         if (intent.action == Intent.ACTION_CREATE_SHORTCUT) {
             createShortcut()
         } else {
-            // ✅ 延迟 300ms 等 Activity 完全就绪
             activityScope.launch {
-                delay(300)
+                delay(200)
                 checkPermissionThenUnlock()
             }
         }
@@ -181,7 +190,7 @@ class ShortcutActivity : ComponentActivity() {
             if (doorToUnlock == null || doorToUnlock.mac.isEmpty() || doorToUnlock.key.isEmpty()) {
                 showToast("未找到可开锁的门禁")
                 delay(2000)
-                finishAndRemoveTask()
+                finish()
                 return@launch
             }
 
@@ -190,7 +199,7 @@ class ShortcutActivity : ComponentActivity() {
             if (success) {
                 delay(800)
             }
-            finishAndRemoveTask()
+            finish()
         }
     }
 
@@ -207,7 +216,7 @@ class ShortcutActivity : ComponentActivity() {
             if (selectedDoors.isEmpty()) {
                 showToast("未找到可开锁的门禁")
                 delay(2000)
-                finishAndRemoveTask()
+                finish()
                 return@launch
             }
 
@@ -239,7 +248,7 @@ class ShortcutActivity : ComponentActivity() {
             if (success) {
                 delay(800)
             }
-            finishAndRemoveTask()
+            finish()
         }
     }
 }
