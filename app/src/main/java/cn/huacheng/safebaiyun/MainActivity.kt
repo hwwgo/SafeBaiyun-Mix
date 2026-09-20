@@ -25,20 +25,19 @@ import cn.huacheng.safebaiyun.theme.SafeBaiyunTheme
 import cn.huacheng.safebaiyun.unlock.DataRepo
 import cn.huacheng.safebaiyun.unlock.UnlockRepo
 import cn.huacheng.safebaiyun.util.ConfigManager
+import cn.huacheng.safebaiyun.widget.WidgetUnlockBus
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // ✅ 关键修复：如果本次启动来自 widget 点击，
+        // ✅ 关键修复：如果本次启动是 widget 触发的
         //    ColorOS 可能会拦截 ShortcutActivity 并强行拉起 MainActivity。
-        //    检测到标识后，立即转交给 ShortcutActivity 并 finish 自己，
-        //    用户完全看不到 MainActivity 的界面。
-        if (intent?.getBooleanExtra("from_widget_click", false) == true) {
-            val doorId = intent.getStringExtra(ShortcutActivity.EXTRA_DOOR_ID)
+        //    从全局标志读取 doorId，立即转交给 ShortcutActivity。
+        val widgetDoorId = WidgetUnlockBus.consume()
+        if (widgetDoorId != null) {
             val newIntent = Intent(this, ShortcutActivity::class.java).apply {
-                putExtra(ShortcutActivity.EXTRA_DOOR_ID, doorId)
-                // 不再带 from_widget_click，避免再次被拦截后循环
+                putExtra(ShortcutActivity.EXTRA_DOOR_ID, widgetDoorId)
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
             startActivity(newIntent)
@@ -87,7 +86,6 @@ class MainActivity : ComponentActivity() {
                             HelpView(navController)
                         }
 
-                        // 修复：统一从右边进入
                         composable("qr_export", enterTransition = {
                             slideIn { IntOffset(it.width, 0) }
                         }, exitTransition = {
@@ -96,7 +94,6 @@ class MainActivity : ComponentActivity() {
                             QRExportView(navController)
                         }
 
-                        // 修复：统一从右边进入
                         composable("qr_import", enterTransition = {
                             slideIn { IntOffset(it.width, 0) }
                         }, exitTransition = {
