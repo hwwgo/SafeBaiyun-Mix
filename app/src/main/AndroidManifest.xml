@@ -58,13 +58,15 @@
             </intent-filter>
         </activity>
 
-        <!-- ✅ 关键修复：taskAffinity="" 让 ShortcutActivity 拥有独立任务栈 -->
+        <!-- ✅ 关键修复：对话框主题 + singleInstance + 非空 taskAffinity -->
         <activity
             android:name=".ShortcutActivity"
             android:exported="true"
-            android:launchMode="singleTop"
-            android:taskAffinity=""
-            android:excludeFromRecents="true" />
+            android:launchMode="singleInstance"
+            android:taskAffinity="cn.huacheng.safebaiyun.shortcut"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@style/Theme.ShortcutDialog" />
 
         <activity-alias
             android:name="cn.huacheng.safebaiyun.QuickUnlockActivity"
@@ -78,7 +80,6 @@
             </intent-filter>
         </activity-alias>
 
-        <!-- 小号/中号/大号 widget 的配置 Activity -->
         <activity
             android:name=".widget.MediumWidgetConfigActivity"
             android:exported="true"
