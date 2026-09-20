@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -47,6 +48,8 @@ import kotlinx.coroutines.launch
  *   - 传具体门禁 id → 开该门禁
  *   - 传 [ALL_DOORS_ID] → 一键开锁（探测 + 轮询所有勾选门禁）
  *   - 未传 → 开第一个有效门禁
+ *
+ * ✅ 权限不足时，本 Activity 自己请求权限，授权后自动继续开锁，不跳转主界面。
  */
 class ShortcutActivity : ComponentActivity() {
 
@@ -58,6 +61,26 @@ class ShortcutActivity : ComponentActivity() {
     }
 
     private val activityScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    /** 权限授权后要执行的开锁动作 */
+    private var pendingUnlock: (() -> Unit)? = null
+
+    /** 权限请求 launcher */
+    private val permissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { result ->
+        val allGranted = result.values.all { it }
+        if (allGranted) {
+            // ✅ 全部授予 → 继续开锁
+            pendingUnlock?.invoke()
+        } else {
+            // ❌ 用户拒绝 → 提示并跳转主界面
+            showToast("未授予蓝牙权限")
+            startActivity(Intent(this, MainActivity::class.java))
+            finish()
+        }
+        pendingUnlock = null
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -100,7 +123,7 @@ class ShortcutActivity : ComponentActivity() {
         if (intent.action == Intent.ACTION_CREATE_SHORTCUT) {
             createShortcut()
         } else {
-            unlock()
+            checkPermissionThenUnlock()
         }
     }
 
@@ -114,20 +137,37 @@ class ShortcutActivity : ComponentActivity() {
         finish()
     }
 
-    private fun unlock() {
-        val hasPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
+    /**
+     * 检查蓝牙权限，不足时请求，足够时直接开锁
+     */
+    private fun checkPermissionThenUnlock() {
+        val neededPermissions = when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> arrayOf(
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.BLUETOOTH_SCAN
+            )
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> arrayOf(
+                Manifest.permission.BLUETOOTH,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            )
+            else -> emptyArray()
+        }
+
+        val missing = neededPermissions.filter {
+            checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED
+        }
+
+        if (missing.isEmpty()) {
+            // ✅ 权限齐全，直接开锁
+            unlock()
         } else {
-            true
+            // ⏳ 权限不足，先请求，授权后自动继续
+            pendingUnlock = { unlock() }
+            permissionLauncher.launch(missing.toTypedArray())
         }
+    }
 
-        if (!hasPermission) {
-            showToast("请先授予蓝牙权限")
-            startActivity(Intent(this, MainActivity::class.java))
-            finish()
-            return
-        }
-
+    private fun unlock() {
         val targetDoorId = intent.getStringExtra(EXTRA_DOOR_ID)
 
         // ✅ 判断是否为一键开锁
@@ -178,11 +218,8 @@ class ShortcutActivity : ComponentActivity() {
         showToast("正在一键开锁 ${selectedDoors.size} 个门禁")
 
         activityScope.launch {
-            val startTime = System.currentTimeMillis()
             var success = false
-
             try {
-                // 阶段一：探测（如果开启）
                 val doProbe = ConfigManager.getAutoScanEnabled()
                 var matched: DoorDevice? = null
 
@@ -196,7 +233,6 @@ class ShortcutActivity : ComponentActivity() {
                 if (matched != null) {
                     success = true
                 } else {
-                    // 阶段二：轮询兜底
                     val pollResult = UnlockRepo.pollAllDoors(selectedDoors)
                     success = pollResult != null
                 }
