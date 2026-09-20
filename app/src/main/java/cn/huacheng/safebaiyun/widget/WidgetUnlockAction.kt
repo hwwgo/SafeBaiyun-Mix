@@ -10,14 +10,13 @@ import cn.huacheng.safebaiyun.ShortcutActivity
 /**
  * 所有桌面 Widget 的统一开锁入口。
  *
- * ✅ 加 from_widget_click 标识：
- *    如果 ColorOS 拦截了 ShortcutActivity 的启动、强行先拉起 MainActivity，
- *    MainActivity 检测到这个标识后会立即转交给 ShortcutActivity 并 finish 自己。
+ * ✅ 关键修复：
+ *    先用 WidgetUnlockBus 记录待处理的门禁 ID，
+ *    再启动 ShortcutActivity。
+ *    即使 ColorOS 拦截并先拉起 MainActivity，
+ *    MainActivity 也能通过全局标志感知到 widget 点击并转交。
  */
 val KEY_DOOR_ID = ActionParameters.Key<String>("door_id")
-
-/** 标识：本次启动来自 widget 点击 */
-const val EXTRA_FROM_WIDGET = "from_widget_click"
 
 class UnlockDoorAction : ActionCallback {
     override suspend fun onAction(
@@ -27,9 +26,11 @@ class UnlockDoorAction : ActionCallback {
     ) {
         val doorId = parameters[KEY_DOOR_ID] ?: return
 
+        // ✅ 关键：先在进程内记录，再启动 Activity
+        WidgetUnlockBus.requestUnlock(doorId)
+
         val intent = Intent(context, ShortcutActivity::class.java).apply {
             putExtra(ShortcutActivity.EXTRA_DOOR_ID, doorId)
-            putExtra(EXTRA_FROM_WIDGET, true)          // ✅ 关键：加标识
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                     Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
