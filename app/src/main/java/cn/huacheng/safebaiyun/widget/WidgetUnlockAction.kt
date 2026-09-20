@@ -10,13 +10,15 @@ import cn.huacheng.safebaiyun.ShortcutActivity
 /**
  * 所有桌面 Widget 的统一开锁入口。
  *
- * 不直接启动 MainActivity，始终把点击事件交给 ShortcutActivity，
- * 这样无论 App 是冷启动还是热启动，都能先显示开锁状态。
+ * 关键点：
+ *  - 不直接启动 MainActivity，始终把点击事件交给 ShortcutActivity
+ *  - 冷启动时也先显示开锁状态，不跳主界面
+ *  - flags 只保留 NEW_TASK（Widget 必需）+ SINGLE_TOP（复用实例）
+ *  - 去掉 CLEAR_TOP，避免误清任务栈导致回退主界面
  */
 val KEY_DOOR_ID = ActionParameters.Key<String>("door_id")
 
 class UnlockDoorAction : ActionCallback {
-
     override suspend fun onAction(
         context: Context,
         glanceId: GlanceId,
@@ -26,14 +28,9 @@ class UnlockDoorAction : ActionCallback {
 
         val intent = Intent(context, ShortcutActivity::class.java).apply {
             putExtra(ShortcutActivity.EXTRA_DOOR_ID, doorId)
-
-            // 已存在 ShortcutActivity 时复用它并走 onNewIntent；
-            // 冷启动时则直接创建 ShortcutActivity。
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
-
         context.startActivity(intent)
     }
 }
