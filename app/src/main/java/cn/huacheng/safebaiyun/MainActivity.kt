@@ -68,13 +68,11 @@ class MainActivity : ComponentActivity() {
         ConfigManager.init(this)
         UnlockRepo.init(lifecycleScope)
 
-        // 立即检查一次（热启动时可能已有值）
         val immediateId = WidgetUnlockBus.consume()
         if (immediateId != null) {
             overlayDoorId.value = immediateId
             uiMode.value = 1
         } else {
-            // 冷启动：等 150ms 再看（等 WidgetUnlockAction 执行完）
             lifecycleScope.launch {
                 delay(150)
                 val doorId = WidgetUnlockBus.consume()
@@ -95,16 +93,13 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val mode = uiMode.value
                     if (mode == 0) {
-                        // 等待中：显示纯背景，避免闪烁
                         Box(Modifier.fillMaxSize())
                     } else if (mode == 1) {
-                        // Widget 触发：显示开锁 overlay
                         WidgetUnlockOverlay(
                             doorId = overlayDoorId.value,
                             onFinish = { finish() }
                         )
                     } else {
-                        // 正常打开 App：显示主界面
                         MainNavContent()
                     }
                 }
@@ -172,9 +167,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * 开锁 overlay：显示转圈 + 实时状态文字
-     */
     @Composable
     private fun WidgetUnlockOverlay(
         doorId: String?,
@@ -184,20 +176,21 @@ class MainActivity : ComponentActivity() {
         val unlockStep by UnlockRepo.unlockStep.collectAsState()
         val displayText = unlockStep.ifEmpty { "准备开锁..." }
 
-        val textColor = when {
-            unlockStep.contains("成功") -> ColorOSSuccess
-            unlockStep.contains("失败") || unlockStep.contains("超时") -> ColorOSError
-            else -> MaterialTheme.colorScheme.onSurface
+        // 状态文字颜色：最保守的 if / else if / else 写法
+        val textColor = if (unlockStep.contains("成功")) {
+            ColorOSSuccess
+        } else if (unlockStep.contains("失败") || unlockStep.contains("超时")) {
+            ColorOSError
+        } else {
+            MaterialTheme.colorScheme.onSurface
         }
 
         LaunchedEffect(doorId) {
             delay(100)
 
-            // 检查权限
-            val hasConnect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT)
-                    == PackageManager.PERMISSION_GRANTED
-            } else true
+            // 权限检查：用 || 短路形式，避免 if / else 的括号问题
+            val hasConnect = Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
+                    context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
 
             if (hasConnect == false) {
                 showToast("请先授予蓝牙权限")
@@ -219,7 +212,14 @@ class MainActivity : ComponentActivity() {
                 ?: doors.firstOrNull { it.mac.isNotEmpty() && it.key.isNotEmpty() }
                 ?: doors.firstOrNull()
 
-            if (door == null || door.mac.isEmpty() || door.key.isEmpty()) {
+            if (door == null) {
+                showToast("未找到可开锁的门禁")
+                delay(2000)
+                onFinish()
+                return@LaunchedEffect
+            }
+
+            if (door.mac.isEmpty() || door.key.isEmpty()) {
                 showToast("未找到可开锁的门禁")
                 delay(2000)
                 onFinish()
