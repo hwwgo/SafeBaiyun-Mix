@@ -10,13 +10,14 @@ import cn.huacheng.safebaiyun.ShortcutActivity
 /**
  * 所有桌面 Widget 的统一开锁入口。
  *
- * 关键点：
- *  - 不直接启动 MainActivity，始终把点击事件交给 ShortcutActivity
- *  - 冷启动时也先显示开锁状态，不跳主界面
- *  - flags 只保留 NEW_TASK（Widget 必需）+ SINGLE_TOP（复用实例）
- *  - 去掉 CLEAR_TOP，避免误清任务栈导致回退主界面
+ * ✅ 加 from_widget_click 标识：
+ *    如果 ColorOS 拦截了 ShortcutActivity 的启动、强行先拉起 MainActivity，
+ *    MainActivity 检测到这个标识后会立即转交给 ShortcutActivity 并 finish 自己。
  */
 val KEY_DOOR_ID = ActionParameters.Key<String>("door_id")
+
+/** 标识：本次启动来自 widget 点击 */
+const val EXTRA_FROM_WIDGET = "from_widget_click"
 
 class UnlockDoorAction : ActionCallback {
     override suspend fun onAction(
@@ -28,6 +29,7 @@ class UnlockDoorAction : ActionCallback {
 
         val intent = Intent(context, ShortcutActivity::class.java).apply {
             putExtra(ShortcutActivity.EXTRA_DOOR_ID, doorId)
+            putExtra(EXTRA_FROM_WIDGET, true)          // ✅ 关键：加标识
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                     Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
