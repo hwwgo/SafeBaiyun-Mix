@@ -68,22 +68,10 @@ class MainActivity : ComponentActivity() {
         ConfigManager.init(this)
         UnlockRepo.init(lifecycleScope)
 
-        val immediateId = WidgetUnlockBus.consume()
-        if (immediateId != null) {
-            overlayDoorId.value = immediateId
-            uiMode.value = 1
-        } else {
-            lifecycleScope.launch {
-                delay(150)
-                val doorId = WidgetUnlockBus.consume()
-                if (doorId != null) {
-                    overlayDoorId.value = doorId
-                    uiMode.value = 1
-                } else {
-                    uiMode.value = 2
-                }
-            }
-        }
+        // ColorOS 冷启动时可能把 Widget 点击先路由到 MainActivity，
+        // 而不是 ShortcutActivity。WidgetUnlockBus 已经做了持久化，
+        // 因此这里必须在首帧之前消费请求，避免先显示纯主界面。
+        handleWidgetUnlockRequest(intent)
 
         setContent {
             SafeBaiyunTheme {
@@ -104,6 +92,28 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+
+        // MainActivity 使用 singleTask。ColorOS 热/冷启动过程中如果
+        // 复用已有 MainActivity，Widget 请求会通过 onNewIntent 到达。
+        handleWidgetUnlockRequest(intent)
+    }
+
+    private fun handleWidgetUnlockRequest(intent: Intent?) {
+        val busDoorId = WidgetUnlockBus.consume()
+        val intentDoorId = intent?.getStringExtra(ShortcutActivity.EXTRA_DOOR_ID)
+        val doorId = busDoorId ?: intentDoorId
+
+        if (!doorId.isNullOrEmpty()) {
+            overlayDoorId.value = doorId
+            uiMode.value = 1
+        } else {
+            uiMode.value = 2
         }
     }
 
