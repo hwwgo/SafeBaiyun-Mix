@@ -18,7 +18,7 @@ import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
 
-import androidx.glance.appwidget.action.actionRunCallback
+import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.components.CircleIconButton
 import androidx.glance.appwidget.provideContent
 
@@ -145,9 +145,7 @@ object SmallWidget :
                     WidgetOnPrimary,
 
                 onClick =
-                    actionRunCallback<
-                            UnlockDoorAction
-                            >(
+                    actionStartActivity<cn.huacheng.safebaiyun.ShortcutActivity>(
 
                         actionParametersOf(
 

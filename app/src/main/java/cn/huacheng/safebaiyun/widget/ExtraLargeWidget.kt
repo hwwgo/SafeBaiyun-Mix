@@ -12,7 +12,7 @@ import androidx.glance.action.actionParametersOf
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
-import androidx.glance.appwidget.action.actionRunCallback
+import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.components.CircleIconButton
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
@@ -145,7 +145,7 @@ object ExtraLargeWidget : GlanceAppWidget() {
                     } else {
                         WidgetOnSurfaceVariant
                     },
-                    onClick = actionRunCallback<UnlockDoorAction>(
+                    onClick = actionStartActivity<cn.huacheng.safebaiyun.ShortcutActivity>(
                         actionParametersOf(KEY_DOOR_ID to doorId)
                     )
                 )
