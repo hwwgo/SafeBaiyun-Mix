@@ -87,7 +87,7 @@ class ShortcutActivity : ComponentActivity() {
         Log.d(TAG, "onCreate, action=${intent.action}")
 
         // ✅ 优先从 WidgetUnlockBus 读取（跨 MainActivity/ShortcutActivity 传递）
-        val busDoorId = WidgetUnlockBus.consume()
+        val busDoorId = WidgetUnlockBus.consume(this)
         resolvedDoorId = busDoorId ?: intent.getStringExtra(EXTRA_DOOR_ID)
         Log.d(TAG, "resolvedDoorId=$resolvedDoorId (busDoorId=$busDoorId)")
 
