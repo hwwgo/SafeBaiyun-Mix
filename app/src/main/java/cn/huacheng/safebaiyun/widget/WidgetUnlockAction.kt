@@ -18,7 +18,7 @@ class UnlockDoorAction : ActionCallback {
         val doorId = parameters[KEY_DOOR_ID] ?: return
 
         // ✅ 关键：先在进程内记录，再启动 Activity
-        WidgetUnlockBus.requestUnlock(doorId)
+        WidgetUnlockBus.requestUnlock(context, doorId)
 
         val intent = Intent(context, ShortcutActivity::class.java).apply {
             putExtra(ShortcutActivity.EXTRA_DOOR_ID, doorId)
