@@ -1,6 +1,7 @@
 package cn.huacheng.safebaiyun.widget
 
 import android.content.Context
+import android.content.Intent
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
@@ -29,6 +30,7 @@ import androidx.glance.layout.Box
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.padding
 
+import cn.huacheng.safebaiyun.ShortcutActivity
 import cn.huacheng.safebaiyun.R
 import cn.huacheng.safebaiyun.unlock.DataRepo
 
@@ -145,20 +147,15 @@ object SmallWidget :
                     WidgetOnPrimary,
 
                 onClick =
-                    actionStartActivity<cn.huacheng.safebaiyun.ShortcutActivity>(
-
-                        actionParametersOf(
-
-                            /*
-                             * 没有绑定门禁时传空字符串。
-                             *
-                             * ShortcutActivity 会自动
-                             * 回退到第一个有效门禁。
-                             */
-                            KEY_DOOR_ID to
-                                    (doorId ?: "")
-                        )
-                    )
+                    actionStartActivity(
+                                    Intent().apply {
+                                        setClassName(
+                                            "cn.huacheng.safebaiyun",
+                                            "cn.huacheng.safebaiyun.ShortcutActivity"
+                                        )
+                                        putExtra(ShortcutActivity.EXTRA_DOOR_ID, (doorId ?: ""))
+                                    }
+                                )
             )
         }
     }

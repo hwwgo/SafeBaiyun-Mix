@@ -1,6 +1,7 @@
 package cn.huacheng.safebaiyun.widget
 
 import android.content.Context
+import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -30,6 +31,7 @@ import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
+import cn.huacheng.safebaiyun.ShortcutActivity
 import cn.huacheng.safebaiyun.R
 
 // ============================================================
@@ -145,9 +147,15 @@ object ExtraLargeWidget : GlanceAppWidget() {
                     } else {
                         WidgetOnSurfaceVariant
                     },
-                    onClick = actionStartActivity<cn.huacheng.safebaiyun.ShortcutActivity>(
-                        actionParametersOf(KEY_DOOR_ID to doorId)
-                    )
+                    onClick = actionStartActivity(
+                                    Intent().apply {
+                                        setClassName(
+                                            "cn.huacheng.safebaiyun",
+                                            "cn.huacheng.safebaiyun.ShortcutActivity"
+                                        )
+                                        putExtra(ShortcutActivity.EXTRA_DOOR_ID, doorId)
+                                    }
+                                )
                 )
             }
 

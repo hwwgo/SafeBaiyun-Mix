@@ -1,6 +1,7 @@
 package cn.huacheng.safebaiyun.widget
 
 import android.content.Context
+import android.content.Intent
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
@@ -224,14 +225,15 @@ object LargeWidget :
                             WidgetOnPrimary,
 
                         onClick =
-                            actionStartActivity<cn.huacheng.safebaiyun.ShortcutActivity>(
-
-                                actionParametersOf(
-
-                                    KEY_DOOR_ID to
-                                            (doorId ?: "")
+                            actionStartActivity(
+                                    Intent().apply {
+                                        setClassName(
+                                            "cn.huacheng.safebaiyun",
+                                            "cn.huacheng.safebaiyun.ShortcutActivity"
+                                        )
+                                        putExtra(ShortcutActivity.EXTRA_DOOR_ID, (doorId ?: ""))
+                                    }
                                 )
-                            )
                     )
                 }
             }
