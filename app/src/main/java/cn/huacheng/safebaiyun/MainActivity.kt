@@ -67,8 +67,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         ConfigManager.init(this)
-        UnlockRepo.init(lifecycleScope)
-
         // 冷启动时给 Glance ActionCallback 一小段时间完成持久化。
         // 注意：WidgetUnlockBus.consume() 是“一次性消费”，不能先 consume 再延迟二次 consume，
         // 否则第一次读取失败/无请求时，后续真正到达的 Widget 请求可能无法再被正确处理。
