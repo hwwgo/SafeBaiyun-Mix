@@ -8,8 +8,8 @@ object ContextHolder {
 
     lateinit var context: Context
 
-    fun init(context: Context){
-        ContextHolder.context = context
+    fun init(context: Context) {
+        ContextHolder.context = context.applicationContext
     }
 
     fun get() = context

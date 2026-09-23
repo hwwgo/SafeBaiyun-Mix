@@ -1,35 +1,27 @@
 package cn.huacheng.safebaiyun.util
 
+import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import java.lang.ref.SoftReference
 
 /**
+ * 轻量 Toast 工具。
  *
- *@description: toast 工具
- *@author: guangzhou
- *@create: 2024-05-06
+ * 不使用 GlobalScope/协程，避免为一次 Toast 创建额外协程任务。
+ * Toast 使用应用 Context，不持有 Activity。
  */
-
-var toast: SoftReference<Toast>? = null
+private val mainHandler = Handler(Looper.getMainLooper())
+private var currentToast: Toast? = null
 
 fun showToast(msg: String) {
-    if (Looper.myLooper() == Looper.getMainLooper()) {
-        realShow(msg)
+    if (Looper.myLooper() === Looper.getMainLooper()) {
+        showToastOnMain(msg)
     } else {
-        GlobalScope.launch(Dispatchers.Main) {
-            realShow(msg)
-        }
+        mainHandler.post { showToastOnMain(msg) }
     }
 }
 
-private fun realShow(msg: String) {
-    toast?.get()?.cancel()
-    val toastImpl = Toast.makeText(ContextHolder.get(), msg, Toast.LENGTH_SHORT)
-    toastImpl.show()
-    toast = SoftReference(toastImpl)
+private fun showToastOnMain(msg: String) {
+    currentToast?.cancel()
+    currentToast = Toast.makeText(ContextHolder.get(), msg, Toast.LENGTH_SHORT).also { it.show() }
 }
-
