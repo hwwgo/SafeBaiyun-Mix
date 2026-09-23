@@ -14,7 +14,6 @@ import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
 
-import androidx.glance.action.actionParametersOf
 import androidx.glance.action.clickable
 
 import androidx.glance.appwidget.GlanceAppWidget
@@ -54,7 +53,7 @@ import cn.huacheng.safebaiyun.unlock.DataRepo
  *
  * 每个按钮都通过：
  *
- * UnlockDoorAction
+ * PendingIntent
  *      ↓
  * ShortcutActivity
  */

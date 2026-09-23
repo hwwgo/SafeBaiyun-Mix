@@ -13,7 +13,6 @@ import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.ImageProvider
 
-import androidx.glance.action.actionParametersOf
 
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
@@ -42,7 +41,7 @@ import cn.huacheng.safebaiyun.unlock.DataRepo
  *
  * 点击后统一进入：
  *
- * UnlockDoorAction
+ * PendingIntent
  *      ↓
  * ShortcutActivity
  */
