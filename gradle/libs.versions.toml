@@ -31,7 +31,6 @@ androidx-material3 = { group = "androidx.compose.material3", name = "material3" 
 androidx-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 glance = { group = "androidx.glance", name = "glance-appwidget", version = "1.1.0-beta02" }
-glance-material = { group = "androidx.glance", name = "glance-material3", version = "1.1.0-beta02" }
 navigation = {group="androidx.navigation",name="navigation-compose",version="2.7.7"}
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 camerax-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
