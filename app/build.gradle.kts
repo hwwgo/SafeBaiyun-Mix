@@ -78,7 +78,6 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.glance)
-    implementation(libs.glance.material)
     implementation(libs.navigation)
 
     implementation(libs.zxing.core)
@@ -86,9 +85,6 @@ dependencies {
     implementation(libs.camerax.lifecycle)
     implementation(libs.camerax.view)
     implementation(libs.mlkit.barcode.scanning)
-
-    // 新增 Gson 依赖（Kotlin DSL 语法）
-    implementation("com.google.code.gson:gson:2.10.1")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
