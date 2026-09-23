@@ -16,7 +16,6 @@ import cn.huacheng.safebaiyun.util.LockBiz
 import cn.huacheng.safebaiyun.util.showToast
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -50,10 +49,6 @@ object UnlockRepo {
 
     // ---------- 轮询控制 ----------
     private var pollJob: Job? = null
-
-    fun init(scope: CoroutineScope) {
-        // scope 保留用于未来扩展
-    }
 
     // ============================================================
     //  单门禁探测结果的三种结局
@@ -586,7 +581,6 @@ object UnlockRepo {
 
     private const val MAX_LOG_LINES = 200
 
-    @OptIn(DelicateCoroutinesApi::class)
     private fun log(msg: String) {
         Log.d(TAG, msg)
         val current = _logFlow.value

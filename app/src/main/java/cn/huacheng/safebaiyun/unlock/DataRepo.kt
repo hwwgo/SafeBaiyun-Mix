@@ -4,55 +4,34 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
 import cn.huacheng.safebaiyun.util.ContextHolder
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 object DataRepo {
 
     private val preferences: SharedPreferences by lazy {
         ContextHolder.get().getSharedPreferences("data", Context.MODE_PRIVATE)
     }
-    private val gson = Gson()
-
-    /** 迁移标记（只执行一次） */
-    private var migrated = false
-
-    // ---------- 兼容旧版单门禁 ----------
-    fun readData(): Pair<String, String> {
-        val mac = preferences.getString("mac", "") ?: ""
-        val key = preferences.getString("key", "") ?: ""
-        return mac to key
-    }
-
-    fun save(mac: String, key: String) {
-        preferences.edit {
-            putString("mac", mac)
-            putString("key", key)
-        }
-    }
+    private val json = Json { ignoreUnknownKeys = true }
 
     // ---------- 多门禁管理 ----------
     fun getDoors(): List<DoorDevice> {
         // 先尝试从新键读取
-        val json = preferences.getString("doors", null)
-        if (json != null) {
-            val type = object : TypeToken<List<DoorDevice>>() {}.type
-            return try {
-                gson.fromJson(json, type) ?: emptyList()
-            } catch (e: Exception) {
-                emptyList()
-            }
+        val storedJson = preferences.getString("doors", null)
+        if (storedJson != null) {
+            return runCatching {
+                json.decodeFromString<List<DoorDevice>>(storedJson)
+            }.getOrElse { emptyList() }
         }
         
         // 如果新键没有数据，尝试从旧键 "doors_json" 读取并迁移
         val oldJson = preferences.getString("doors_json", null)
         if (oldJson != null) {
-            val oldType = object : TypeToken<List<OldDoorDevice>>() {}.type
-            val oldList: List<OldDoorDevice>? = try {
-                gson.fromJson(oldJson, oldType)
-            } catch (e: Exception) {
-                null
-            }
+            val oldList: List<OldDoorDevice>? = runCatching {
+                json.decodeFromString<List<OldDoorDevice>>(oldJson)
+            }.getOrNull()
             if (oldList != null && oldList.isNotEmpty()) {
                 val newList = oldList.map { old ->
                     DoorDevice(
@@ -74,9 +53,9 @@ object DataRepo {
     }
 
     fun saveDoors(doors: List<DoorDevice>) {
-        val json = gson.toJson(doors)
+        val encoded = json.encodeToString(doors)
         preferences.edit {
-            putString("doors", json)
+            putString("doors", encoded)
         }
     }
 
@@ -98,10 +77,6 @@ object DataRepo {
         saveDoors(list)
     }
 
-    // ---------- 获取选中的门禁（用于轮询） ----------
-    fun getSelectedDoors(): List<DoorDevice> {
-        return getDoors().filter { it.isSelected }
-    }
 
     // ---------- 切换选中状态 ----------
     fun toggleSelected(id: String) {
@@ -126,6 +101,7 @@ object DataRepo {
     }
 
     // ---------- 旧门禁数据类，仅用于迁移 ----------
+    @Serializable
     private data class OldDoorDevice(
         val id: Int,
         val name: String,
