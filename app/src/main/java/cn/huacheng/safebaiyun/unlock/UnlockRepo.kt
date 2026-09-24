@@ -18,9 +18,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -98,7 +98,7 @@ object UnlockRepo {
         }
 
         val result = withTimeoutOrNull(ConfigManager.getUnlockTimeout()) {
-            doUnlockSuspend(bluetoothAdapter!!, mac, key)
+            doUnlockSuspend(bluetoothAdapter, mac, key)
         } ?: false.also { _unlockStep.value = "❌ 开锁超时" }
         if (result) {
             _unlockStep.value = "✅ 开锁成功"
@@ -245,7 +245,6 @@ object UnlockRepo {
                 isCompleted = true
                 _unlockStep.value = "已取消"
                 gattInstance?.close()
-                continuation.resume(false)
             }
         }
     }

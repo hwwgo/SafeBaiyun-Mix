@@ -15,15 +15,19 @@ object DataRepo {
         ContextHolder.get().getSharedPreferences("data", Context.MODE_PRIVATE)
     }
     private val json = Json { ignoreUnknownKeys = true }
+    @Volatile
+    private var cachedDoors: List<DoorDevice>? = null
 
     // ---------- 多门禁管理 ----------
     fun getDoors(): List<DoorDevice> {
+        cachedDoors?.let { return it }
+
         // 先尝试从新键读取
         val storedJson = preferences.getString("doors", null)
         if (storedJson != null) {
             return runCatching {
                 json.decodeFromString<List<DoorDevice>>(storedJson)
-            }.getOrElse { emptyList() }
+            }.getOrElse { emptyList() }.also { cachedDoors = it }
         }
         
         // 如果新键没有数据，尝试从旧键 "doors_json" 读取并迁移
@@ -49,11 +53,12 @@ object DataRepo {
             }
         }
         
-        return emptyList()
+        return emptyList<DoorDevice>().also { cachedDoors = it }
     }
 
     fun saveDoors(doors: List<DoorDevice>) {
-        val encoded = json.encodeToString(doors)
+        cachedDoors = doors.toList()
+        val encoded = json.encodeToString(cachedDoors)
         preferences.edit {
             putString("doors", encoded)
         }
