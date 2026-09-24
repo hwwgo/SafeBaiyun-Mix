@@ -57,7 +57,7 @@ fun MainView(navController: NavHostController) {
     val scope = rememberCoroutineScope()
 
     val hasPermission = remember { mutableStateOf(false) }
-    val doors = remember { mutableStateOf<List<DoorDevice>>(DataRepo.getDoors()) }
+    val doors = remember { mutableStateOf<List<DoorDevice>>(emptyList()) }
 
     var pollingState by remember { mutableStateOf(PollingState.IDLE) }
     var pollingProgress by remember { mutableStateOf("") }
@@ -70,6 +70,8 @@ fun MainView(navController: NavHostController) {
     var pendingManualPoll by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
+        // 将 SharedPreferences/JSON 读取移出首次 Composition，避免主线程初始化被磁盘读取阻塞。
+        doors.value = DataRepo.getDoors()
         hasPermission.value = hasAllBlePermissions(context)
     }
 
