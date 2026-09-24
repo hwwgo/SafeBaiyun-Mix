@@ -5,7 +5,9 @@ import android.content.SharedPreferences
 
 object ConfigManager {
 
-    private lateinit var prefs: SharedPreferences
+    private val prefs: SharedPreferences by lazy {
+        ContextHolder.get().getSharedPreferences("app_config", Context.MODE_PRIVATE)
+    }
 
     private const val KEY_UNLOCK_TIMEOUT = "unlock_timeout"
     private const val KEY_POLL_INTERVAL = "poll_interval"
@@ -27,10 +29,6 @@ object ConfigManager {
     private const val DEFAULT_SCAN_DURATION = 2000L   // 单个门禁探测时长
     private const val DEFAULT_POLL_WAIT_TIME = 5000L
     private const val DEFAULT_LARGE_FONT = false
-
-    fun init(context: Context) {
-        prefs = context.getSharedPreferences("app_config", Context.MODE_PRIVATE)
-    }
 
     // ---------- 解锁超时 ----------
     fun getUnlockTimeout(): Long = prefs.getLong(KEY_UNLOCK_TIMEOUT, DEFAULT_UNLOCK_TIMEOUT)
