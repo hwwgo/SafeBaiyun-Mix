@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.lifecycle.lifecycleScope
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -40,9 +41,6 @@ import cn.huacheng.safebaiyun.unlock.UnlockRepo
 import cn.huacheng.safebaiyun.util.ConfigManager
 import cn.huacheng.safebaiyun.util.showToast
 import cn.huacheng.safebaiyun.widget.WidgetUnlockBus
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -60,7 +58,6 @@ class ShortcutActivity : ComponentActivity() {
         const val ALL_DOORS_ID = "__ALL_DOORS__"
     }
 
-    private val activityScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var pendingUnlock: (() -> Unit)? = null
 
     /** 解析出的最终目标 doorId */
@@ -74,7 +71,7 @@ class ShortcutActivity : ComponentActivity() {
             pendingUnlock?.invoke()
         } else {
             showToast("未授予蓝牙权限，无法开锁")
-            activityScope.launch {
+            lifecycleScope.launch {
                 delay(2000)
                 finish()
             }
@@ -136,7 +133,7 @@ class ShortcutActivity : ComponentActivity() {
         if (intent.action == Intent.ACTION_CREATE_SHORTCUT) {
             createShortcut()
         } else {
-            activityScope.launch {
+            lifecycleScope.launch {
                 delay(200)
                 checkPermissionThenUnlock()
             }
@@ -184,7 +181,7 @@ class ShortcutActivity : ComponentActivity() {
             return
         }
 
-        activityScope.launch {
+        lifecycleScope.launch {
             var doors = DataRepo.getDoors()
             if (doors.isEmpty()) {
                 delay(300)
@@ -214,7 +211,7 @@ class ShortcutActivity : ComponentActivity() {
     }
 
     private fun unlockAllDoors() {
-        activityScope.launch {
+        lifecycleScope.launch {
             var doors = DataRepo.getDoors()
             if (doors.isEmpty()) {
                 delay(300)
