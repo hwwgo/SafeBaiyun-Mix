@@ -1,7 +1,5 @@
 package cn.huacheng.safebaiyun.util
 
-import android.util.Log
-
 /**
  *
  *@description:
@@ -10,8 +8,6 @@ import android.util.Log
  */
 object LockBiz {
 
-    private const val TAG = "LockBiz"
-
     fun encryptData(inputData: ByteArray, headerData: ByteArray, keyString: String): ByteArray {
         val keyBytes = ByteUtil.hexToBytes(keyString)
         val headerBytesSubset = ByteArray(4)
@@ -19,14 +15,12 @@ object LockBiz {
         for (i in headerBytesSubset.indices) {
             headerBytesSubset[i] = headerData[i + 2]
         }
-        Log.d(TAG, "headerData: ${headerData.contentToString()}")
-        Log.d(TAG, "headerBytesSubset: ${headerBytesSubset.contentToString()}")
         var sum = 0
         for (byte in inputData) {
-            sum += Integer.parseInt(ByteUtil.byteToHex(byte), 16)
+            sum += byte.toInt() and 0xFF
         }
         for (byte in keyBytes) {
-            sum += Integer.parseInt(ByteUtil.byteToHex(byte), 16)
+            sum += byte.toInt() and 0xFF
         }
         val sumBytes = byteArrayOf((sum and 255).toByte(), (sum shr 8 and 255).toByte())
         var paddedLength = sumBytes.size + inputData.size
@@ -40,9 +34,6 @@ object LockBiz {
             paddedData[i] = 0
         }
         System.arraycopy(FDes.encryptData(paddedData, keyBytes), 0, encryptedBlock, 0, 8)
-        Log.d(TAG, "Sum: $sum")
-        Log.d(TAG, "Before encryption: ${ByteUtil.bytesToHex(paddedData)}")
-        Log.d(TAG, "After encryption: ${ByteUtil.bytesToHex(encryptedBlock)}")
         val finalDataLength = (encryptedBlock.size + 12).toByte()
         val finalData = ByteArray(encryptedBlock.size + 12)
         finalData[0] = -91
@@ -60,7 +51,7 @@ object LockBiz {
         finalData[finalData.size - 1] = 90
         var checksum = 0
         for (byte in finalData) {
-            checksum += Integer.parseInt(ByteUtil.byteToHex(byte), 16)
+            checksum += byte.toInt() and 0xFF
         }
         finalData[finalData.size - 2] = (checksum.inv() and 255).toByte()
         return finalData

@@ -6,11 +6,11 @@ import android.content.Context
 @SuppressLint("StaticFieldLeak")
 object ContextHolder {
 
-    private lateinit var context: Context
+    lateinit var context: Context
 
     fun init(context: Context) {
         ContextHolder.context = context.applicationContext
     }
 
-    fun get(): Context = context
+    fun get() = context
 }
