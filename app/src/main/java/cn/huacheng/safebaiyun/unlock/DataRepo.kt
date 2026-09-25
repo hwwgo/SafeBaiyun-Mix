@@ -15,19 +15,15 @@ object DataRepo {
         ContextHolder.get().getSharedPreferences("data", Context.MODE_PRIVATE)
     }
     private val json = Json { ignoreUnknownKeys = true }
-    @Volatile
-    private var cachedDoors: List<DoorDevice>? = null
 
     // ---------- 多门禁管理 ----------
     fun getDoors(): List<DoorDevice> {
-        cachedDoors?.let { return it }
-
         // 先尝试从新键读取
         val storedJson = preferences.getString("doors", null)
         if (storedJson != null) {
             return runCatching {
                 json.decodeFromString<List<DoorDevice>>(storedJson)
-            }.getOrElse { emptyList() }.also { cachedDoors = it }
+            }.getOrElse { emptyList() }
         }
         
         // 如果新键没有数据，尝试从旧键 "doors_json" 读取并迁移
@@ -53,56 +49,51 @@ object DataRepo {
             }
         }
         
-        return emptyList<DoorDevice>().also { cachedDoors = it }
+        return emptyList()
     }
 
     fun saveDoors(doors: List<DoorDevice>) {
-        cachedDoors = doors.toList()
-        val encoded = json.encodeToString(cachedDoors)
+        val encoded = json.encodeToString(doors)
         preferences.edit {
             putString("doors", encoded)
         }
     }
 
-    fun addDoor(door: DoorDevice) {
+    /** 读-改-写：对门禁列表做一次变换后保存 */
+    private inline fun mutateDoors(crossinline transform: (MutableList<DoorDevice>) -> Unit) {
         val list = getDoors().toMutableList()
-        list.add(door)
+        transform(list)
         saveDoors(list)
     }
 
-    fun updateDoor(door: DoorDevice) {
-        val list = getDoors().toMutableList()
-        val index = list.indexOfFirst { it.id == door.id }
+    private fun MutableList<DoorDevice>.indexOfId(id: String) = indexOfFirst { it.id == id }
+
+    fun addDoor(door: DoorDevice) = mutateDoors { it.add(door) }
+
+    fun updateDoor(door: DoorDevice) = mutateDoors { list ->
+        val index = list.indexOfId(door.id)
         if (index >= 0) list[index] = door
-        saveDoors(list)
     }
 
-    fun deleteDoor(id: String) {
-        val list = getDoors().filter { it.id != id }
-        saveDoors(list)
+    fun deleteDoor(id: String) = mutateDoors { list ->
+        list.removeAll { it.id == id }
     }
-
 
     // ---------- 切换选中状态 ----------
-    fun toggleSelected(id: String) {
-        val list = getDoors().toMutableList()
-        val index = list.indexOfFirst { it.id == id }
+    fun toggleSelected(id: String) = mutateDoors { list ->
+        val index = list.indexOfId(id)
         if (index >= 0) {
             list[index] = list[index].copy(isSelected = !list[index].isSelected)
-            saveDoors(list)
         }
     }
 
     // ---------- 移动门禁顺序（上移/下移） ----------
-    fun moveDoor(id: String, direction: Int) {
-        val list = getDoors().toMutableList()
-        val index = list.indexOfFirst { it.id == id }
-        if (index < 0) return
+    fun moveDoor(id: String, direction: Int) = mutateDoors { list ->
+        val index = list.indexOfId(id)
         val newIndex = index + direction
-        if (newIndex < 0 || newIndex >= list.size) return
-        val item = list.removeAt(index)
-        list.add(newIndex, item)
-        saveDoors(list)
+        if (index >= 0 && newIndex in list.indices) {
+            list.add(newIndex, list.removeAt(index))
+        }
     }
 
     // ---------- 旧门禁数据类，仅用于迁移 ----------

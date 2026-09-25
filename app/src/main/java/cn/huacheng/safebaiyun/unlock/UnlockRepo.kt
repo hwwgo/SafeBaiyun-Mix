@@ -19,8 +19,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,6 +32,7 @@ object UnlockRepo {
 
     private const val TAG = "UnlockRepo"
     private const val MAGIC_SERVICE = "14839ac4-7d7e-415c-9a42-167340cf2339"
+    private const val MAX_LOG_LINES = 200
 
     // ---------- 状态流 ----------
     private val _logFlow = MutableStateFlow<List<String>>(emptyList())
@@ -42,7 +41,6 @@ object UnlockRepo {
     private val _unlockStep = MutableStateFlow("")
     val unlockStep: StateFlow<String> = _unlockStep
 
-    // ✅ 新增：重置开锁状态（供 ShortcutActivity 进入时清空使用）
     fun resetUnlockStep() {
         _unlockStep.value = ""
     }
@@ -51,206 +49,235 @@ object UnlockRepo {
     private var pollJob: Job? = null
 
     // ============================================================
-    //  单门禁探测结果的三种结局
+    //  统一 GATT 开锁引擎：连接 -> 发现服务 -> 读挑战码 -> 写指令
+    //  tryUnlock 与 probeAndUnlockSingle 共用，事件通过回调上报
     // ============================================================
 
-    private enum class ProbeOutcome {
+    enum class ProbeOutcome {
         UNLOCKED,       // 连上了，并且开锁成功
         UNLOCK_FAILED,  // 连上了，但开锁失败
         NOT_CONNECTED   // 连接阶段失败或超时，门禁不在附近
     }
 
+    private class GattUnlockEngine(
+        private val adapter: BluetoothAdapter,
+        private val mac: String,
+        private val key: String,
+        private val onConnected: () -> Unit = {},
+        private val onEvent: (String) -> Unit = {},
+    ) {
+        private var gatt: BluetoothGatt? = null
+        private var completed = false
+        private var connected = false
+        private var unlockPhaseStarted = false
+
+        /**
+         * @param connectTimeoutMs 连接阶段超时；超时且未连上 -> NOT_CONNECTED
+         * @param unlockTimeoutMs  连接后的开锁阶段超时 -> UNLOCK_FAILED
+         */
+        suspend fun run(connectTimeoutMs: Long, unlockTimeoutMs: Long): ProbeOutcome =
+            suspendCancellableCoroutine { cont ->
+
+                fun finish(outcome: ProbeOutcome) {
+                    if (completed) return
+                    completed = true
+                    timeoutJob?.cancel()
+                    runCatching { gatt?.close() }
+                    if (cont.isActive) cont.resume(outcome)
+                }
+
+                val callback = object : BluetoothGattCallback() {
+                    private var readChar: BluetoothGattCharacteristic? = null
+                    private var writeChar: BluetoothGattCharacteristic? = null
+
+                    private fun sendCommand(g: BluetoothGatt, value: ByteArray) {
+                        val command = LockBiz.encryptData(value, LockBiz.hexToByteArray(mac), key)
+                        val wc = writeChar
+                        if (wc == null) {
+                            onEvent("未找到写特征")
+                            finish(ProbeOutcome.UNLOCK_FAILED)
+                            return
+                        }
+                        wc.value = command
+                        wc.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+                        g.writeCharacteristic(wc)
+                    }
+
+                    override fun onConnectionStateChange(g: BluetoothGatt?, status: Int, newState: Int) {
+                        if (newState == BluetoothGatt.STATE_CONNECTED) {
+                            connected = true
+                            if (!unlockPhaseStarted) {
+                                unlockPhaseStarted = true
+                                onConnected()
+                                timeoutJob?.cancel()
+                                timeoutJob = launchTimeout(unlockTimeoutMs) {
+                                    onEvent("开锁阶段超时")
+                                    finish(ProbeOutcome.UNLOCK_FAILED)
+                                }
+                            }
+                            g?.discoverServices()
+                        } else if (newState == BluetoothGatt.STATE_DISCONNECTED && !completed) {
+                            if (connected) {
+                                onEvent("连接中断")
+                                finish(ProbeOutcome.UNLOCK_FAILED)
+                            } else {
+                                onEvent("连接失败")
+                                finish(ProbeOutcome.NOT_CONNECTED)
+                            }
+                        }
+                    }
+
+                    override fun onServicesDiscovered(g: BluetoothGatt?, status: Int) {
+                        if (status != BluetoothGatt.GATT_SUCCESS) {
+                            onEvent("服务发现失败")
+                            finish(ProbeOutcome.UNLOCK_FAILED)
+                            return
+                        }
+                        val service = g?.services?.find { it.uuid.toString() == MAGIC_SERVICE }
+                        if (service == null) {
+                            onEvent("未找到门禁服务")
+                            finish(ProbeOutcome.UNLOCK_FAILED)
+                            return
+                        }
+                        service.characteristics.forEach { ch ->
+                            val props = ch.properties
+                            if (props and BluetoothGattCharacteristic.PROPERTY_READ != 0) readChar = ch
+                            if (props and BluetoothGattCharacteristic.PROPERTY_WRITE != 0) writeChar = ch
+                        }
+                        if (readChar == null || writeChar == null) {
+                            onEvent("未找到读/写特征")
+                            finish(ProbeOutcome.UNLOCK_FAILED)
+                            return
+                        }
+                        g?.readCharacteristic(readChar)
+                    }
+
+                    override fun onCharacteristicRead(
+                        gatt: BluetoothGatt,
+                        characteristic: BluetoothGattCharacteristic,
+                        value: ByteArray,
+                        status: Int
+                    ) = handleRead(gatt, value, status)
+
+                    @Deprecated("Deprecated")
+                    override fun onCharacteristicRead(
+                        gatt: BluetoothGatt?,
+                        characteristic: BluetoothGattCharacteristic?,
+                        status: Int
+                    ) = handleRead(gatt ?: return, characteristic?.value ?: ByteArray(0), status)
+
+                    private fun handleRead(g: BluetoothGatt, value: ByteArray, status: Int) {
+                        if (status == BluetoothGatt.GATT_SUCCESS) {
+                            sendCommand(g, value)
+                        } else {
+                            onEvent("读取挑战码失败")
+                            finish(ProbeOutcome.UNLOCK_FAILED)
+                        }
+                    }
+
+                    override fun onCharacteristicWrite(
+                        gatt: BluetoothGatt?,
+                        characteristic: BluetoothGattCharacteristic?,
+                        status: Int
+                    ) {
+                        if (status == BluetoothGatt.GATT_SUCCESS) {
+                            finish(ProbeOutcome.UNLOCKED)
+                        } else {
+                            onEvent("指令写入失败")
+                            finish(ProbeOutcome.UNLOCK_FAILED)
+                        }
+                    }
+                }
+
+                timeoutJob = launchTimeout(connectTimeoutMs) {
+                    if (!connected) {
+                        onEvent("连接超时")
+                        finish(ProbeOutcome.NOT_CONNECTED)
+                    }
+                }
+
+                try {
+                    val device = adapter.getRemoteDevice(mac)
+                    gatt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        device.connectGatt(ContextHolder.get(), false, callback, BluetoothDevice.TRANSPORT_LE)
+                    } else {
+                        device.connectGatt(ContextHolder.get(), false, callback)
+                    }
+                } catch (e: Exception) {
+                    onEvent("连接异常: ${e.javaClass.simpleName}")
+                    finish(ProbeOutcome.NOT_CONNECTED)
+                }
+
+                cont.invokeOnCancellation { finish(ProbeOutcome.NOT_CONNECTED) }
+            }
+
+        private var timeoutJob: Job? = null
+
+        private fun launchTimeout(ms: Long, block: () -> Unit): Job =
+            CoroutineScope(Dispatchers.IO).launch {
+                delay(ms)
+                block()
+            }
+    }
+
+    private fun requireAdapter(): BluetoothAdapter? {
+        val bluetoothManager = ContextHolder.get()
+            .getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        return bluetoothManager.adapter
+    }
+
     // ============================================================
-    //  单门禁开锁入口（单门禁按钮 + 一键开锁的轮询兜底都走这里）
+    //  单门禁开锁入口（单门禁按钮 + 一键开锁轮询兜底共用）
     // ============================================================
 
     suspend fun tryUnlock(mac: String, key: String): Boolean {
-        _unlockStep.value = "准备开锁..."
-        val bluetoothManager = ContextHolder.get()
-            .getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        fun step(msg: String) {
+            _unlockStep.value = msg
+        }
+        step("准备开锁...")
 
-        // ✅ 蓝牙未开启时，等待用户在"开锁等待时间"内打开
-        var bluetoothAdapter = bluetoothManager.adapter
-        if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled) {
-            _unlockStep.value = "等待蓝牙开启..."
-            val waitTime = ConfigManager.getPollWaitTime()
-            val ready = waitForBluetooth(waitTime)
-            if (!ready) {
-                _unlockStep.value = "蓝牙未开启"
+        var adapter = requireAdapter()
+        if (adapter == null || !adapter.isEnabled) {
+            step("等待蓝牙开启...")
+            if (!waitForBluetooth(ConfigManager.getPollWaitTime())) {
+                step("蓝牙未开启")
                 showToast("蓝牙未开启")
                 return false
             }
-            // 蓝牙打开后重新获取适配器
-            bluetoothAdapter = bluetoothManager.adapter
-            if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled) {
-                _unlockStep.value = "蓝牙未开启"
+            adapter = requireAdapter()
+            if (adapter == null || !adapter.isEnabled) {
+                step("蓝牙未开启")
                 showToast("蓝牙未开启")
                 return false
             }
-            // ✅ 修复：蓝牙已就绪，恢复"准备开锁..."状态
-            _unlockStep.value = "准备开锁..."
+            step("准备开锁...")
         }
 
         if (!BluetoothAdapter.checkBluetoothAddress(mac)) {
-            _unlockStep.value = "MAC地址错误"
+            step("MAC地址错误")
             showToast("Mac地址格式错误")
             return false
         }
 
-        val result = withTimeoutOrNull(ConfigManager.getUnlockTimeout()) {
-            doUnlockSuspend(bluetoothAdapter, mac, key)
-        } ?: false.also { _unlockStep.value = "❌ 开锁超时" }
-        if (result) {
-            _unlockStep.value = "✅ 开锁成功"
-        } else {
-            if (_unlockStep.value != "❌ 开锁超时") {
-                _unlockStep.value = "❌ 开锁失败"
-            }
-        }
-        return result
-    }
-
-    private suspend fun doUnlockSuspend(
-        adapter: BluetoothAdapter,
-        mac: String,
-        key: String
-    ): Boolean = suspendCancellableCoroutine { continuation ->
-        var gattInstance: BluetoothGatt? = null
-        var isCompleted = false
-
-        val callback = object : BluetoothGattCallback() {
-            var readChar: BluetoothGattCharacteristic? = null
-            var writeChar: BluetoothGattCharacteristic? = null
-
-            override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
-                if (newState == BluetoothGatt.STATE_CONNECTED) {
-                    _unlockStep.value = "已连接，正在发现服务..."
-                    gatt?.discoverServices()
-                } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
-                    if (!isCompleted) {
-                        _unlockStep.value = "连接断开"
-                        finish(false)
-                    }
-                }
-            }
-
-            override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
-                if (status != BluetoothGatt.GATT_SUCCESS) {
-                    _unlockStep.value = "服务发现失败"
-                    finish(false)
-                    return
-                }
-                _unlockStep.value = "服务发现成功，查找特征..."
-                val service = gatt?.services?.find { it.uuid.toString() == MAGIC_SERVICE }
-                if (service == null) {
-                    _unlockStep.value = "未找到门禁服务"
-                    finish(false)
-                    return
-                }
-                service.characteristics.forEach { ch ->
-                    val props = ch.properties
-                    if (props and BluetoothGattCharacteristic.PROPERTY_READ != 0) readChar = ch
-                    if (props and BluetoothGattCharacteristic.PROPERTY_WRITE != 0) writeChar = ch
-                }
-                if (readChar == null || writeChar == null) {
-                    _unlockStep.value = "未找到读/写特征"
-                    finish(false)
-                    return
-                }
-                _unlockStep.value = "正在读取挑战码..."
-                gatt?.readCharacteristic(readChar)
-            }
-
-            override fun onCharacteristicRead(
-                gatt: BluetoothGatt,
-                characteristic: BluetoothGattCharacteristic,
-                value: ByteArray,
-                status: Int
-            ) {
-                if (status == BluetoothGatt.GATT_SUCCESS) {
-                    _unlockStep.value = "读取挑战码成功，正在生成指令..."
-                    val macBytes = LockBiz.hexToByteArray(mac)
-                    val command = LockBiz.encryptData(value, macBytes, key)
-                    writeChar?.let {
-                        it.value = command
-                        it.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-                        gatt.writeCharacteristic(it)
-                    } ?: finish(false)
-                } else {
-                    _unlockStep.value = "读取挑战码失败"
-                    finish(false)
-                }
-            }
-
-            @Deprecated("Deprecated")
-            override fun onCharacteristicRead(
-                gatt: BluetoothGatt?,
-                characteristic: BluetoothGattCharacteristic?,
-                status: Int
-            ) {
-                if (status == BluetoothGatt.GATT_SUCCESS && characteristic != null) {
-                    val value = characteristic.value ?: ByteArray(0)
-                    _unlockStep.value = "读取挑战码成功 (旧API)，正在生成指令..."
-                    val macBytes = LockBiz.hexToByteArray(mac)
-                    val command = LockBiz.encryptData(value, macBytes, key)
-                    writeChar?.let {
-                        it.value = command
-                        it.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-                        gatt?.writeCharacteristic(it)
-                    } ?: finish(false)
-                } else {
-                    _unlockStep.value = "读取挑战码失败 (旧API)"
-                    finish(false)
-                }
-            }
-
-            override fun onCharacteristicWrite(
-                gatt: BluetoothGatt?,
-                characteristic: BluetoothGattCharacteristic?,
-                status: Int
-            ) {
-                if (status == BluetoothGatt.GATT_SUCCESS) {
-                    _unlockStep.value = "指令写入成功，正在开门..."
-                    finish(true)
-                } else {
-                    _unlockStep.value = "指令写入失败"
-                    finish(false)
-                }
-                gatt?.close()
-            }
-
-            private fun finish(success: Boolean) {
-                if (!isCompleted) {
-                    isCompleted = true
-                    if (success) {
-                        _unlockStep.value = "✅ 开锁成功"
-                    } else {
-                        _unlockStep.value = "❌ 开锁失败"
-                    }
-                    gattInstance?.close()
-                    continuation.resume(success)
-                }
-            }
+        val outcome = withTimeoutOrNull(ConfigManager.getUnlockTimeout()) {
+            GattUnlockEngine(adapter!!, mac, key, onEvent = ::step).run(
+                connectTimeoutMs = ConfigManager.getUnlockTimeout(),
+                unlockTimeoutMs = ConfigManager.getUnlockTimeout()
+            )
         }
 
-        val remoteDevice = adapter.getRemoteDevice(mac)
-        gattInstance = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            remoteDevice.connectGatt(ContextHolder.get(), false, callback, BluetoothDevice.TRANSPORT_LE)
-        } else {
-            remoteDevice.connectGatt(ContextHolder.get(), false, callback)
-        }
-
-        continuation.invokeOnCancellation {
-            if (!isCompleted) {
-                isCompleted = true
-                _unlockStep.value = "已取消"
-                gattInstance?.close()
+        step(
+            when (outcome) {
+                ProbeOutcome.UNLOCKED -> "✅ 开锁成功"
+                null -> "❌ 开锁超时"
+                else -> "❌ 开锁失败"
             }
-        }
+        )
+        return outcome == ProbeOutcome.UNLOCKED
     }
 
     // ============================================================
-    //  探测并开锁（合并方案）
+    //  探测并开锁：逐个探测，成功即返回；全失败返回 null
     // ============================================================
 
     suspend fun probeAndUnlock(
@@ -261,17 +288,16 @@ object UnlockRepo {
     ): DoorDevice? {
         if (doors.isEmpty() || perDeviceTimeoutMs <= 0) return null
 
-        val bluetoothManager = ContextHolder.get()
-            .getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-        val adapter = bluetoothManager.adapter ?: return null
+        val adapter = requireAdapter() ?: return null
         if (!adapter.isEnabled) return null
 
         val validDoors = doors.filter { BluetoothAdapter.checkBluetoothAddress(it.mac) }
         if (validDoors.isEmpty()) return null
 
         val connectTimeout = perDeviceTimeoutMs.coerceIn(500L, 3000L)
+        val unlockTimeout = ConfigManager.getUnlockTimeout()
 
-        log("开始探测并开锁，共 ${validDoors.size} 个门禁，连接超时 ${connectTimeout}ms，开锁超时 ${ConfigManager.getUnlockTimeout()}ms")
+        log("开始探测并开锁，共 ${validDoors.size} 个门禁，连接超时 ${connectTimeout}ms，开锁超时 ${unlockTimeout}ms")
 
         for ((index, door) in validDoors.withIndex()) {
             if (!kotlin.coroutines.coroutineContext.isActive) break
@@ -279,14 +305,14 @@ object UnlockRepo {
             onProbe(index + 1, validDoors.size, door.name)
             log("探测第 ${index + 1}/${validDoors.size} 个: ${door.name} (${door.mac})")
 
-            val outcome = probeAndUnlockSingle(
-                adapter = adapter,
-                door = door,
-                connectTimeoutMs = connectTimeout,
-                onUnlock = onUnlock,
-                index = index,
-                total = validDoors.size
-            )
+            val engineScope = CoroutineScope(kotlin.coroutines.coroutineContext)
+            val outcome = GattUnlockEngine(
+                adapter, door.mac, door.key,
+                onEvent = { msg -> log("${door.name}: $msg") },
+                onConnected = {
+                    engineScope.launch { runCatching { onUnlock(index + 1, validDoors.size, door.name) } }
+                }
+            ).run(connectTimeout, unlockTimeout)
 
             when (outcome) {
                 ProbeOutcome.UNLOCKED -> {
@@ -306,180 +332,6 @@ object UnlockRepo {
 
         log("探测结束：附近没有可连接的门禁")
         return null
-    }
-
-    private suspend fun probeAndUnlockSingle(
-        adapter: BluetoothAdapter,
-        door: DoorDevice,
-        connectTimeoutMs: Long,
-        onUnlock: suspend (index: Int, total: Int, doorName: String) -> Unit,
-        index: Int,
-        total: Int
-    ): ProbeOutcome = suspendCancellableCoroutine { cont ->
-        val mac = door.mac
-        val key = door.key
-
-        var gatt: BluetoothGatt? = null
-        var isCompleted = false
-        var isConnected = false
-        var unlockPhaseStarted = false
-
-        val timerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-        var connectTimeoutJob: Job? = null
-        var unlockTimeoutJob: Job? = null
-
-        fun cleanup() {
-            connectTimeoutJob?.cancel()
-            unlockTimeoutJob?.cancel()
-            timerScope.cancel()
-            runCatching { gatt?.close() }
-        }
-
-        fun finish(outcome: ProbeOutcome) {
-            if (isCompleted) return
-            isCompleted = true
-            cleanup()
-            if (cont.isActive) cont.resume(outcome)
-        }
-
-        val callback = object : BluetoothGattCallback() {
-            var readChar: BluetoothGattCharacteristic? = null
-            var writeChar: BluetoothGattCharacteristic? = null
-
-            override fun onConnectionStateChange(g: BluetoothGatt?, status: Int, newState: Int) {
-                if (newState == BluetoothGatt.STATE_CONNECTED) {
-                    isConnected = true
-                    connectTimeoutJob?.cancel()
-
-                    if (!unlockPhaseStarted) {
-                        unlockPhaseStarted = true
-                        timerScope.launch {
-                            runCatching { onUnlock(index + 1, total, door.name) }
-                        }
-                        unlockTimeoutJob = timerScope.launch {
-                            delay(ConfigManager.getUnlockTimeout())
-                            if (!isCompleted) {
-                                log("开锁阶段超时: $mac")
-                                finish(ProbeOutcome.UNLOCK_FAILED)
-                            }
-                        }
-                    }
-
-                    g?.discoverServices()
-                } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
-                    if (!isCompleted) {
-                        if (!isConnected) {
-                            log("探测连接失败: $mac")
-                            finish(ProbeOutcome.NOT_CONNECTED)
-                        } else {
-                            log("连接中断: $mac")
-                            finish(ProbeOutcome.UNLOCK_FAILED)
-                        }
-                    }
-                }
-            }
-
-            override fun onServicesDiscovered(g: BluetoothGatt?, status: Int) {
-                if (status != BluetoothGatt.GATT_SUCCESS) {
-                    log("服务发现失败: $mac")
-                    finish(ProbeOutcome.UNLOCK_FAILED)
-                    return
-                }
-                val service = g?.services?.find { it.uuid.toString() == MAGIC_SERVICE }
-                if (service == null) {
-                    log("未找到门禁服务: $mac")
-                    finish(ProbeOutcome.UNLOCK_FAILED)
-                    return
-                }
-                service.characteristics.forEach { ch ->
-                    val props = ch.properties
-                    if (props and BluetoothGattCharacteristic.PROPERTY_READ != 0) readChar = ch
-                    if (props and BluetoothGattCharacteristic.PROPERTY_WRITE != 0) writeChar = ch
-                }
-                if (readChar == null || writeChar == null) {
-                    log("未找到读/写特征: $mac")
-                    finish(ProbeOutcome.UNLOCK_FAILED)
-                    return
-                }
-                g?.readCharacteristic(readChar)
-            }
-
-            override fun onCharacteristicRead(
-                gatt: BluetoothGatt,
-                characteristic: BluetoothGattCharacteristic,
-                value: ByteArray,
-                status: Int
-            ) {
-                if (status == BluetoothGatt.GATT_SUCCESS) {
-                    val macBytes = LockBiz.hexToByteArray(mac)
-                    val command = LockBiz.encryptData(value, macBytes, key)
-                    writeChar?.let {
-                        it.value = command
-                        it.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-                        gatt.writeCharacteristic(it)
-                    } ?: finish(ProbeOutcome.UNLOCK_FAILED)
-                } else {
-                    log("读挑战码失败: $mac")
-                    finish(ProbeOutcome.UNLOCK_FAILED)
-                }
-            }
-
-            @Deprecated("Deprecated")
-            override fun onCharacteristicRead(
-                gatt: BluetoothGatt?,
-                characteristic: BluetoothGattCharacteristic?,
-                status: Int
-            ) {
-                if (status == BluetoothGatt.GATT_SUCCESS && characteristic != null) {
-                    val value = characteristic.value ?: ByteArray(0)
-                    val macBytes = LockBiz.hexToByteArray(mac)
-                    val command = LockBiz.encryptData(value, macBytes, key)
-                    writeChar?.let {
-                        it.value = command
-                        it.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-                        gatt?.writeCharacteristic(it)
-                    } ?: finish(ProbeOutcome.UNLOCK_FAILED)
-                } else {
-                    log("读挑战码失败(旧API): $mac")
-                    finish(ProbeOutcome.UNLOCK_FAILED)
-                }
-            }
-
-            override fun onCharacteristicWrite(
-                gatt: BluetoothGatt?,
-                characteristic: BluetoothGattCharacteristic?,
-                status: Int
-            ) {
-                if (status == BluetoothGatt.GATT_SUCCESS) {
-                    finish(ProbeOutcome.UNLOCKED)
-                } else {
-                    log("写指令失败: $mac")
-                    finish(ProbeOutcome.UNLOCK_FAILED)
-                }
-            }
-        }
-
-        connectTimeoutJob = timerScope.launch {
-            delay(connectTimeoutMs)
-            if (!isCompleted && !isConnected) {
-                log("探测连接超时: $mac")
-                finish(ProbeOutcome.NOT_CONNECTED)
-            }
-        }
-
-        try {
-            val device = adapter.getRemoteDevice(mac)
-            gatt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                device.connectGatt(ContextHolder.get(), false, callback, BluetoothDevice.TRANSPORT_LE)
-            } else {
-                device.connectGatt(ContextHolder.get(), false, callback)
-            }
-        } catch (e: Exception) {
-            log("探测异常: $mac, ${e.javaClass.simpleName}")
-            finish(ProbeOutcome.NOT_CONNECTED)
-        }
-
-        cont.invokeOnCancellation { finish(ProbeOutcome.NOT_CONNECTED) }
     }
 
     // ============================================================
@@ -504,7 +356,6 @@ object UnlockRepo {
             }
 
             onProgress(index + 1, doors.size, door.name)
-
             log("正在尝试第 ${index + 1}/${doors.size} 个门禁: ${door.name} (${door.mac})")
 
             val success = try {
@@ -546,7 +397,6 @@ object UnlockRepo {
         onComplete: (DoorDevice?) -> Unit = {}
     ): Job {
         stopPolling()
-
         pollJob = scope.launch {
             val result = pollAllDoors(doors, onProgress)
             onComplete(result)
@@ -561,13 +411,9 @@ object UnlockRepo {
     suspend fun waitForBluetooth(timeoutMs: Long): Boolean {
         val startTime = System.currentTimeMillis()
         while (System.currentTimeMillis() - startTime < timeoutMs) {
-            if (!kotlin.coroutines.coroutineContext.isActive) {
-                return false
-            }
+            if (!kotlin.coroutines.coroutineContext.isActive) return false
             val adapter = BluetoothAdapter.getDefaultAdapter()
-            if (adapter != null && adapter.isEnabled) {
-                return true
-            }
+            if (adapter != null && adapter.isEnabled) return true
             delay(200)
         }
         val adapter = BluetoothAdapter.getDefaultAdapter()
@@ -575,10 +421,8 @@ object UnlockRepo {
     }
 
     // ============================================================
-    //  日志工具
+    //  日志工具（上限 200 条，环形截断）
     // ============================================================
-
-    private const val MAX_LOG_LINES = 200
 
     private fun log(msg: String) {
         Log.d(TAG, msg)
