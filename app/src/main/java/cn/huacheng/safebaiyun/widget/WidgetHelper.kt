@@ -20,12 +20,12 @@ import cn.huacheng.safebaiyun.util.ContextHolder
 object WidgetHelper {
 
     fun requestPermission() {
-        val context = ContextHolder.get()
-        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            data = Uri.fromParts("package", context.packageName, null)
-        }
-        context.startActivity(intent)
+        val intent = Intent()
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        intent.setAction(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+        val uri = Uri.fromParts("package", ContextHolder.get().packageName, null)
+        intent.setData(uri)
+        ContextHolder.get().startActivity(intent)
     }
 
     fun createShortcut() {
