@@ -164,7 +164,10 @@ object UnlockRepo {
                         gatt: BluetoothGatt?,
                         characteristic: BluetoothGattCharacteristic?,
                         status: Int
-                    ) = handleRead(gatt ?: return, characteristic?.value ?: ByteArray(0), status)
+                    ) {
+                        if (gatt == null) return
+                        handleRead(gatt, characteristic?.value ?: ByteArray(0), status)
+                    }
 
                     private fun handleRead(g: BluetoothGatt, value: ByteArray, status: Int) {
                         if (status == BluetoothGatt.GATT_SUCCESS) {
