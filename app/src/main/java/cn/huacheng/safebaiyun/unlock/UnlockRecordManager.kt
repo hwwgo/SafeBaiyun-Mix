@@ -17,7 +17,7 @@ object UnlockRecordManager {
     val records: StateFlow<List<UnlockRecord>> = _records
 
     fun init(context: Context) {
-        prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         _records.value = loadRecords()
     }
 
