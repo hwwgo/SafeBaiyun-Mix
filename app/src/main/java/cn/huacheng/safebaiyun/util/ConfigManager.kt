@@ -16,6 +16,8 @@ object ConfigManager {
     private const val KEY_SCAN_DURATION = "scan_duration"
     private const val KEY_POLL_WAIT_TIME = "poll_wait_time"
     private const val KEY_LARGE_FONT = "large_font"
+    private const val KEY_UNLOCK_VIBRATION = "unlock_vibration"
+    private const val KEY_UNLOCK_VIBRATION_DURATION = "unlock_vibration_duration"
 
     // 默认值
     private const val DEFAULT_UNLOCK_TIMEOUT = 2000L
@@ -27,6 +29,8 @@ object ConfigManager {
     private const val DEFAULT_SCAN_DURATION = 2000L   // 单个门禁探测时长
     private const val DEFAULT_POLL_WAIT_TIME = 5000L
     private const val DEFAULT_LARGE_FONT = false
+    private const val DEFAULT_UNLOCK_VIBRATION = true
+    private const val DEFAULT_UNLOCK_VIBRATION_DURATION = 150L
 
     fun init(context: Context) {
         prefs = context.getSharedPreferences("app_config", Context.MODE_PRIVATE)
@@ -77,6 +81,15 @@ object ConfigManager {
     fun setLargeFont(value: Boolean) = prefs.edit().putBoolean(KEY_LARGE_FONT, value).apply()
     fun getDefaultLargeFont(): Boolean = DEFAULT_LARGE_FONT
 
+    // ---------- 开锁成功震动 ----------
+    fun isUnlockVibrationEnabled(): Boolean = prefs.getBoolean(KEY_UNLOCK_VIBRATION, DEFAULT_UNLOCK_VIBRATION)
+    fun setUnlockVibrationEnabled(value: Boolean) = prefs.edit().putBoolean(KEY_UNLOCK_VIBRATION, value).apply()
+    fun getDefaultUnlockVibrationEnabled(): Boolean = DEFAULT_UNLOCK_VIBRATION
+
+    fun getUnlockVibrationDuration(): Long = prefs.getLong(KEY_UNLOCK_VIBRATION_DURATION, DEFAULT_UNLOCK_VIBRATION_DURATION)
+    fun setUnlockVibrationDuration(value: Long) = prefs.edit().putLong(KEY_UNLOCK_VIBRATION_DURATION, value).apply()
+    fun getDefaultUnlockVibrationDuration(): Long = DEFAULT_UNLOCK_VIBRATION_DURATION
+
     // ---------- 恢复默认 ----------
     fun resetToDefaults() {
         prefs.edit()
@@ -89,6 +102,8 @@ object ConfigManager {
             .putLong(KEY_SCAN_DURATION, DEFAULT_SCAN_DURATION)
             .putLong(KEY_POLL_WAIT_TIME, DEFAULT_POLL_WAIT_TIME)
             .putBoolean(KEY_LARGE_FONT, DEFAULT_LARGE_FONT)
+            .putBoolean(KEY_UNLOCK_VIBRATION, DEFAULT_UNLOCK_VIBRATION)
+            .putLong(KEY_UNLOCK_VIBRATION_DURATION, DEFAULT_UNLOCK_VIBRATION_DURATION)
             .apply()
     }
 }
