@@ -205,7 +205,7 @@ class ShortcutActivity : ComponentActivity() {
             }
 
             showToast("正在解锁 ${doorToUnlock.name}")
-            val success = UnlockRepo.tryUnlock(doorToUnlock.mac, doorToUnlock.key)
+            val success = UnlockRepo.tryUnlock(doorToUnlock.mac, doorToUnlock.key, doorToUnlock.name)
             if (success) {
                 delay(800)
             }
