@@ -34,6 +34,8 @@ fun SettingsView(navController: NavController) {
     var scanDuration by remember { mutableStateOf(ConfigManager.getScanDuration().toString()) }
     var pollWaitTime by remember { mutableStateOf(ConfigManager.getPollWaitTime().toString()) }
     var largeFont by remember { mutableStateOf(ConfigManager.isLargeFont()) }
+    var unlockVibration by remember { mutableStateOf(ConfigManager.isUnlockVibrationEnabled()) }
+    var unlockVibrationDuration by remember { mutableStateOf(ConfigManager.getUnlockVibrationDuration().toString()) }
     var hasChanges by remember { mutableStateOf(false) }
 
     Box(
@@ -60,9 +62,10 @@ fun SettingsView(navController: NavController) {
                         val reset = resetDelay.toLong()
                         val wait = pollWaitTime.toLong()
                         val scan = scanDuration.toLong()
+                        val vibrationDuration = unlockVibrationDuration.toLong()
                         if (timeout < 1000 || interval < 50 || result < 100 || reset < 100 || wait < 100 ||
-                            scan < 500 || scan > 3000) {
-                            showToast("单次开锁超时不能小于1000ms，其它时间不能小于100ms，单门禁探测时间 500-3000ms")
+                            scan < 500 || scan > 3000 || vibrationDuration < 1 || vibrationDuration > 5000) {
+                            showToast("单次开锁超时不能小于1000ms，其它时间不能小于100ms，单门禁探测时间 500-3000ms，震动时长 1-5000ms")
                             return@SettingsTopBar
                         }
                         ConfigManager.setUnlockTimeout(timeout)
@@ -74,6 +77,8 @@ fun SettingsView(navController: NavController) {
                         ConfigManager.setScanDuration(scan)
                         ConfigManager.setPollWaitTime(wait)
                         ConfigManager.setLargeFont(largeFont)
+                        ConfigManager.setUnlockVibrationEnabled(unlockVibration)
+                        ConfigManager.setUnlockVibrationDuration(vibrationDuration)
                         hasChanges = false
                         showToast("✅ 设置已保存，重启应用后生效")
                     } catch (e: NumberFormatException) {
@@ -91,6 +96,8 @@ fun SettingsView(navController: NavController) {
                     scanDuration = ConfigManager.getDefaultScanDuration().toString()
                     pollWaitTime = ConfigManager.getDefaultPollWaitTime().toString()
                     largeFont = ConfigManager.getDefaultLargeFont()
+                    unlockVibration = ConfigManager.getDefaultUnlockVibrationEnabled()
+                    unlockVibrationDuration = ConfigManager.getDefaultUnlockVibrationDuration().toString()
                     hasChanges = false
                     showToast("已恢复默认设置")
                 }
@@ -113,6 +120,26 @@ fun SettingsView(navController: NavController) {
                         largeFont = it
                         hasChanges = true
                     }
+                )
+
+                UnlockVibrationCard(
+                    enabled = unlockVibration,
+                    onToggle = {
+                        unlockVibration = it
+                        hasChanges = true
+                    }
+                )
+
+                ConfigItem(
+                    label = "开锁成功震动时长",
+                    description = "开锁成功后手机震动的持续时间，关闭震动后此项不会生效",
+                    value = unlockVibrationDuration,
+                    onValueChange = {
+                        unlockVibrationDuration = it
+                        hasChanges = true
+                    },
+                    defaultValue = ConfigManager.getDefaultUnlockVibrationDuration().toString(),
+                    unit = "毫秒"
                 )
 
                 AutoPollCard(
@@ -400,6 +427,73 @@ private fun LargeFontCard(
                 onCheckedChange = onToggle,
                 colors = SwitchDefaults.colors(
                     checkedTrackColor = ColorOSTertiary,
+                    checkedThumbColor = Color.White
+                )
+            )
+        }
+    }
+}
+
+@Composable
+private fun UnlockVibrationCard(
+    enabled: Boolean,
+    onToggle: (Boolean) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(ColorOSPrimary.copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Vibration,
+                        contentDescription = null,
+                        tint = ColorOSPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Column {
+                    Text(
+                        text = "开锁成功震动",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "开门成功后手机震动提示",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Switch(
+                checked = enabled,
+                onCheckedChange = onToggle,
+                colors = SwitchDefaults.colors(
+                    checkedTrackColor = ColorOSPrimary,
                     checkedThumbColor = Color.White
                 )
             )
