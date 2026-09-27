@@ -18,6 +18,7 @@ object ConfigManager {
     private const val KEY_LARGE_FONT = "large_font"
     private const val KEY_UNLOCK_VIBRATION = "unlock_vibration"
     private const val KEY_UNLOCK_VIBRATION_DURATION = "unlock_vibration_duration"
+    private const val KEY_UNLOCK_RECORD = "unlock_record"
 
     // 默认值
     private const val DEFAULT_UNLOCK_TIMEOUT = 2000L
@@ -31,6 +32,7 @@ object ConfigManager {
     private const val DEFAULT_LARGE_FONT = false
     private const val DEFAULT_UNLOCK_VIBRATION = true
     private const val DEFAULT_UNLOCK_VIBRATION_DURATION = 150L
+    private const val DEFAULT_UNLOCK_RECORD = true
 
     fun init(context: Context) {
         prefs = context.getSharedPreferences("app_config", Context.MODE_PRIVATE)
@@ -90,6 +92,11 @@ object ConfigManager {
     fun setUnlockVibrationDuration(value: Long) = prefs.edit().putLong(KEY_UNLOCK_VIBRATION_DURATION, value).apply()
     fun getDefaultUnlockVibrationDuration(): Long = DEFAULT_UNLOCK_VIBRATION_DURATION
 
+    // ---------- 开锁记录 ----------
+    fun isUnlockRecordEnabled(): Boolean = prefs.getBoolean(KEY_UNLOCK_RECORD, DEFAULT_UNLOCK_RECORD)
+    fun setUnlockRecordEnabled(value: Boolean) = prefs.edit().putBoolean(KEY_UNLOCK_RECORD, value).apply()
+    fun getDefaultUnlockRecordEnabled(): Boolean = DEFAULT_UNLOCK_RECORD
+
     // ---------- 恢复默认 ----------
     fun resetToDefaults() {
         prefs.edit()
@@ -104,6 +111,7 @@ object ConfigManager {
             .putBoolean(KEY_LARGE_FONT, DEFAULT_LARGE_FONT)
             .putBoolean(KEY_UNLOCK_VIBRATION, DEFAULT_UNLOCK_VIBRATION)
             .putLong(KEY_UNLOCK_VIBRATION_DURATION, DEFAULT_UNLOCK_VIBRATION_DURATION)
+            .putBoolean(KEY_UNLOCK_RECORD, DEFAULT_UNLOCK_RECORD)
             .apply()
     }
 }
