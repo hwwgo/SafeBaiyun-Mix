@@ -9,6 +9,8 @@ import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.util.Log
 import cn.huacheng.safebaiyun.util.ConfigManager
 import cn.huacheng.safebaiyun.util.ContextHolder
@@ -276,6 +278,9 @@ object UnlockRepo {
                 else -> "❌ 开锁失败"
             }
         )
+        if (outcome == ProbeOutcome.UNLOCKED) {
+            vibrateOnUnlockSuccess()
+        }
         return outcome == ProbeOutcome.UNLOCKED
     }
 
@@ -320,6 +325,7 @@ object UnlockRepo {
             when (outcome) {
                 ProbeOutcome.UNLOCKED -> {
                     log("✅ 探测并开锁成功: ${door.name}")
+                    vibrateOnUnlockSuccess()
                     return door
                 }
                 ProbeOutcome.UNLOCK_FAILED -> {
@@ -421,6 +427,31 @@ object UnlockRepo {
         }
         val adapter = BluetoothAdapter.getDefaultAdapter()
         return adapter != null && adapter.isEnabled
+    }
+
+    // ============================================================
+    //  开锁成功反馈
+    // ============================================================
+
+    private fun vibrateOnUnlockSuccess() {
+        if (!ConfigManager.isUnlockVibrationEnabled()) return
+
+        runCatching {
+            val vibrator = ContextHolder.get()
+                .getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+                ?: return
+            if (!vibrator.hasVibrator()) return
+
+            val duration = ConfigManager.getUnlockVibrationDuration().coerceIn(1L, 5000L)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator.vibrate(VibrationEffect.createOneShot(duration, VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(duration)
+            }
+        }.onFailure {
+            Log.w(TAG, "开锁成功震动反馈失败", it)
+        }
     }
 
     // ============================================================
