@@ -295,6 +295,7 @@ fun MainView(navController: NavHostController) {
         Column {
             CompactTopBar(
                 onEditClick = { navController.navigate("manage_doors") },
+                onHistoryClick = { navController.navigate("unlock_history") },
                 onHelperClick = { navController.navigate("helper") },
                 onSettingsClick = { navController.navigate("settings") }
             )
@@ -397,6 +398,7 @@ fun MainView(navController: NavHostController) {
 @Composable
 private fun CompactTopBar(
     onEditClick: () -> Unit,
+    onHistoryClick: () -> Unit,
     onHelperClick: () -> Unit,
     onSettingsClick: () -> Unit
 ) {
@@ -437,6 +439,7 @@ private fun CompactTopBar(
                 modifier = Modifier.padding(end = 4.dp)
             ) {
                 CompactIconButton(onClick = onEditClick, icon = Icons.Default.Add, contentDesc = "添加门禁")
+                CompactIconButton(onClick = onHistoryClick, icon = Icons.Default.History, contentDesc = "开锁记录")
                 CompactIconButton(onClick = onSettingsClick, icon = Icons.Default.Settings, contentDesc = "设置")
                 CompactIconButton(onClick = onHelperClick, icon = Icons.Default.Info, contentDesc = "帮助")
             }
@@ -811,7 +814,7 @@ private fun CompactDoorCard(
                                         if (step.isNotEmpty()) unlockStep = step
                                     }
                                 }
-                                val success = UnlockRepo.tryUnlock(door.mac, door.key)
+                                val success = UnlockRepo.tryUnlock(door.mac, door.key, door.name)
                                 // ✅ 改动二：计算用时
                                 val elapsed = System.currentTimeMillis() - startTime
                                 delay(ConfigManager.getResultDelay())

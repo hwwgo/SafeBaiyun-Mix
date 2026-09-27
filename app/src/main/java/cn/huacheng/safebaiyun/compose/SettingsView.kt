@@ -36,6 +36,7 @@ fun SettingsView(navController: NavController) {
     var largeFont by remember { mutableStateOf(ConfigManager.isLargeFont()) }
     var unlockVibration by remember { mutableStateOf(ConfigManager.isUnlockVibrationEnabled()) }
     var unlockVibrationDuration by remember { mutableStateOf(ConfigManager.getUnlockVibrationDuration().toString()) }
+    var unlockRecord by remember { mutableStateOf(ConfigManager.isUnlockRecordEnabled()) }
     var hasChanges by remember { mutableStateOf(false) }
 
     Box(
@@ -79,6 +80,7 @@ fun SettingsView(navController: NavController) {
                         ConfigManager.setLargeFont(largeFont)
                         ConfigManager.setUnlockVibrationEnabled(unlockVibration)
                         ConfigManager.setUnlockVibrationDuration(vibrationDuration)
+                        ConfigManager.setUnlockRecordEnabled(unlockRecord)
                         hasChanges = false
                         showToast("✅ 设置已保存，重启应用后生效")
                     } catch (e: NumberFormatException) {
@@ -98,6 +100,7 @@ fun SettingsView(navController: NavController) {
                     largeFont = ConfigManager.getDefaultLargeFont()
                     unlockVibration = ConfigManager.getDefaultUnlockVibrationEnabled()
                     unlockVibrationDuration = ConfigManager.getDefaultUnlockVibrationDuration().toString()
+                    unlockRecord = ConfigManager.getDefaultUnlockRecordEnabled()
                     hasChanges = false
                     showToast("已恢复默认设置")
                 }
@@ -126,6 +129,14 @@ fun SettingsView(navController: NavController) {
                     enabled = unlockVibration,
                     onToggle = {
                         unlockVibration = it
+                        hasChanges = true
+                    }
+                )
+
+                UnlockRecordCard(
+                    enabled = unlockRecord,
+                    onToggle = {
+                        unlockRecord = it
                         hasChanges = true
                     }
                 )
@@ -427,6 +438,69 @@ private fun LargeFontCard(
                 onCheckedChange = onToggle,
                 colors = SwitchDefaults.colors(
                     checkedTrackColor = ColorOSTertiary,
+                    checkedThumbColor = Color.White
+                )
+            )
+        }
+    }
+}
+
+@Composable
+private fun UnlockRecordCard(
+    enabled: Boolean,
+    onToggle: (Boolean) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(ColorOSPrimary.copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.History,
+                        contentDescription = null,
+                        tint = ColorOSPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Column {
+                    Text(
+                        text = "开锁记录",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "记录开锁成功、失败、时间和耗时",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Switch(
+                checked = enabled,
+                onCheckedChange = onToggle,
+                colors = SwitchDefaults.colors(
+                    checkedTrackColor = ColorOSPrimary,
                     checkedThumbColor = Color.White
                 )
             )
