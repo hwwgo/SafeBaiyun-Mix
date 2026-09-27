@@ -235,11 +235,12 @@ object UnlockRepo {
     //  单门禁开锁入口（单门禁按钮 + 一键开锁轮询兜底共用）
     // ============================================================
 
-    suspend fun tryUnlock(mac: String, key: String): Boolean {
+    suspend fun tryUnlock(mac: String, key: String, doorName: String = "未知门禁"): Boolean {
         fun step(msg: String) {
             _unlockStep.value = msg
         }
         step("准备开锁...")
+        val startTime = System.currentTimeMillis()
 
         var adapter = requireAdapter()
         if (adapter == null || !adapter.isEnabled) {
@@ -271,12 +272,25 @@ object UnlockRepo {
             )
         }
 
+        val elapsed = System.currentTimeMillis() - startTime
+        val resultText = when (outcome) {
+            ProbeOutcome.UNLOCKED -> "开锁成功"
+            null -> "开锁超时"
+            ProbeOutcome.UNLOCK_FAILED -> "开锁失败"
+            ProbeOutcome.NOT_CONNECTED -> "连接失败"
+        }
         step(
             when (outcome) {
                 ProbeOutcome.UNLOCKED -> "✅ 开锁成功"
                 null -> "❌ 开锁超时"
                 else -> "❌ 开锁失败"
             }
+        )
+        UnlockRecordManager.addRecord(
+            doorName = doorName,
+            success = outcome == ProbeOutcome.UNLOCKED,
+            durationMs = elapsed,
+            result = resultText
         )
         if (outcome == ProbeOutcome.UNLOCKED) {
             vibrateOnUnlockSuccess()
@@ -313,6 +327,7 @@ object UnlockRepo {
             onProbe(index + 1, validDoors.size, door.name)
             log("探测第 ${index + 1}/${validDoors.size} 个: ${door.name} (${door.mac})")
 
+            val attemptStart = System.currentTimeMillis()
             val engineScope = CoroutineScope(kotlin.coroutines.coroutineContext)
             val outcome = GattUnlockEngine(
                 adapter, door.mac, door.key,
@@ -325,15 +340,33 @@ object UnlockRepo {
             when (outcome) {
                 ProbeOutcome.UNLOCKED -> {
                     log("✅ 探测并开锁成功: ${door.name}")
+                    UnlockRecordManager.addRecord(
+                        doorName = door.name,
+                        success = true,
+                        durationMs = System.currentTimeMillis() - attemptStart,
+                        result = "开锁成功"
+                    )
                     vibrateOnUnlockSuccess()
                     return door
                 }
                 ProbeOutcome.UNLOCK_FAILED -> {
                     log("⚠️ ${door.name} 已连接但开锁失败，跳过剩余探测，进入轮询兜底")
+                    UnlockRecordManager.addRecord(
+                        doorName = door.name,
+                        success = false,
+                        durationMs = System.currentTimeMillis() - attemptStart,
+                        result = "开锁失败"
+                    )
                     return null
                 }
                 ProbeOutcome.NOT_CONNECTED -> {
                     log("❌ 第 ${index + 1} 个未连接: ${door.name}，继续探测下一个...")
+                    UnlockRecordManager.addRecord(
+                        doorName = door.name,
+                        success = false,
+                        durationMs = System.currentTimeMillis() - attemptStart,
+                        result = "连接失败"
+                    )
                     delay(ConfigManager.getPollInterval())
                 }
             }
@@ -368,7 +401,7 @@ object UnlockRepo {
             log("正在尝试第 ${index + 1}/${doors.size} 个门禁: ${door.name} (${door.mac})")
 
             val success = try {
-                tryUnlock(door.mac, door.key)
+                tryUnlock(door.mac, door.key, door.name)
             } catch (e: CancellationException) {
                 log("轮询被取消")
                 throw e
