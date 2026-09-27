@@ -46,11 +46,13 @@ import cn.huacheng.safebaiyun.compose.ManageDoorsView
 import cn.huacheng.safebaiyun.compose.QRExportView
 import cn.huacheng.safebaiyun.compose.QRImportView
 import cn.huacheng.safebaiyun.compose.SettingsView
+import cn.huacheng.safebaiyun.compose.UnlockHistoryView
 import cn.huacheng.safebaiyun.theme.ColorOSError
 import cn.huacheng.safebaiyun.theme.ColorOSSuccess
 import cn.huacheng.safebaiyun.theme.SafeBaiyunTheme
 import cn.huacheng.safebaiyun.unlock.DataRepo
 import cn.huacheng.safebaiyun.unlock.UnlockRepo
+import cn.huacheng.safebaiyun.unlock.UnlockRecordManager
 import cn.huacheng.safebaiyun.util.ConfigManager
 import cn.huacheng.safebaiyun.util.showToast
 import cn.huacheng.safebaiyun.widget.WidgetUnlockBus
@@ -67,6 +69,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         ConfigManager.init(this)
+        UnlockRecordManager.init(this)
         // 冷启动时给 Glance ActionCallback 一小段时间完成持久化。
         // 注意：WidgetUnlockBus.consume() 是“一次性消费”，不能先 consume 再延迟二次 consume，
         // 否则第一次读取失败/无请求时，后续真正到达的 Widget 请求可能无法再被正确处理。
@@ -160,6 +163,14 @@ class MainActivity : ComponentActivity() {
                 exitTransition = { slideOut { IntOffset(it.width, 0) } }
             ) {
                 SettingsView(navController)
+            }
+
+            composable(
+                route = "unlock_history",
+                enterTransition = { slideIn { IntOffset(it.width, 0) } },
+                exitTransition = { slideOut { IntOffset(it.width, 0) } }
+            ) {
+                UnlockHistoryView(navController)
             }
         }
     }
