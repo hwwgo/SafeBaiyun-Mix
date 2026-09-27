@@ -133,16 +133,8 @@ fun SettingsView(navController: NavController) {
                     }
                 )
 
-                UnlockRecordCard(
-                    enabled = unlockRecord,
-                    onToggle = {
-                        unlockRecord = it
-                        hasChanges = true
-                    }
-                )
-
                 ConfigItem(
-                    label = "开锁成功震动时长",
+                    label = "震动时长",
                     description = "开锁成功后手机震动的持续时间，关闭震动后此项不会生效",
                     value = unlockVibrationDuration,
                     onValueChange = {
@@ -151,6 +143,14 @@ fun SettingsView(navController: NavController) {
                     },
                     defaultValue = ConfigManager.getDefaultUnlockVibrationDuration().toString(),
                     unit = "毫秒"
+                )
+
+                UnlockRecordCard(
+                    enabled = unlockRecord,
+                    onToggle = {
+                        unlockRecord = it
+                        hasChanges = true
+                    }
                 )
 
                 AutoPollCard(
@@ -170,8 +170,8 @@ fun SettingsView(navController: NavController) {
                 )
 
                 ConfigItem(
-                    label = "单个门禁探测时间",
-                    description = "开锁前探测每个门禁的最长时间，命中后立即优先开锁",
+                    label = "单个门禁探测时长",
+                    description = "开锁前探测每个门禁的最长时间，发现后立即尝试开锁",
                     value = scanDuration,
                     onValueChange = {
                         scanDuration = it
@@ -182,8 +182,8 @@ fun SettingsView(navController: NavController) {
                 )
 
                 ConfigItem(
-                    label = "开锁等待时间",
-                    description = "自动开锁时等待蓝牙开启的最长时间",
+                    label = "等待蓝牙连接时间",
+                    description = "开锁时等待手机与门禁建立蓝牙连接的最长时间",
                     value = pollWaitTime,
                     onValueChange = {
                         pollWaitTime = it
@@ -194,8 +194,8 @@ fun SettingsView(navController: NavController) {
                 )
 
                 ConfigItem(
-                    label = "单次开锁超时",
-                    description = "单次开锁允许的最大时间，超时则判定失败",
+                    label = "单次开锁超时时间",
+                    description = "一次开锁操作允许的最长时间，超时则判定失败",
                     value = unlockTimeout,
                     onValueChange = {
                         unlockTimeout = it
@@ -206,8 +206,8 @@ fun SettingsView(navController: NavController) {
                 )
 
                 ConfigItem(
-                    label = "门禁切换间隔",
-                    description = "探测或开锁时，切换到下一个门禁前的等待时间",
+                    label = "门禁切换等待时间",
+                    description = "探测或开锁时，切换到下一个门禁前等待的时间",
                     value = pollInterval,
                     onValueChange = {
                         pollInterval = it
@@ -218,8 +218,8 @@ fun SettingsView(navController: NavController) {
                 )
 
                 ConfigItem(
-                    label = "结果展示延迟",
-                    description = "开锁完成后，显示成功/失败图标的时间",
+                    label = "开锁结果显示时间",
+                    description = "开锁完成后，成功或失败状态显示的时间",
                     value = resultDelay,
                     onValueChange = {
                         resultDelay = it
@@ -230,8 +230,8 @@ fun SettingsView(navController: NavController) {
                 )
 
                 ConfigItem(
-                    label = "状态复位延迟",
-                    description = "显示开锁结果后，自动复位到空闲状态的时间",
+                    label = "状态恢复时间",
+                    description = "显示开锁结果后，自动恢复到空闲状态的时间",
                     value = resetDelay,
                     onValueChange = {
                         resetDelay = it
