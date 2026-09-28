@@ -799,7 +799,10 @@ private fun CompactDoorCard(
                     isUnlocking = isUnlocking,
                     unlockStep = unlockStep,
                     onClick = {
-                        if (door.mac.isEmpty() || door.key.isEmpty()) {
+                        // 单独点击门禁右侧“开锁”时，不受 isSelected 勾选状态影响。
+                        // 重新读取当前门禁配置，避免列表状态更新后使用旧的 MAC/Key。
+                        val currentDoor = DataRepo.getDoors().firstOrNull { it.id == door.id } ?: door
+                        if (currentDoor.mac.isEmpty() || currentDoor.key.isEmpty()) {
                             showToast("请先配置该门禁的 MAC 和 Key")
                             return@CompactUnlockButton
                         }
@@ -814,7 +817,7 @@ private fun CompactDoorCard(
                                         if (step.isNotEmpty()) unlockStep = step
                                     }
                                 }
-                                val success = UnlockRepo.tryUnlock(door.mac, door.key, door.name)
+                                val success = UnlockRepo.tryUnlock(currentDoor.mac, currentDoor.key, currentDoor.name)
                                 // ✅ 改动二：计算用时
                                 val elapsed = System.currentTimeMillis() - startTime
                                 delay(ConfigManager.getResultDelay())
