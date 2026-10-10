@@ -47,15 +47,16 @@ import cn.huacheng.safebaiyun.compose.QRExportView
 import cn.huacheng.safebaiyun.compose.QRImportView
 import cn.huacheng.safebaiyun.compose.SettingsView
 import cn.huacheng.safebaiyun.compose.UnlockHistoryView
+import cn.huacheng.safebaiyun.ShortcutActivity
 import cn.huacheng.safebaiyun.theme.ColorOSError
 import cn.huacheng.safebaiyun.theme.ColorOSSuccess
 import cn.huacheng.safebaiyun.theme.SafeBaiyunTheme
 import cn.huacheng.safebaiyun.unlock.DataRepo
+import cn.huacheng.safebaiyun.unlock.DoorDevice
 import cn.huacheng.safebaiyun.unlock.UnlockRepo
 import cn.huacheng.safebaiyun.unlock.UnlockRecordManager
 import cn.huacheng.safebaiyun.util.ConfigManager
 import cn.huacheng.safebaiyun.util.showToast
-import cn.huacheng.safebaiyun.widget.WidgetUnlockBus
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -65,24 +66,26 @@ class MainActivity : ComponentActivity() {
     private val uiMode = mutableStateOf(0)
     private val overlayDoorId = mutableStateOf<String?>(null)
 
+    // 覆盖层关闭时是否直接 finish：
+    // - 冷启动（widget 拉起、此前不在前台）→ true，结束回到桌面
+    // - App 已在运行，widget 通过 onNewIntent 触发 → false，仅切回正常界面
+    private var finishOverlayOnClose = true
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         ConfigManager.init(this)
         UnlockRecordManager.init(this)
-        // 冷启动时给 Glance ActionCallback 一小段时间完成持久化。
-        // 注意：WidgetUnlockBus.consume() 是“一次性消费”，不能先 consume 再延迟二次 consume，
-        // 否则第一次读取失败/无请求时，后续真正到达的 Widget 请求可能无法再被正确处理。
-        lifecycleScope.launch {
-            delay(150)
 
-            val doorId = WidgetUnlockBus.consume(this@MainActivity)
-            if (doorId != null) {
-                overlayDoorId.value = doorId
-                uiMode.value = 1
-            } else {
-                uiMode.value = 2
-            }
+        // 桌面小部件通过 Intent extra 传入门禁 ID；
+        // 非空即表示本次是由小部件拉起的开锁请求（"" 表示开第一个门）。
+        val doorId = resolveWidgetDoorId(intent)
+        if (doorId != null) {
+            overlayDoorId.value = doorId
+            finishOverlayOnClose = true
+            uiMode.value = 1
+        } else {
+            uiMode.value = 2
         }
 
         setContent {
@@ -97,7 +100,13 @@ class MainActivity : ComponentActivity() {
                     } else if (mode == 1) {
                         WidgetUnlockOverlay(
                             doorId = overlayDoorId.value,
-                            onFinish = { finish() }
+                            onFinish = {
+                                if (finishOverlayOnClose) {
+                                    finish()
+                                } else {
+                                    uiMode.value = 2
+                                }
+                            }
                         )
                     } else {
                         MainNavContent()
@@ -105,6 +114,28 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    /**
+     * App 已在运行（singleTask）时，widget 再次点击会把 Intent 送到这里，
+     * 而不是 onCreate。必须处理，否则重复点击不会触发开锁。
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val doorId = resolveWidgetDoorId(intent)
+        if (doorId != null) {
+            overlayDoorId.value = doorId
+            finishOverlayOnClose = false
+            uiMode.value = 1
+        }
+    }
+
+    /** 从 Intent 解析小部件请求的门禁 ID；无请求返回 null */
+    private fun resolveWidgetDoorId(intent: Intent): String? {
+        // 小部件统一通过该 extra 传递（具体门禁 ID / "__ALL_DOORS__" / "" 表示第一个门）
+        val extra = intent.getStringExtra(EXTRA_WIDGET_DOOR_ID)
+        return if (extra != null) extra else null
     }
 
     @Composable
@@ -214,6 +245,50 @@ class MainActivity : ComponentActivity() {
                 doors = DataRepo.getDoors()
             }
 
+            // ====== 一键开锁（探测 + 轮询兜底） ======
+            if (doorId == ShortcutActivity.ALL_DOORS_ID) {
+                val selected = doors.filter { it.isSelected }.ifEmpty { doors }
+                if (selected.isEmpty()) {
+                    showToast("未找到可开锁的门禁")
+                    delay(2000)
+                    onFinish()
+                    return@LaunchedEffect
+                }
+
+                showToast("正在一键开锁 ${selected.size} 个门禁")
+
+                val doProbe = ConfigManager.getAutoScanEnabled()
+                var matched: DoorDevice? = null
+                if (doProbe) {
+                    UnlockRepo.setUnlockStep("正在探测门禁 1/${selected.size}")
+                    matched = UnlockRepo.probeAndUnlock(
+                        doors = selected,
+                        perDeviceTimeoutMs = ConfigManager.getScanDuration(),
+                        onProbe = { index, total, name ->
+                            UnlockRepo.setUnlockStep("正在探测门禁 $index/$total: $name")
+                        },
+                        onUnlock = { _, _, name ->
+                            UnlockRepo.setUnlockStep("正在开锁: $name")
+                        }
+                    )
+                }
+
+                if (matched == null) {
+                    UnlockRepo.setUnlockStep("正在轮询门禁 1/${selected.size}")
+                    UnlockRepo.pollAllDoors(
+                        doors = selected,
+                        onProgress = { index, total, name ->
+                            UnlockRepo.setUnlockStep("正在轮询门禁 $index/$total: $name")
+                        }
+                    )
+                }
+
+                delay(800)
+                onFinish()
+                return@LaunchedEffect
+            }
+
+            // ====== 单个门禁开锁 ======
             val door = doorId
                 ?.let { id -> doors.find { it.id == id } }
                 ?.takeIf { it.mac.isNotEmpty() && it.key.isNotEmpty() }
@@ -268,5 +343,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    companion object {
+        /** 桌面小部件通过该 extra 传递要开的门禁 ID；
+         *  取值为具体门禁 ID、"__ALL_DOORS__"（一键开锁）或 ""（开第一个门） */
+        const val EXTRA_WIDGET_DOOR_ID = "widget_door_id"
     }
 }
