@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.IntOffset
@@ -25,7 +26,7 @@ import cn.huacheng.safebaiyun.compose.QRExportView
 import cn.huacheng.safebaiyun.compose.QRImportView
 import cn.huacheng.safebaiyun.compose.SettingsView
 import cn.huacheng.safebaiyun.compose.UnlockHistoryView
-import cn.huacheng.safebaiyun.compose.UnlockOverlay
+import cn.huacheng.safebaiyun.compose.UnlockLightweight
 import cn.huacheng.safebaiyun.theme.SafeBaiyunTheme
 import cn.huacheng.safebaiyun.unlock.UnlockRecordManager
 import cn.huacheng.safebaiyun.util.ConfigManager
@@ -62,15 +63,17 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             SafeBaiyunTheme {
+                val mode = uiMode.value
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    // 覆盖层模式（小部件开锁）背景透明：去掉原来的深色全屏遮罩，
+                    // 与桌面快捷方式共用同一套轻量小卡片提示，保证两者界面一致
+                    color = if (mode == 1) Color.Transparent else MaterialTheme.colorScheme.background
                 ) {
-                    val mode = uiMode.value
                     if (mode == 0) {
                         Box(Modifier.fillMaxSize())
                     } else if (mode == 1) {
-                        UnlockOverlay(
+                        UnlockLightweight(
                             doorId = overlayDoorId.value,
                             onFinish = {
                                 if (finishOverlayOnClose) {

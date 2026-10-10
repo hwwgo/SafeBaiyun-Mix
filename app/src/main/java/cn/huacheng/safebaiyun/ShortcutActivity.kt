@@ -9,7 +9,7 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import cn.huacheng.safebaiyun.compose.UnlockOverlay
+import cn.huacheng.safebaiyun.compose.UnlockLightweight
 import cn.huacheng.safebaiyun.theme.SafeBaiyunTheme
 import cn.huacheng.safebaiyun.unlock.UnlockRepo
 import cn.huacheng.safebaiyun.util.showToast
@@ -25,7 +25,7 @@ import kotlinx.coroutines.launch
  *
  * ✅ 优先从 WidgetUnlockBus 读取 doorId（跨 Activity 传递），
  *    其次从 Intent extra 读取（正常启动路径）。
- * 解锁流程与进度 UI 统一交给 [UnlockOverlay] 处理。
+ * 解锁流程与进度 UI 统一交给 UnlockOverlay.kt 处理（UI 用轻量提示 UnlockLightweight）。
  */
 class ShortcutActivity : ComponentActivity() {
 
@@ -102,11 +102,10 @@ class ShortcutActivity : ComponentActivity() {
     private fun showUnlockOverlay() {
         setContent {
             SafeBaiyunTheme {
-                // 权限已由 checkPermissionThenUnlock 保证，无需在覆盖层内再次检查。
-                UnlockOverlay(
+                // 轻量提示：透明浮动窗口 + 居中紧凑小卡片，不再铺满全屏黑色背景
+                UnlockLightweight(
                     doorId = resolvedDoorId,
-                    onFinish = { finish() },
-                    requirePermission = false
+                    onFinish = { finish() }
                 )
             }
         }
