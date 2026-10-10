@@ -60,6 +60,17 @@
         </activity>
 
         <!-- ✅ 关键修复：对话框主题 + singleInstance + 非空 taskAffinity -->
+        <!-- 桌面小部件点击的广播桥：冷启动时由系统拉起 App 进程后，
+             在此同步落盘门禁 ID 并启动 MainActivity -->
+        <receiver
+            android:name=".widget.WidgetClickReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="cn.huacheng.safebaiyun.ACTION_WIDGET_UNLOCK" />
+                <data android:scheme="widget" />
+            </intent-filter>
+        </receiver>
+
         <activity
             android:name=".ShortcutActivity"
             android:exported="true"
