@@ -47,6 +47,11 @@ object UnlockRepo {
         _unlockStep.value = ""
     }
 
+    /** 供外部（如 Widget 覆盖层的一键开锁流程）直接更新进度文案 */
+    fun setUnlockStep(text: String) {
+        _unlockStep.value = text
+    }
+
     // ---------- 轮询控制 ----------
     private var pollJob: Job? = null
 
