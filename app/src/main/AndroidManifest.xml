@@ -80,18 +80,6 @@
             android:noHistory="true"
             android:theme="@style/Theme.ShortcutDialog" />
 
-        <activity-alias
-            android:name="cn.huacheng.safebaiyun.QuickUnlockActivity"
-            android:exported="true"
-            android:icon="@mipmap/ic_launcher"
-            android:label="@string/unlock_door"
-            android:targetActivity=".ShortcutActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.CREATE_SHORTCUT" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity-alias>
-
         <activity
             android:name=".widget.MediumWidgetConfigActivity"
             android:exported="true"
