@@ -33,6 +33,8 @@ class ShortcutActivity : ComponentActivity() {
         private const val TAG = "ShortcutActivity"
         const val EXTRA_DOOR_ID = "door_id"
         const val ALL_DOORS_ID = "__ALL_DOORS__"
+        /** 由 App 内钉到桌面的快捷方式所携带的 action（区别于已删除的 CREATE_SHORTCUT 创建流程） */
+        const val ACTION_PINNED_UNLOCK = "cn.huacheng.safebaiyun.action.PINNED_UNLOCK"
     }
 
     private val activityScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -68,21 +70,10 @@ class ShortcutActivity : ComponentActivity() {
 
         UnlockRepo.resetUnlockStep()
 
-        if (intent.action == Intent.ACTION_CREATE_SHORTCUT) {
-            createShortcut()
-        } else {
-            checkPermissionThenUnlock()
-        }
-    }
-
-    private fun createShortcut() {
-        val intent = Intent()
-        val icon = Intent.ShortcutIconResource.fromContext(this, R.mipmap.ic_launcher)
-        intent.putExtra(Intent.EXTRA_SHORTCUT_NAME, getString(R.string.unlock_door))
-        intent.putExtra(Intent.EXTRA_SHORTCUT_ICON_RESOURCE, icon)
-        intent.putExtra(Intent.EXTRA_SHORTCUT_INTENT, Intent(this, ShortcutActivity::class.java))
-        setResult(RESULT_OK, intent)
-        finish()
+        // 进入本 Activity 的来源：桌面小部件（广播桥）或已钉到桌面的快捷方式。
+        // 创建快捷方式的入口已改为 App 内主动钉（见 ShortcutPin），原 activity-alias 已删除，
+        // 因此这里统一走解锁流程（intent.action 不会再是 CREATE_SHORTCUT）。
+        checkPermissionThenUnlock()
     }
 
     private fun checkPermissionThenUnlock() {
