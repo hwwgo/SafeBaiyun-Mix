@@ -754,23 +754,13 @@ private fun CompactDoorCard(
                             modifier = Modifier
                                 .size(6.dp)
                                 .clip(RoundedCornerShape(3.dp))
-                                .background(
-                                    when {
-                                        unlockStep.contains("成功") -> ColorOSSuccess
-                                        unlockStep.contains("失败") || unlockStep.contains("超时") -> ColorOSError
-                                        else -> ColorOSPrimary
-                                    }
-                                )
+                                .background(unlockStepColor(unlockStep, ColorOSPrimary))
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = unlockStep,
                             fontSize = 11.sp,
-                            color = when {
-                                unlockStep.contains("成功") -> ColorOSSuccess
-                                unlockStep.contains("失败") || unlockStep.contains("超时") -> ColorOSError
-                                else -> MaterialTheme.colorScheme.primary
-                            },
+                            color = unlockStepColor(unlockStep, MaterialTheme.colorScheme.primary),
                             fontWeight = if (unlockStep.contains("成功") || unlockStep.contains("失败"))
                                 FontWeight.Bold else FontWeight.Normal
                         )
@@ -870,12 +860,7 @@ private fun CompactUnlockButton(
     unlockStep: String,
     onClick: () -> Unit
 ) {
-    val buttonColor = when {
-        isUnlocking -> ColorOSPrimary
-        unlockStep.contains("成功") -> ColorOSSuccess
-        unlockStep.contains("失败") || unlockStep.contains("超时") -> ColorOSError
-        else -> ColorOSPrimary
-    }
+    val buttonColor = if (isUnlocking) ColorOSPrimary else unlockStepColor(unlockStep, ColorOSPrimary)
 
     Box(
         modifier = Modifier
