@@ -2,6 +2,7 @@ package cn.huacheng.safebaiyun.widget
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
@@ -231,8 +232,9 @@ object FourDoorWidget :
                         .clickable(
 
                             actionSendBroadcast(
-                                Intent().apply {
+                                Intent(WidgetClickReceiver.ACTION).apply {
                                     component = WidgetClickReceiver.componentName()
+                                    data = Uri.fromParts("widget", doorId, null)
                                     putExtra(WidgetClickReceiver.EXTRA_DOOR_ID, doorId)
                                 }
                             )

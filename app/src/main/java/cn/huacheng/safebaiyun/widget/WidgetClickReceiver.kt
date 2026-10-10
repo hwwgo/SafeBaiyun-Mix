@@ -26,6 +26,9 @@ class WidgetClickReceiver : BroadcastReceiver() {
     companion object {
         private const val TAG = "WidgetClickReceiver"
 
+        /** 自定义广播 Action，配合 Manifest 中 receiver 的 intent-filter 使用 */
+        const val ACTION = "cn.huacheng.safebaiyun.ACTION_WIDGET_UNLOCK"
+
         /** 与 MainActivity.EXTRA_WIDGET_DOOR_ID 同值，统一门禁 ID 的传递键 */
         const val EXTRA_DOOR_ID = MainActivity.EXTRA_WIDGET_DOOR_ID
 

@@ -147,7 +147,7 @@ object SmallWidget :
 
                 onClick =
                     actionSendBroadcast(
-                        Intent().apply {
+                        Intent(WidgetClickReceiver.ACTION).apply {
                             component = WidgetClickReceiver.componentName()
                             putExtra(WidgetClickReceiver.EXTRA_DOOR_ID, (doorId ?: ""))
                         }
