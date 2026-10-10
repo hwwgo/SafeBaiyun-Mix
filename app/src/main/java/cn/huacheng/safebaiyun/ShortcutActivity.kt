@@ -9,35 +9,9 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import cn.huacheng.safebaiyun.theme.ColorOSError
-import cn.huacheng.safebaiyun.theme.ColorOSSuccess
+import cn.huacheng.safebaiyun.compose.UnlockOverlay
 import cn.huacheng.safebaiyun.theme.SafeBaiyunTheme
-import cn.huacheng.safebaiyun.unlock.DataRepo
-import cn.huacheng.safebaiyun.unlock.DoorDevice
 import cn.huacheng.safebaiyun.unlock.UnlockRepo
-import cn.huacheng.safebaiyun.util.ConfigManager
 import cn.huacheng.safebaiyun.util.showToast
 import cn.huacheng.safebaiyun.widget.WidgetUnlockBus
 import kotlinx.coroutines.CoroutineScope
@@ -51,6 +25,7 @@ import kotlinx.coroutines.launch
  *
  * ✅ 优先从 WidgetUnlockBus 读取 doorId（跨 Activity 传递），
  *    其次从 Intent extra 读取（正常启动路径）。
+ * 解锁流程与进度 UI 统一交给 [UnlockOverlay] 处理。
  */
 class ShortcutActivity : ComponentActivity() {
 
@@ -93,53 +68,10 @@ class ShortcutActivity : ComponentActivity() {
 
         UnlockRepo.resetUnlockStep()
 
-        setContent {
-            SafeBaiyunTheme {
-                val unlockStep by UnlockRepo.unlockStep.collectAsState()
-                val displayText = unlockStep.ifEmpty { "准备开锁..." }
-
-                val textColor = when {
-                    unlockStep.contains("成功") -> ColorOSSuccess
-                    unlockStep.contains("失败") || unlockStep.contains("超时") -> ColorOSError
-                    else -> MaterialTheme.colorScheme.onBackground
-                }
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color(0x66000000)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(MaterialTheme.colorScheme.surface)
-                            .padding(horizontal = 32.dp, vertical = 32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator(modifier = Modifier.size(48.dp))
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = displayText,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = textColor,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
         if (intent.action == Intent.ACTION_CREATE_SHORTCUT) {
             createShortcut()
         } else {
-            activityScope.launch {
-                delay(200)
-                checkPermissionThenUnlock()
-            }
+            checkPermissionThenUnlock()
         }
     }
 
@@ -169,96 +101,23 @@ class ShortcutActivity : ComponentActivity() {
         }
 
         if (missing.isEmpty()) {
-            unlock()
+            showUnlockOverlay()
         } else {
-            pendingUnlock = { unlock() }
+            pendingUnlock = { showUnlockOverlay() }
             permissionLauncher.launch(missing.toTypedArray())
         }
     }
 
-    private fun unlock() {
-        val targetDoorId = resolvedDoorId
-
-        if (targetDoorId == ALL_DOORS_ID) {
-            unlockAllDoors()
-            return
-        }
-
-        activityScope.launch {
-            var doors = DataRepo.getDoors()
-            if (doors.isEmpty()) {
-                delay(300)
-                doors = DataRepo.getDoors()
+    private fun showUnlockOverlay() {
+        setContent {
+            SafeBaiyunTheme {
+                // 权限已由 checkPermissionThenUnlock 保证，无需在覆盖层内再次检查。
+                UnlockOverlay(
+                    doorId = resolvedDoorId,
+                    onFinish = { finish() },
+                    requirePermission = false
+                )
             }
-
-            val doorToUnlock = targetDoorId
-                ?.let { id -> doors.find { it.id == id } }
-                ?.takeIf { it.mac.isNotEmpty() && it.key.isNotEmpty() }
-                ?: doors.firstOrNull { it.mac.isNotEmpty() && it.key.isNotEmpty() }
-                ?: doors.firstOrNull()
-
-            if (doorToUnlock == null || doorToUnlock.mac.isEmpty() || doorToUnlock.key.isEmpty()) {
-                showToast("未找到可开锁的门禁")
-                delay(2000)
-                finish()
-                return@launch
-            }
-
-            showToast("正在解锁 ${doorToUnlock.name}")
-            val success = UnlockRepo.tryUnlock(doorToUnlock.mac, doorToUnlock.key, doorToUnlock.name)
-            if (success) {
-                delay(800)
-            }
-            finish()
-        }
-    }
-
-    private fun unlockAllDoors() {
-        activityScope.launch {
-            var doors = DataRepo.getDoors()
-            if (doors.isEmpty()) {
-                delay(300)
-                doors = DataRepo.getDoors()
-            }
-
-            val selectedDoors = doors.filter { it.isSelected }.ifEmpty { doors }
-
-            if (selectedDoors.isEmpty()) {
-                showToast("未找到可开锁的门禁")
-                delay(2000)
-                finish()
-                return@launch
-            }
-
-            showToast("正在一键开锁 ${selectedDoors.size} 个门禁")
-
-            var success = false
-            try {
-                val doProbe = ConfigManager.getAutoScanEnabled()
-                var matched: DoorDevice? = null
-
-                if (doProbe) {
-                    matched = UnlockRepo.probeAndUnlock(
-                        doors = selectedDoors,
-                        perDeviceTimeoutMs = ConfigManager.getScanDuration()
-                    )
-                }
-
-                if (matched != null) {
-                    success = true
-                } else {
-                    val pollResult = UnlockRepo.pollAllDoors(selectedDoors)
-                    success = pollResult != null
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "一键开锁异常", e)
-                success = false
-            }
-
-            if (success) {
-                delay(800)
-            }
-            finish()
         }
     }
 }
