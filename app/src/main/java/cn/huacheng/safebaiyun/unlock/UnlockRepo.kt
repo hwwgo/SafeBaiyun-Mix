@@ -14,7 +14,7 @@ import android.os.Vibrator
 import android.util.Log
 import cn.huacheng.safebaiyun.util.ConfigManager
 import cn.huacheng.safebaiyun.util.ContextHolder
-import cn.huacheng.safebaiyun.util.LockBiz
+import cn.huacheng.safebaiyun.util.Crypto
 import cn.huacheng.safebaiyun.util.showToast
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -98,7 +98,7 @@ object UnlockRepo {
                     private var writeChar: BluetoothGattCharacteristic? = null
 
                     private fun sendCommand(g: BluetoothGatt, value: ByteArray) {
-                        val command = LockBiz.encryptData(value, LockBiz.hexToByteArray(mac), key)
+                        val command = Crypto.encryptData(value, Crypto.hexToByteArray(mac), key)
                         val wc = writeChar
                         if (wc == null) {
                             onEvent("未找到写特征")
