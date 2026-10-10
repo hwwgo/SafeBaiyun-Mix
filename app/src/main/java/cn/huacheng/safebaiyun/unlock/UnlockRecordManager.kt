@@ -4,8 +4,11 @@ import android.content.Context
 import android.content.SharedPreferences
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 
+@Serializable
 data class UnlockRecord(
     val id: Long,
     val doorName: String,
@@ -70,6 +73,6 @@ object UnlockRecordManager {
     }
 
     private fun saveRecords(records: List<UnlockRecord>) {
-        prefs.edit().putString(KEY_RECORDS, json.encodeToString(records)).apply()
+        prefs.edit().putString(KEY_RECORDS, json.encodeToString(ListSerializer(UnlockRecord.serializer()), records)).apply()
     }
 }
