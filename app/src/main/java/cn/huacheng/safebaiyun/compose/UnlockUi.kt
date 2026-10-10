@@ -144,9 +144,9 @@ private suspend fun performUnlock(doorId: String?, onFinish: () -> Unit) {
 /**
  * 轻量解锁提示（桌面小部件与桌面快捷方式共用，保证两者提示界面一致）。
  *
- * 外层 Box 透明、不铺满全屏的黑色遮罩，仅在屏幕中央显示一个紧凑的小卡片
- * （圆形进度 + 文案）。被透明浮动主题承载时，桌面会透过窗口透出；
- * 解锁完成（onFinish）后自动消失。
+ * 外层 Box 为半透明遮罩（Color(0x66000000)），桌面小部件与快捷方式共用，
+ * 保证两者背景一致：既不是纯白也不是纯黑，中央仅显示紧凑小卡片
+ * （圆形进度 + 文案）。解锁完成（onFinish）后自动消失。
  *
  * @param doorId            目标门禁 ID；null / "" 表示开第一个门；ShortcutActivity.ALL_DOORS_ID 表示一键开锁
  * @param onFinish          解锁结束（成功 / 失败 / 无门禁）后的回调
@@ -182,9 +182,11 @@ fun UnlockLightweight(
         performUnlock(doorId, onFinish)
     }
 
-    // 外层 Box 透明、不铺黑，仅作居中布局容器；内层为紧凑小卡片
+    // 外层 Box：半透明遮罩（统一桌面小部件与快捷方式的背景），仅中央显示紧凑小卡片
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0x66000000)),
         contentAlignment = Alignment.Center
     ) {
         Box(
