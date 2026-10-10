@@ -9,6 +9,15 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
+@Serializable
+data class DoorDevice(
+    val id: String,
+    val name: String,
+    val mac: String,
+    val key: String,
+    val isSelected: Boolean = true
+)
+
 object DataRepo {
 
     private val preferences: SharedPreferences by lazy {

@@ -7,6 +7,15 @@ import kotlinx.coroutines.flow.StateFlow
 import org.json.JSONArray
 import org.json.JSONObject
 
+data class UnlockRecord(
+    val id: Long,
+    val doorName: String,
+    val timestamp: Long,
+    val success: Boolean,
+    val durationMs: Long,
+    val result: String
+)
+
 object UnlockRecordManager {
     private const val PREFS_NAME = "unlock_records"
     private const val KEY_RECORDS = "records"
