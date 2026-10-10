@@ -41,6 +41,22 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 
 /**
+ * 解锁步骤文案 → 状态色。
+ *
+ * UnlockOverlay 与 MainView 都按“成功 / 失败或超时 / 其它”给文案上色，
+ * 抽成共享函数避免三处重复的 when 判断。
+ *
+ * @param step    当前解锁步骤文案（来自 UnlockRepo.unlockStep）
+ * @param default 非终态时的默认色
+ */
+fun unlockStepColor(step: String, default: Color): Color =
+    when {
+        step.contains("成功") -> ColorOSSuccess
+        step.contains("失败") || step.contains("超时") -> ColorOSError
+        else -> default
+    }
+
+/**
  * 统一的“解锁进度对话框 + 解锁执行”组件。
  *
  * 同时被 MainActivity（桌面小部件冷/热启动覆盖层）与 ShortcutActivity
@@ -62,13 +78,7 @@ fun UnlockOverlay(
     val unlockStep by UnlockRepo.unlockStep.collectAsState()
     val displayText = unlockStep.ifEmpty { "准备开锁..." }
 
-    val textColor = if (unlockStep.contains("成功")) {
-        ColorOSSuccess
-    } else if (unlockStep.contains("失败") || unlockStep.contains("超时")) {
-        ColorOSError
-    } else {
-        MaterialTheme.colorScheme.onSurface
-    }
+    val textColor = unlockStepColor(unlockStep, MaterialTheme.colorScheme.onSurface)
 
     LaunchedEffect(doorId) {
         delay(100)
