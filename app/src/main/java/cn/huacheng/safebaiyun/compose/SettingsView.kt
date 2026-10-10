@@ -16,10 +16,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import cn.huacheng.safebaiyun.ShortcutActivity
 import cn.huacheng.safebaiyun.theme.*
+import cn.huacheng.safebaiyun.unlock.DataRepo
 import cn.huacheng.safebaiyun.util.ConfigManager
+import cn.huacheng.safebaiyun.util.ShortcutPin
 import cn.huacheng.safebaiyun.util.showToast
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -114,6 +118,8 @@ fun SettingsView(navController: NavController) {
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Spacer(modifier = Modifier.height(4.dp))
+
+                ShortcutCreatorCard()
 
                 InfoCard()
 
@@ -324,6 +330,112 @@ private fun SettingsTopBar(
             containerColor = Color.Transparent
         )
     )
+}
+
+@Composable
+private fun ShortcutCreatorCard() {
+    val context = LocalContext.current
+    val doors = remember { DataRepo.getDoors() }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(ColorOSPrimary.copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.AddToHomeScreen,
+                        contentDescription = null,
+                        tint = ColorOSPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(
+                        "桌面快捷方式",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        "在桌面创建快捷图标，一键直达开锁或指定门禁",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(
+                onClick = {
+                    ShortcutPin.pinShortcut(context, ShortcutActivity.ALL_DOORS_ID, "一键开锁")
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = ColorOSPrimary)
+            ) {
+                Icon(Icons.Default.LockOpen, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("创建「一键开锁」快捷方式")
+            }
+
+            if (doors.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    "为以下门禁创建快捷方式：",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                doors.forEach { door ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.DoorFront,
+                            contentDescription = null,
+                            tint = ColorOSPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            door.name,
+                            modifier = Modifier.weight(1f),
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Button(
+                            onClick = {
+                                ShortcutPin.pinShortcut(context, door.id, door.name)
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = ColorOSTertiary)
+                        ) {
+                            Text("创建")
+                        }
+                    }
+                }
+            } else {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    "暂无门禁，请先在「门禁管理」中添加。",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
 }
 
 @Composable
