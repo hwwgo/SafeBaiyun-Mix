@@ -4,12 +4,14 @@ import javax.crypto.Cipher
 import javax.crypto.spec.SecretKeySpec
 
 /**
- * 门禁指令加密工具集（合并自原 ByteUtil / FDes / LockBiz）。
- * 三个 object 的公开方法签名保持不变，外部调用方无需改动。
+ * 门禁指令加密工具集（合并自原 ByteUtil / FDes / LockBiz 三个 object）。
+ *
+ * 三个 object 的公开方法统一收拢到单个 object Crypto，方法签名保持不变，
+ * 外部调用方只需把 `LockBiz` / `FDes` / `ByteUtil` 改成 `Crypto` 即可。
  */
+object Crypto {
 
-object ByteUtil {
-
+    /** 原 ByteUtil.hexToBytes */
     fun hexToBytes(hexString: String): ByteArray {
         if (hexString.isBlank()) return byteArrayOf()
         val result = ByteArray(hexString.length / 2)
@@ -20,10 +22,8 @@ object ByteUtil {
         }
         return result
     }
-}
 
-object FDes {
-
+    /** 原 FDes.encryptData（2 参：明文 + 密钥） */
     fun encryptData(data: ByteArray, key: ByteArray): ByteArray {
         return try {
             val cipher = Cipher.getInstance("DES/ECB/NoPadding")
@@ -34,17 +34,9 @@ object FDes {
         }
     }
 
-    private fun generateSecretKeySpec(key: ByteArray): SecretKeySpec {
-        val keyBytes = ByteArray(8)
-        System.arraycopy(key, 0, keyBytes, 0, minOf(key.size, 8))
-        return SecretKeySpec(keyBytes, "DES")
-    }
-}
-
-object LockBiz {
-
+    /** 原 LockBiz.encryptData（3 参：明文 + 头数据 + 密钥字符串） */
     fun encryptData(inputData: ByteArray, headerData: ByteArray, keyString: String): ByteArray {
-        val keyBytes = ByteUtil.hexToBytes(keyString)
+        val keyBytes = hexToBytes(keyString)
         val headerBytesSubset = ByteArray(4)
         val encryptedBlock = ByteArray(8)
         for (i in headerBytesSubset.indices) {
@@ -68,7 +60,7 @@ object LockBiz {
         for (i in sumBytes.size + inputData.size until paddedLength) {
             paddedData[i] = 0
         }
-        System.arraycopy(FDes.encryptData(paddedData, keyBytes), 0, encryptedBlock, 0, 8)
+        System.arraycopy(encryptData(paddedData, keyBytes), 0, encryptedBlock, 0, 8)
         val finalDataLength = (encryptedBlock.size + 12).toByte()
         val finalData = ByteArray(encryptedBlock.size + 12)
         finalData[0] = -91
@@ -92,6 +84,7 @@ object LockBiz {
         return finalData
     }
 
+    /** 原 LockBiz.hexToByteArray（MAC 地址 ":"" 分隔，固定 6 字节） */
     fun hexToByteArray(hexString: String): ByteArray {
         val resultBytes = ByteArray(6)
         val hexPairs = hexString.split(":")
@@ -99,5 +92,11 @@ object LockBiz {
             resultBytes[i] = hexPairs[i].toInt(16).toByte()
         }
         return resultBytes
+    }
+
+    private fun generateSecretKeySpec(key: ByteArray): SecretKeySpec {
+        val keyBytes = ByteArray(8)
+        System.arraycopy(key, 0, keyBytes, 0, minOf(key.size, 8))
+        return SecretKeySpec(keyBytes, "DES")
     }
 }
