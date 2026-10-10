@@ -57,6 +57,7 @@ import cn.huacheng.safebaiyun.unlock.UnlockRepo
 import cn.huacheng.safebaiyun.unlock.UnlockRecordManager
 import cn.huacheng.safebaiyun.util.ConfigManager
 import cn.huacheng.safebaiyun.util.showToast
+import cn.huacheng.safebaiyun.widget.WidgetUnlockBus
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -131,11 +132,18 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** 从 Intent 解析小部件请求的门禁 ID；无请求返回 null */
+    /**
+     * 解析小部件请求的门禁 ID；无请求返回 null。
+     *
+     * 优先级：
+     *  1) WidgetUnlockBus（SharedPreferences 持久化）—— 这是 ColorOS 冷启动的可靠来源，
+     *     因为桌面 PendingIntent 直接启动 Activity 时，冷启动 Intent 的 extra 会被系统丢弃。
+     *  2) Intent extra —— 热启动（onNewIntent）/ 进程已活时的兜底。
+     */
     private fun resolveWidgetDoorId(intent: Intent): String? {
-        // 小部件统一通过该 extra 传递（具体门禁 ID / "__ALL_DOORS__" / "" 表示第一个门）
-        val extra = intent.getStringExtra(EXTRA_WIDGET_DOOR_ID)
-        return if (extra != null) extra else null
+        val busId = WidgetUnlockBus.consume(this)
+        if (busId != null) return busId
+        return intent.getStringExtra(EXTRA_WIDGET_DOOR_ID)
     }
 
     @Composable
