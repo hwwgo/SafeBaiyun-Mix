@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.slideIn
@@ -81,6 +82,7 @@ class MainActivity : ComponentActivity() {
         // 桌面小部件通过 Intent extra 传入门禁 ID；
         // 非空即表示本次是由小部件拉起的开锁请求（"" 表示开第一个门）。
         val doorId = resolveWidgetDoorId(intent)
+        Log.d("MainActivity", "onCreate resolveWidgetDoorId=$doorId")
         if (doorId != null) {
             overlayDoorId.value = doorId
             finishOverlayOnClose = true
@@ -142,6 +144,7 @@ class MainActivity : ComponentActivity() {
      */
     private fun resolveWidgetDoorId(intent: Intent): String? {
         val busId = WidgetUnlockBus.consume(this)
+        Log.d("MainActivity", "resolveWidgetDoorId busId=$busId extra=${intent.getStringExtra(EXTRA_WIDGET_DOOR_ID)}")
         if (busId != null) return busId
         return intent.getStringExtra(EXTRA_WIDGET_DOOR_ID)
     }
