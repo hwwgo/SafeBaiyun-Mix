@@ -50,6 +50,17 @@ import cn.huacheng.safebaiyun.theme.ColorOSSecondary
 import cn.huacheng.safebaiyun.theme.ColorOSTertiary
 import cn.huacheng.safebaiyun.unlock.DataRepo
 
+// 合并自 WidgetClickReceiver.kt / WidgetUnlockBus.kt / WidgetHelper.kt（同包，类名不变）
+import android.content.BroadcastReceiver
+import android.content.ComponentName
+import android.util.Log
+import android.provider.Settings
+import androidx.core.content.pm.ShortcutInfoCompat
+import androidx.core.content.pm.ShortcutManagerCompat
+import androidx.core.graphics.drawable.IconCompat
+import cn.huacheng.safebaiyun.MainActivity
+import cn.huacheng.safebaiyun.util.ContextHolder
+
 // ============================================================
 //  桌面部件 ColorOS 配色
 //
@@ -520,5 +531,139 @@ object FourDoorWidget : GlanceAppWidget() {
                 maxLines = 1
             )
         }
+    }
+}
+
+// ============================================================
+//  桌面小部件点击广播桥（合并自 WidgetClickReceiver.kt）
+//
+//  为什么需要它：通过桌面 PendingIntent 直接启动 Activity，在 ColorOS
+//  等 ROM 冷启动时会丢失 extra，因此小部件改发广播，由本接收器落盘并
+//  拉起 MainActivity。类名不变，Manifest 仍按类名引用。
+// ============================================================
+class WidgetClickReceiver : BroadcastReceiver() {
+
+    companion object {
+        private const val TAG = "WidgetClickReceiver"
+
+        /** 自定义广播 Action，配合 Manifest 中 receiver 的 intent-filter 使用 */
+        const val ACTION = "cn.huacheng.safebaiyun.ACTION_WIDGET_UNLOCK"
+
+        /** 与 MainActivity.EXTRA_WIDGET_DOOR_ID 同值，统一门禁 ID 的传递键 */
+        const val EXTRA_DOOR_ID = MainActivity.EXTRA_WIDGET_DOOR_ID
+
+        /** 显式组件名（不依赖 Context 构造） */
+        fun componentName(): ComponentName = ComponentName(
+            "cn.huacheng.safebaiyun",
+            "cn.huacheng.safebaiyun.widget.WidgetClickReceiver"
+        )
+    }
+
+    override fun onReceive(context: Context, intent: Intent) {
+        // 1) 从广播 Intent 读取门禁 ID（冷启动可靠，广播 extra 不会被系统任务重建丢弃）
+        val doorId = intent.getStringExtra(EXTRA_DOOR_ID) ?: ""
+
+        Log.d(TAG, "onReceive doorId=$doorId")
+
+        // 2) 同步落盘 + 内存，确保即便 ColorOS 冷启动重建进程，MainActivity 也能拿到
+        WidgetUnlockBus.requestUnlock(context, doorId)
+
+        // 3) 在当前（已被系统拉起的）App 进程里启动 MainActivity。
+        val launch = Intent(context, MainActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            putExtra(EXTRA_DOOR_ID, doorId)
+        }
+        context.startActivity(launch)
+    }
+}
+
+// ============================================================
+//  Widget 开锁请求通信总线（合并自 WidgetUnlockBus.kt）
+//
+//  ColorOS 冷启动时可能先启动 MainActivity，仅用内存字段不可靠，
+//  因此同时把请求持久化到 SharedPreferences。requestUnlock() 使用 commit()，
+//  确保 startActivity() 之前请求已落盘。
+// ============================================================
+object WidgetUnlockBus {
+
+    private const val PREFS_NAME = "widget_unlock_bus"
+    private const val KEY_DOOR_ID = "pending_door_id"
+    private const val KEY_TIMESTAMP = "pending_timestamp"
+    private const val MAX_AGE_MS = 15_000L
+
+    @Volatile
+    private var pendingDoorId: String? = null
+
+    @Volatile
+    private var pendingTimestamp: Long = 0L
+
+    fun requestUnlock(context: Context, doorId: String) {
+        val now = System.currentTimeMillis()
+
+        pendingDoorId = doorId
+        pendingTimestamp = now
+
+        context.applicationContext
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_DOOR_ID, doorId)
+            .putLong(KEY_TIMESTAMP, now)
+            .commit()
+    }
+
+    @Synchronized
+    fun consume(context: Context): String? {
+        val prefs = context.applicationContext
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+        val persistedId = prefs.getString(KEY_DOOR_ID, null)
+        val persistedTimestamp = prefs.getLong(KEY_TIMESTAMP, 0L)
+
+        val id = persistedId ?: pendingDoorId
+        val timestamp = if (persistedTimestamp != 0L) {
+            persistedTimestamp
+        } else {
+            pendingTimestamp
+        }
+
+        val valid = id != null &&
+                timestamp > 0L &&
+                System.currentTimeMillis() - timestamp in 0L..MAX_AGE_MS
+
+        // 无论是否有效，都只消费一次。
+        prefs.edit()
+            .remove(KEY_DOOR_ID)
+            .remove(KEY_TIMESTAMP)
+            .commit()
+
+        pendingDoorId = null
+        pendingTimestamp = 0L
+
+        return if (valid) id else null
+    }
+}
+
+// ============================================================
+//  Widget 辅助（合并自 WidgetHelper.kt）
+// ============================================================
+object WidgetHelper {
+
+    fun requestPermission() {
+        val intent = Intent()
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        intent.setAction(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+        val uri = Uri.fromParts("package", ContextHolder.get().packageName, null)
+        intent.setData(uri)
+        ContextHolder.get().startActivity(intent)
+    }
+
+    fun createShortcut() {
+        val context = ContextHolder.get()
+        val intent = Intent(context, ShortcutActivity::class.java)
+        intent.setAction(Intent.ACTION_VIEW)
+        val shortcut = ShortcutInfoCompat.Builder(context, "Unlock").setIcon(
+            IconCompat.createWithResource(context, R.mipmap.ic_launcher)
+        ).setShortLabel("开门").setLongLabel("解锁门禁").setIntent(intent).build()
+        ShortcutManagerCompat.requestPinShortcut(context, shortcut, null)
     }
 }
