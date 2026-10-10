@@ -12,7 +12,7 @@ import androidx.glance.ImageProvider
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
-import androidx.glance.appwidget.action.actionStartActivity
+import androidx.glance.appwidget.action.actionSendBroadcast
 import androidx.glance.appwidget.components.CircleIconButton
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
@@ -31,7 +31,7 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import cn.huacheng.safebaiyun.R
-import cn.huacheng.safebaiyun.MainActivity
+import cn.huacheng.safebaiyun.widget.WidgetClickReceiver
 
 // ============================================================
 // Receiver & Widget
@@ -146,15 +146,12 @@ object ExtraLargeWidget : GlanceAppWidget() {
                     } else {
                         WidgetOnSurfaceVariant
                     },
-                    onClick = actionStartActivity(
-                                    Intent().apply {
-                                        setClassName(
-                                            "cn.huacheng.safebaiyun",
-                                            "cn.huacheng.safebaiyun.MainActivity"
-                                        )
-                                        putExtra(MainActivity.EXTRA_WIDGET_DOOR_ID, doorId)
-                                    }
-                                )
+                    onClick = actionSendBroadcast(
+                        Intent().apply {
+                            component = WidgetClickReceiver.componentName()
+                            putExtra(WidgetClickReceiver.EXTRA_DOOR_ID, doorId)
+                        }
+                    )
                 )
             }
 
