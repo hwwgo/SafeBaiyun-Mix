@@ -10,7 +10,9 @@
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowIsFloating">true</item>
         <item name="android:windowContentOverlay">@null</item>
-        <item name="android:backgroundDimEnabled">true</item>
+        <!-- 关闭系统级背景变暗：半透明遮罩由 UnlockLightweight 统一提供，
+             避免与组件内的 Color(0x66000000) 遮罩叠加导致过暗 -->
+        <item name="android:backgroundDimEnabled">false</item>
         <item name="android:windowAnimationStyle">@android:style/Animation.Dialog</item>
     </style>
 
