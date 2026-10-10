@@ -44,6 +44,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 
 import cn.huacheng.safebaiyun.R
+import cn.huacheng.safebaiyun.MainActivity
 import cn.huacheng.safebaiyun.ShortcutActivity
 import cn.huacheng.safebaiyun.unlock.DataRepo
 
@@ -228,9 +229,9 @@ object LargeWidget :
                                     Intent().apply {
                                         setClassName(
                                             "cn.huacheng.safebaiyun",
-                                            "cn.huacheng.safebaiyun.ShortcutActivity"
+                                            "cn.huacheng.safebaiyun.MainActivity"
                                         )
-                                        putExtra(ShortcutActivity.EXTRA_DOOR_ID, (doorId ?: ""))
+                                        putExtra(MainActivity.EXTRA_WIDGET_DOOR_ID, (doorId ?: ""))
                                     }
                                 )
                     )
