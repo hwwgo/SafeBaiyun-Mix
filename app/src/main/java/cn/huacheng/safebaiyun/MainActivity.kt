@@ -55,6 +55,11 @@ class MainActivity : ComponentActivity() {
 
         super.onCreate(savedInstanceState)
 
+        // 小部件冷启动：与透明主题双保险，清空窗口背景，让解锁浮层透出桌面
+        if (isWidgetLaunch) {
+            window.setBackgroundDrawable(null)
+        }
+
         ConfigManager.init(this)
         UnlockRecordManager.init(this)
 
@@ -115,6 +120,9 @@ class MainActivity : ComponentActivity() {
             overlayDoorId.value = doorId
             finishOverlayOnClose = false
             uiMode.value = 1
+            // App 已在前台时由小部件再次拉起：当前窗口是按不透明主题创建的，
+            // 这里清空窗口背景，浮层才会透出 App 主界面（而非不透明黑窗）
+            window.setBackgroundDrawable(null)
         }
     }
 

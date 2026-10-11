@@ -61,6 +61,8 @@ class ShortcutActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // 与透明主题双保险：直接清空窗口背景（而非设透明色），确保解锁浮层真正透出桌面（而非不透明黑窗）
+        window.setBackgroundDrawable(null)
         Log.d(TAG, "onCreate, action=${intent.action}")
 
         // ✅ 优先从 WidgetUnlockBus 读取（跨 MainActivity/ShortcutActivity 传递）
