@@ -3,17 +3,26 @@
 
     <style name="Theme.SafeBaiyun" parent="android:Theme.Material.Light.NoActionBar" />
 
-    <!-- ✅ 新增：ShortcutActivity 专用的浮动对话框主题 -->
+    <!-- 小部件开锁时使用的透明主题：仅在 MainActivity 被小部件拉起时通过 setTheme 切换，
+         正常点图标启动仍用不透明的 Theme.SafeBaiyun，避免冷启动透出桌面闪屏。
+         配合 UnlockLightweight 的 Color(0x66000000) 遮罩，解锁提示背景即可半透明透出桌面。 -->
+    <style name="Theme.SafeBaiyun.Translucent" parent="Theme.SafeBaiyun">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+    </style>
+
+    <!-- ShortcutActivity 专用的全屏半透明主题：窗口铺满全屏且半透明（不再浮动只包住卡片），
+         由 UnlockLightweight 的 Color(0x66000000) 提供半透明遮罩，桌面透出。 -->
     <style name="Theme.ShortcutDialog" parent="android:Theme.Translucent.NoTitleBar">
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowNoTitle">true</item>
-        <item name="android:windowIsFloating">true</item>
+        <item name="android:windowIsFloating">false</item>
         <item name="android:windowContentOverlay">@null</item>
-        <!-- 关闭系统级背景变暗：半透明遮罩由 UnlockLightweight 统一提供，
-             避免与组件内的 Color(0x66000000) 遮罩叠加导致过暗 -->
         <item name="android:backgroundDimEnabled">false</item>
-        <item name="android:windowAnimationStyle">@android:style/Animation.Dialog</item>
+        <item name="android:windowAnimationStyle">@android:style/Animation.Activity</item>
     </style>
 
 </resources>
