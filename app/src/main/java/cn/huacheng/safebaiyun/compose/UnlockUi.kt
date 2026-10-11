@@ -8,12 +8,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -33,7 +34,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cn.huacheng.safebaiyun.ShortcutActivity
 import cn.huacheng.safebaiyun.theme.ColorOSError
-import cn.huacheng.safebaiyun.theme.ColorOSScrim
 import cn.huacheng.safebaiyun.theme.ColorOSSuccess
 import cn.huacheng.safebaiyun.unlock.DataRepo
 import cn.huacheng.safebaiyun.unlock.DoorDevice
@@ -183,16 +183,16 @@ fun UnlockLightweight(
         performUnlock(doorId, onFinish)
     }
 
-    // 外层 Box：半透明遮罩（ColorOSScrim，约 30% 黑），桌面快捷方式与小部件共用，
-    // 保证两者背景一致：既不是纯白也不是纯黑，桌面/壁纸可透过约 70%，中央仅显示紧凑小卡片。
+    // 小窗式提示：不再铺满全屏、不加全屏遮罩，只居中显示一个带阴影的紧凑小卡片，
+    // 背后透出真实的桌面/壁纸，既提示“正在解锁”，又不会全屏黑屏。
+    // 桌面快捷方式（ShortcutActivity）与小部件（MainActivity 浮层）共用此组件，保证界面一致。
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(ColorOSScrim),
+        modifier = Modifier.wrapContentSize(Alignment.Center),
         contentAlignment = Alignment.Center
     ) {
         Box(
             modifier = Modifier
+                .shadow(8.dp, RoundedCornerShape(16.dp))
                 .clip(RoundedCornerShape(16.dp))
                 .background(MaterialTheme.colorScheme.surface)
                 .padding(horizontal = 22.dp, vertical = 16.dp),
