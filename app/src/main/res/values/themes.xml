@@ -16,12 +16,12 @@
         <item name="android:windowContentOverlay">@null</item>
         <item name="android:backgroundDimEnabled">false</item>
         <item name="android:windowCloseOnTouchOutside">false</item>
-        <item name="android:windowGravity">center</item>
     </style>
 
     <!-- ShortcutActivity 专用的“小悬浮窗”主题：窗口浮动、按内容自适应、背景透明、不压暗桌面，
          由 UnlockLightweight 的小卡片呈现为居中浮窗。与 Theme.SafeBaiyun.Translucent 效果一致，
-         保证桌面快捷方式与小部件两套入口的开锁提示界面统一。 -->
+         保证桌面快捷方式与小部件两套入口的开锁提示界面统一。
+         注：浮动窗口默认即为居中（与普通 Dialog 一致），故无需额外设置 windowGravity。 -->
     <style name="Theme.ShortcutDialog" parent="android:Theme.Translucent.NoTitleBar">
         <item name="android:windowIsFloating">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
@@ -31,7 +31,6 @@
         <item name="android:backgroundDimEnabled">false</item>
         <item name="android:windowCloseOnTouchOutside">false</item>
         <item name="android:windowAnimationStyle">@android:style/Animation.Dialog</item>
-        <item name="android:windowGravity">center</item>
     </style>
 
 </resources>
