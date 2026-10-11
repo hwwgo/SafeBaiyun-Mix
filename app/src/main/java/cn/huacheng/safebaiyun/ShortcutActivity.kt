@@ -101,8 +101,8 @@ class ShortcutActivity : ComponentActivity() {
 
     private fun showUnlockOverlay() {
         setContent {
-            SafeBaiyunTheme {
-                // 轻量提示：透明浮动窗口 + 居中紧凑小卡片，不再铺满全屏黑色背景
+            SafeBaiyunTheme(transparentSystemBars = true) {
+                // 轻量提示：透明浮动窗口 + 居中紧凑小卡片，半透明背景透出桌面
                 UnlockLightweight(
                     doorId = resolvedDoorId,
                     onFinish = { finish() }

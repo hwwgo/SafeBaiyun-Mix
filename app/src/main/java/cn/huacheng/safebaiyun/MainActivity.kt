@@ -71,7 +71,9 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            SafeBaiyunTheme {
+            // 小部件开锁浮层（mode == 1）期间让状态栏/导航栏也透明，整屏透出桌面；
+            // 正常主界面（mode == 2）保持不透明系统栏，避免冷启动闪屏与误触。
+            SafeBaiyunTheme(transparentSystemBars = uiMode.value == 1) {
                 val mode = uiMode.value
                 Surface(
                     modifier = Modifier.fillMaxSize(),
