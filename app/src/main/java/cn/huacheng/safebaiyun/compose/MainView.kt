@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -410,7 +411,14 @@ fun MainView(
                 brush = Brush.verticalGradient(
                     colors = listOf(
                         MaterialTheme.colorScheme.background,
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                        // 注意：surfaceVariant 带 30% 透明度，若直接参与渐变，
+                        // 会透出窗口底色（主题为 Material.Light，窗口底是白色），
+                        // 深色模式下下半屏会泛白、底部按钮看不清。
+                        // 先把透明色合成到背景色上（compositeOver）再参与渐变，
+                        // 深色 / 浅色模式下都是稳定的不透明背景。
+                        MaterialTheme.colorScheme.surfaceVariant
+                            .copy(alpha = 0.3f)
+                            .compositeOver(MaterialTheme.colorScheme.background)
                     )
                 )
             )
