@@ -46,9 +46,9 @@ val ColorOSGlowStrong = Color(0x66FFFFFF)     // 强光晕 (40% 白)
 val ColorOSShadow = Color(0x1A000000)         // 柔和阴影 (10% 黑)
 
 // ---------- 解锁浮层遮罩（半透明，统一桌面快捷方式与小部件） ----------
-// 约 30% 黑，覆盖在透明窗口之上，桌面/壁纸透出约 70%，既能看清「正在解锁」，
+// 约 25% 黑，覆盖在透明窗口之上，桌面/壁纸透出约 75%，既能看清「正在解锁」，
 // 又不会因为全黑/全白而遮挡后方内容。快捷方式与小部件共用此值，保证两者背景一致。
-val ColorOSScrim = Color(0x4D000000)
+val ColorOSScrim = Color(0x40000000)
 
 // ---------- 背景色（毛玻璃质感） ----------
 val ColorOSBackgroundLight = Color(0xFFF8F9FE)      // 浅色背景
