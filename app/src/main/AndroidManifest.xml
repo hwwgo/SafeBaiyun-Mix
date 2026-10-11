@@ -68,14 +68,14 @@
             </intent-filter>
         </receiver>
 
+        <!-- 桌面快捷方式的中转入口：不显示任何界面（Theme.NoDisplay），
+             只把门禁 ID 落盘后拉起 MainActivity，由主界面完成开锁。 -->
         <activity
             android:name=".ShortcutActivity"
             android:exported="true"
-            android:launchMode="singleInstance"
-            android:taskAffinity="cn.huacheng.safebaiyun.shortcut"
             android:excludeFromRecents="true"
             android:noHistory="true"
-            android:theme="@style/Theme.SafeBaiyun.Translucent" />
+            android:theme="@android:style/Theme.NoDisplay" />
 
         <activity
             android:name=".widget.MediumWidgetConfigActivity"
