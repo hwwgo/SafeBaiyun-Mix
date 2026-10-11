@@ -5,18 +5,27 @@
 
     <!-- 小部件开锁时使用的透明主题：仅在 MainActivity 被小部件拉起时通过 setTheme 切换，
          正常点图标启动仍用不透明的 Theme.SafeBaiyun，避免冷启动透出桌面闪屏。
-         配合 UnlockLightweight 的 Color(0x66000000) 遮罩，解锁提示背景即可半透明透出桌面。 -->
+         关键点：
+           · windowIsTranslucent=true 告诉 WMS 渲染其下方的窗口（桌面/背后的 App），否则窗口不透明；
+           · windowBackground=@null + colorBackgroundCacheHint=@null 彻底不绘制窗口底色；
+           · backgroundDimEnabled=false 关闭系统对“背后内容”的压暗。
+         配合 UnlockLightweight 的半透明遮罩，解锁提示背景即可透出桌面。 -->
     <style name="Theme.SafeBaiyun.Translucent" parent="Theme.SafeBaiyun">
         <item name="android:windowIsTranslucent">true</item>
-        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowBackground">@null</item>
+        <item name="android:colorBackgroundCacheHint">@null</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowContentOverlay">@null</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowIsFloating">false</item>
     </style>
 
-    <!-- ShortcutActivity 专用的全屏半透明主题：窗口铺满全屏且半透明（不再浮动只包住卡片），
-         由 UnlockLightweight 的 Color(0x66000000) 提供半透明遮罩，桌面透出。 -->
+    <!-- ShortcutActivity 专用的全屏半透明主题：窗口铺满全屏且真正半透明（不再浮动只包住卡片），
+         由 UnlockLightweight 的半透明遮罩提供“透出桌面”的效果。
+         与 Theme.SafeBaiyun.Translucent 同样的要点：windowIsTranslucent + windowBackground=@null。 -->
     <style name="Theme.ShortcutDialog" parent="android:Theme.Translucent.NoTitleBar">
-        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowBackground">@null</item>
+        <item name="android:colorBackgroundCacheHint">@null</item>
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowIsFloating">false</item>
