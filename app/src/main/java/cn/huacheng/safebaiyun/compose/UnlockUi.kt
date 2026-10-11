@@ -5,16 +5,19 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -24,12 +27,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cn.huacheng.safebaiyun.ShortcutActivity
@@ -64,8 +64,10 @@ fun unlockStepColor(step: String, default: Color): Color =
  *
  * 合并自 MainActivity.WidgetUnlockOverlay 与 ShortcutActivity.unlock / unlockAllDoors：
  * 冷启动时序保护 → 门禁解析 → 一键开锁（探测 + 轮询兜底）/ 单门开锁。
+ *
+ * 桌面快捷方式与小部件开锁共用同一套解锁逻辑。
  */
-private suspend fun performUnlock(doorId: String?, onFinish: () -> Unit) {
+suspend fun performUnlock(doorId: String?, onFinish: () -> Unit) {
     var doors = DataRepo.getDoors()
     if (doors.isEmpty()) {
         delay(300)
@@ -163,8 +165,9 @@ fun UnlockLightweight(
 ) {
     val context = LocalContext.current
     val unlockStep by UnlockRepo.unlockStep.collectAsState()
-    val displayText = unlockStep.ifEmpty { "准备开锁..." }
-    val textColor = unlockStepColor(unlockStep, MaterialTheme.colorScheme.onSurface)
+    val displayText = unlockStep.ifEmpty { "正在解锁…" }
+    val titleColor = MaterialTheme.colorScheme.onSurface
+    val subColor = MaterialTheme.colorScheme.onSurfaceVariant
 
     LaunchedEffect(doorId) {
         delay(100)
@@ -183,33 +186,47 @@ fun UnlockLightweight(
         performUnlock(doorId, onFinish)
     }
 
-    // 小窗式提示：不再铺满全屏、不加全屏遮罩，只居中显示一个带阴影的紧凑小卡片，
-    // 背后透出真实的桌面/壁纸，既提示“正在解锁”，又不会全屏黑屏。
-    // 桌面快捷方式（ShortcutActivity）与小部件（MainActivity 浮层）共用此组件，保证界面一致。
+    // 半透明遮罩：非纯黑/纯白，桌面快捷方式与小部件共用，背景完全一致。
+    // 若系统支持（windowShowWallpaper）还会透出桌面/壁纸，满足“能看到后面的颜色”。
     Box(
-        modifier = Modifier.wrapContentSize(Alignment.Center),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.5f)),
         contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier
-                .shadow(8.dp, RoundedCornerShape(16.dp))
-                .clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.surface)
-                .padding(horizontal = 22.dp, vertical = 16.dp),
-            contentAlignment = Alignment.Center
+        Card(
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.padding(horizontal = 22.dp, vertical = 18.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.5.dp
+                    modifier = Modifier.size(22.dp),
+                    strokeWidth = 2.5.dp,
+                    color = MaterialTheme.colorScheme.primary
                 )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = displayText,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = textColor
-                )
+                Spacer(modifier = Modifier.width(14.dp))
+                Column(
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = "正在解锁",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = titleColor
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = displayText,
+                        fontSize = 12.sp,
+                        color = subColor
+                    )
+                }
             }
         }
     }
