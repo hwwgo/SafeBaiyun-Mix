@@ -80,6 +80,25 @@ class MainActivity : ComponentActivity() {
         pendingUnlockDoorId.value = doorId
     }
 
+    override fun onResume() {
+        super.onResume()
+        // 兜底：个别 ROM（如 ColorOS）上，经「无界面中转 Activity」拉起时
+        // onNewIntent 可能不被回调，导致热启动只打开界面、不触发开锁。
+        // 这里在回到前台时再检查一次待处理的开锁请求：
+        //   · onNewIntent / onCreate 已消费过 → bus 为空，此处直接返回，不会重复解锁；
+        //   · 请求被 ROM 丢掉 → 此处兜底拿到，正常触发。
+        // bus 内请求 15 秒自动过期，日常打开 App 时这里永远为空，无副作用。
+        val doorId = WidgetUnlockBus.consume(this) ?: return
+
+        navController?.let { nav ->
+            if (nav.currentDestination?.route != "main") {
+                nav.popBackStack("main", inclusive = false)
+            }
+        }
+
+        pendingUnlockDoorId.value = doorId
+    }
+
     /**
      * 解析本次要执行的开锁门禁 ID；无请求返回 null。
      *

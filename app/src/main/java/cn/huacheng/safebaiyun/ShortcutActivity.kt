@@ -42,11 +42,11 @@ class ShortcutActivity : ComponentActivity() {
 
         startActivity(
             Intent(this, MainActivity::class.java).apply {
-                addFlags(
-                    Intent.FLAG_ACTIVITY_NEW_TASK or
-                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                        Intent.FLAG_ACTIVITY_SINGLE_TOP
-                )
+                // 与 WidgetClickReceiver 保持一致（NEW_TASK | SINGLE_TOP）。
+                // 不要加 CLEAR_TOP：热启动时本 Activity 就压在 MainActivity 之上，
+                // CLEAR_TOP 会把「正在 finish 的自己」也纳入清理流程，
+                // 在 ColorOS 等 ROM 上会中断 intent 分发，导致 onNewIntent 收不到、热启动不解锁。
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 putExtra(MainActivity.EXTRA_WIDGET_DOOR_ID, doorId)
             }
         )
