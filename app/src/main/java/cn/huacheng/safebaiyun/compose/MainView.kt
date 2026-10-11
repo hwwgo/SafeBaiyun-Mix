@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import cn.huacheng.safebaiyun.ShortcutActivity
 import cn.huacheng.safebaiyun.theme.*
 import cn.huacheng.safebaiyun.unlock.DataRepo
 import cn.huacheng.safebaiyun.unlock.DoorDevice
@@ -50,14 +51,36 @@ private enum class PollingState {
     POLLING
 }
 
+/**
+ * 主界面。
+ *
+ * 桌面小部件 / 桌面快捷方式的开锁请求也在这里执行 —— 通过 [autoUnlockDoorId]
+ * 传入要开的门禁，主界面照常显示后自动触发，动作与用户手动点击完全一致：
+ *   · [ShortcutActivity.ALL_DOORS_ID] → 走「一键开锁」（等同点顶部大按钮）
+ *   · 具体门禁 id                    → 走单门开锁（等同点该门禁卡片右侧「开锁」）
+ * 开锁结束（成功或失败）后主界面保持显示，不自动关闭。
+ *
+ * @param autoUnlockDoorId     待自动执行的开锁请求；null 表示无请求
+ * @param onAutoUnlockConsumed 请求已被消费（已发起开锁）时回调，供上层清空状态避免重复触发
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainView(navController: NavHostController) {
+fun MainView(
+    navController: NavHostController,
+    autoUnlockDoorId: String? = null,
+    onAutoUnlockConsumed: () -> Unit = {}
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
     val hasPermission = remember { mutableStateOf(false) }
     val doors = remember { mutableStateOf<List<DoorDevice>>(DataRepo.getDoors()) }
+
+    /** 权限检查是否已完成（首帧异步赋值，自动开锁必须等它就绪） */
+    var permissionChecked by remember { mutableStateOf(false) }
+
+    /** 各门禁的实时开锁步骤：含 key 即表示「正在开锁」，value 为步骤文案 */
+    val unlockSteps = remember { mutableStateMapOf<String, String>() }
 
     var pollingState by remember { mutableStateOf(PollingState.IDLE) }
     var pollingProgress by remember { mutableStateOf("") }
@@ -71,6 +94,7 @@ fun MainView(navController: NavHostController) {
 
     LaunchedEffect(Unit) {
         hasPermission.value = hasAllBlePermissions(context)
+        permissionChecked = true
     }
 
     val scanPermissionLauncher = rememberLauncherForActivityResult(
@@ -185,6 +209,105 @@ fun MainView(navController: NavHostController) {
                 pollingFlowJob = null
             }
         }
+    }
+
+    /**
+     * 开启单个门禁。
+     *
+     * 门禁卡片右侧「开锁」按钮与桌面快捷方式 / 小部件走的是同一个函数，
+     * 因此两条路径的行为、进度文案、结果提示完全一致。
+     *
+     * 进度写在 [unlockSteps] 里（由卡片内联展示），开锁结束后延迟清空回归空闲态，
+     * 主界面不会消失，用户可以接着操作。
+     */
+    fun unlockSingleDoor(door: DoorDevice) {
+        // 重新读取当前配置，避免列表状态更新后使用旧的 MAC/Key
+        val currentDoor = DataRepo.getDoors().firstOrNull { it.id == door.id } ?: door
+        if (currentDoor.mac.isEmpty() || currentDoor.key.isEmpty()) {
+            showToast("请先配置该门禁的 MAC 和 Key")
+            return
+        }
+        // 正在开锁中则忽略重复触发
+        if (unlockSteps.containsKey(currentDoor.id)) return
+
+        scope.launch {
+            val startTime = System.currentTimeMillis()
+            unlockSteps[currentDoor.id] = "准备开锁..."
+
+            val collectJob = launch {
+                UnlockRepo.unlockStep.collectLatest { step ->
+                    if (step.isNotEmpty()) unlockSteps[currentDoor.id] = step
+                }
+            }
+
+            val success = UnlockRepo.tryUnlock(currentDoor.mac, currentDoor.key, currentDoor.name)
+            val elapsed = System.currentTimeMillis() - startTime
+            delay(ConfigManager.getResultDelay())
+            collectJob.cancel()
+
+            val step = unlockSteps[currentDoor.id].orEmpty()
+            if (!step.contains("成功") && !step.contains("失败") && !step.contains("超时")) {
+                unlockSteps[currentDoor.id] = if (success) "✅ 开锁成功" else "❌ 开锁失败"
+            }
+
+            if (success) {
+                launch {
+                    showToast("✅ 已成功开门！")
+                    delay(1500)
+                    showToast("用时 ${elapsed}ms")
+                }
+            }
+
+            delay(ConfigManager.getResetDelay())
+            unlockSteps.remove(currentDoor.id)
+        }
+    }
+
+    /**
+     * 处理来自桌面小部件 / 桌面快捷方式的开锁请求。
+     *
+     * 等权限检查完成、门禁列表就绪后自动执行，等价于用户手动点击：
+     *   · ALL_DOORS_ID → 一键开锁
+     *   · 具体 id      → 对应门禁开锁（找不到时退化为第一个可用门禁）
+     * 发起后立即消费请求，避免重复触发；开锁结束后主界面保持显示。
+     */
+    LaunchedEffect(autoUnlockDoorId, permissionChecked) {
+        val requested = autoUnlockDoorId ?: return@LaunchedEffect
+        if (!permissionChecked) return@LaunchedEffect
+
+        if (!hasPermission.value) {
+            showToast("请先授予蓝牙权限，再使用快捷开锁")
+            onAutoUnlockConsumed()
+            return@LaunchedEffect
+        }
+        if (doors.value.isEmpty()) {
+            showToast("暂无门禁，请先添加门禁")
+            onAutoUnlockConsumed()
+            return@LaunchedEffect
+        }
+
+        // 稍等一帧，让列表先渲染出来，视觉上更接近「用户自己点了一下」
+        delay(150)
+
+        if (requested == ShortcutActivity.ALL_DOORS_ID) {
+            val selected = doors.value.filter { it.isSelected }
+            if (selected.isEmpty()) {
+                showToast("请至少选择一个门禁")
+            } else {
+                startPollingFlow(selected)
+            }
+        } else {
+            val target = doors.value.firstOrNull { it.id == requested }
+                ?: doors.value.firstOrNull { it.mac.isNotEmpty() && it.key.isNotEmpty() }
+            if (target == null) {
+                showToast("未找到可开锁的门禁")
+            } else {
+                unlockSingleDoor(target)
+            }
+        }
+
+        // 请求已发起，通知上层清空（此时开锁在独立协程里跑，不受本协程结束影响）
+        onAutoUnlockConsumed()
     }
 
     LaunchedEffect(scanPermissionResult, pendingManualPoll) {
@@ -363,7 +486,12 @@ fun MainView(navController: NavHostController) {
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        CompactDoorList(doors = doors, onRefresh = { doors.value = DataRepo.getDoors() })
+                        CompactDoorList(
+                            doors = doors,
+                            unlockSteps = unlockSteps,
+                            onUnlock = { unlockSingleDoor(it) },
+                            onRefresh = { doors.value = DataRepo.getDoors() }
+                        )
                     }
                 } else {
                     PermissionView(hasPermission)
@@ -624,6 +752,8 @@ private fun CompactOutlineButton(
 @Composable
 private fun CompactDoorList(
     doors: MutableState<List<DoorDevice>>,
+    unlockSteps: Map<String, String>,
+    onUnlock: (DoorDevice) -> Unit,
     onRefresh: () -> Unit,
 ) {
     if (doors.value.isEmpty()) {
@@ -656,6 +786,8 @@ private fun CompactDoorList(
         items(doors.value, key = { it.id }) { door ->
             CompactDoorCard(
                 door = door,
+                unlockStep = unlockSteps[door.id].orEmpty(),
+                onUnlock = onUnlock,
                 onToggleSelected = { id ->
                     DataRepo.toggleSelected(id)
                     doors.value = DataRepo.getDoors()
@@ -677,14 +809,15 @@ private fun CompactDoorList(
 @Composable
 private fun CompactDoorCard(
     door: DoorDevice,
+    unlockStep: String,
+    onUnlock: (DoorDevice) -> Unit,
     onToggleSelected: (String) -> Unit = {},
     onMoveUp: (String) -> Unit = {},
     onMoveDown: (String) -> Unit = {}
 ) {
-    val scope = rememberCoroutineScope()
-    var isUnlocking by remember { mutableStateOf(false) }
-    var unlockStep by remember { mutableStateOf("") }
-    val stepState = UnlockRepo.unlockStep
+    // 开锁状态由主界面统一持有（unlockSteps），卡片只负责展示，
+    // 这样手动点击与桌面快捷方式 / 小部件触发的是同一份状态。
+    val isUnlocking = unlockStep.isNotEmpty()
 
     val nameFontSize = if (door.name.length > 12) 14.sp else 15.sp
 
@@ -788,47 +921,10 @@ private fun CompactDoorCard(
                 CompactUnlockButton(
                     isUnlocking = isUnlocking,
                     unlockStep = unlockStep,
-                    onClick = {
-                        // 单独点击门禁右侧“开锁”时，不受 isSelected 勾选状态影响。
-                        // 重新读取当前门禁配置，避免列表状态更新后使用旧的 MAC/Key。
-                        val currentDoor = DataRepo.getDoors().firstOrNull { it.id == door.id } ?: door
-                        if (currentDoor.mac.isEmpty() || currentDoor.key.isEmpty()) {
-                            showToast("请先配置该门禁的 MAC 和 Key")
-                            return@CompactUnlockButton
-                        }
-                        if (!isUnlocking) {
-                            isUnlocking = true
-                            unlockStep = "准备开锁..."
-                            // ✅ 改动二：记录开始时间
-                            val startTime = System.currentTimeMillis()
-                            scope.launch {
-                                val job = launch {
-                                    stepState.collectLatest { step ->
-                                        if (step.isNotEmpty()) unlockStep = step
-                                    }
-                                }
-                                val success = UnlockRepo.tryUnlock(currentDoor.mac, currentDoor.key, currentDoor.name)
-                                // ✅ 改动二：计算用时
-                                val elapsed = System.currentTimeMillis() - startTime
-                                delay(ConfigManager.getResultDelay())
-                                job.cancel()
-                                if (!unlockStep.contains("成功") && !unlockStep.contains("失败") && !unlockStep.contains("超时")) {
-                                    unlockStep = if (success) "✅ 开锁成功" else "❌ 开锁失败"
-                                }
-                                // ✅ 改动二：成功后弹两个 Toast（成功 + 用时）
-                                if (success) {
-                                    launch {
-                                        showToast("✅ 已成功开门！")
-                                        delay(1500)
-                                        showToast("用时 ${elapsed}ms")
-                                    }
-                                }
-                                delay(ConfigManager.getResetDelay())
-                                isUnlocking = false
-                                unlockStep = ""
-                            }
-                        }
-                    }
+                    // 单独点击门禁右侧“开锁”时，不受 isSelected 勾选状态影响。
+                    // 实际开锁统一交给主界面的 unlockSingleDoor()，
+                    // 与桌面快捷方式 / 小部件触发的是同一条路径。
+                    onClick = { onUnlock(door) }
                 )
             }
         }
@@ -914,6 +1010,19 @@ private fun CompactUnlockButton(
         }
     }
 }
+
+/**
+ * 解锁步骤文案 → 状态色（成功 / 失败或超时 / 其它用默认色）。
+ *
+ * 原定义在已删除的 UnlockUi.kt 中，随「轻量提示」一并清理后合并到主界面，
+ * 只有门禁卡片与开锁按钮使用，因此改为文件内私有函数。
+ */
+private fun unlockStepColor(step: String, default: Color): Color =
+    when {
+        step.contains("成功") -> ColorOSSuccess
+        step.contains("失败") || step.contains("超时") -> ColorOSError
+        else -> default
+    }
 
 private suspend fun waitForBluetoothWithin(timeoutMs: Long): Boolean {
     val timeout = timeoutMs.coerceAtLeast(0L)
