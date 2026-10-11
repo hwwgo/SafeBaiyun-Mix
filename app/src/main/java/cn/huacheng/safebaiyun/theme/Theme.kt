@@ -45,6 +45,11 @@ val ColorOSGlow = Color(0x40FFFFFF)           // 微光光晕 (25% 白)
 val ColorOSGlowStrong = Color(0x66FFFFFF)     // 强光晕 (40% 白)
 val ColorOSShadow = Color(0x1A000000)         // 柔和阴影 (10% 黑)
 
+// ---------- 解锁浮层遮罩（半透明，统一桌面快捷方式与小部件） ----------
+// 约 30% 黑，覆盖在透明窗口之上，桌面/壁纸透出约 70%，既能看清「正在解锁」，
+// 又不会因为全黑/全白而遮挡后方内容。快捷方式与小部件共用此值，保证两者背景一致。
+val ColorOSScrim = Color(0x4D000000)
+
 // ---------- 背景色（毛玻璃质感） ----------
 val ColorOSBackgroundLight = Color(0xFFF8F9FE)      // 浅色背景
 val ColorOSSurfaceLight = Color(0xFFFFFFFF)         // 浅色卡片
@@ -194,6 +199,9 @@ private val ColorOSDarkColorScheme = darkColorScheme(
 fun SafeBaiyunTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
+    // 解锁浮层（桌面快捷方式 / 小部件）为 true：状态栏与导航栏也设为透明，
+    // 整屏透出桌面，避免出现不透明的黑色/白色顶底块，保证两种入口背景一致。
+    transparentSystemBars: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -209,7 +217,12 @@ fun SafeBaiyunTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            if (darkTheme) {
+            if (transparentSystemBars) {
+                // 解锁浮层：状态栏/导航栏也透明，整屏透出桌面，
+                // 避免顶/底出现不透明的黑色或白色块导致两种入口背景不一致。
+                window.statusBarColor = Color.Transparent.toArgb()
+                window.navigationBarColor = Color.Transparent.toArgb()
+            } else if (darkTheme) {
                 window.statusBarColor = ColorOSBackgroundDark.toArgb()
                 window.navigationBarColor = ColorOSBackgroundDark.toArgb()
             } else {
