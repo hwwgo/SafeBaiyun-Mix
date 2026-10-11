@@ -44,6 +44,15 @@ class MainActivity : ComponentActivity() {
     private var finishOverlayOnClose = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // 小部件拉起时切换为半透明主题，让解锁提示背景透出桌面（半透明）；
+        // 正常点图标启动保持不透明主题，避免冷启动闪屏。
+        // 必须在 super.onCreate() 之前调用，窗口才会在透明主题下创建。
+        val isWidgetLaunch = intent.getStringExtra(EXTRA_WIDGET_DOOR_ID) != null ||
+            WidgetUnlockBus.peek(this) != null
+        if (isWidgetLaunch) {
+            setTheme(R.style.Theme_SafeBaiyun_Translucent)
+        }
+
         super.onCreate(savedInstanceState)
 
         ConfigManager.init(this)
