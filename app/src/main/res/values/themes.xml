@@ -5,14 +5,18 @@
 
     <!-- 小部件开锁时使用的透明主题：仅在 MainActivity 被小部件拉起时通过 setTheme 切换，
          正常点图标启动仍用不透明的 Theme.SafeBaiyun，避免冷启动透出桌面闪屏。
-         关键点：
-           · windowIsTranslucent=true 告诉 WMS 渲染其下方的窗口（桌面/背后的 App），否则窗口不透明；
-           · windowBackground=@null + colorBackgroundCacheHint=@null 彻底不绘制窗口底色；
-           · backgroundDimEnabled=false 关闭系统对“背后内容”的压暗。
-         配合 UnlockLightweight 的半透明遮罩，解锁提示背景即可透出桌面。 -->
+         关键点（让解锁提示背景真正“透出后面的颜色”，而非纯黑/纯白）：
+           · windowShowWallpaper=true —— 让系统把“壁纸”图层画在窗口之后，
+             壁纸是系统独立管理的图层，ColorOS 等定制 ROM 也会渲染，从而稳定透出“后面的颜色”；
+           · windowIsTranslucent=true + windowBackground=@android:color/transparent —— 窗口自身透明，
+             才能看到后面的壁纸（注意：此处必须用透明“色”而非 @null，@null 会导致壁纸不显示）；
+           · backgroundDimEnabled=false / colorBackgroundCacheHint=@null —— 关闭系统压暗、不缓存底色。
+         配合 UnlockLightweight 的半透明遮罩（ColorOSScrim），解锁提示背景即半透明透出壁纸，
+         桌面快捷方式与桌面小部件两套入口用同一机制，保证背景完全一致。 -->
     <style name="Theme.SafeBaiyun.Translucent" parent="Theme.SafeBaiyun">
+        <item name="android:windowShowWallpaper">true</item>
         <item name="android:windowIsTranslucent">true</item>
-        <item name="android:windowBackground">@null</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:colorBackgroundCacheHint">@null</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowContentOverlay">@null</item>
@@ -20,11 +24,12 @@
         <item name="android:windowIsFloating">false</item>
     </style>
 
-    <!-- ShortcutActivity 专用的全屏半透明主题：窗口铺满全屏且真正半透明（不再浮动只包住卡片），
-         由 UnlockLightweight 的半透明遮罩提供“透出桌面”的效果。
-         与 Theme.SafeBaiyun.Translucent 同样的要点：windowIsTranslucent + windowBackground=@null。 -->
+    <!-- ShortcutActivity 专用的全屏半透明主题：与 Theme.SafeBaiyun.Translucent 同样要点
+         （windowShowWallpaper + windowIsTranslucent + windowBackground=透明色），
+         由 UnlockLightweight 的半透明遮罩提供“透出壁纸/后面颜色”的效果。 -->
     <style name="Theme.ShortcutDialog" parent="android:Theme.Translucent.NoTitleBar">
-        <item name="android:windowBackground">@null</item>
+        <item name="android:windowShowWallpaper">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:colorBackgroundCacheHint">@null</item>
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowNoTitle">true</item>
