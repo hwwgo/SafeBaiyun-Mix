@@ -9,9 +9,11 @@ import androidx.compose.animation.slideIn
 import androidx.compose.animation.slideOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
@@ -81,9 +83,10 @@ class MainActivity : ComponentActivity() {
             SafeBaiyunTheme {
                 val mode = uiMode.value
                 Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    // 覆盖层模式（小部件开锁）背景透明：去掉原来的深色全屏遮罩，
-                    // 与桌面快捷方式共用同一套轻量小卡片提示，保证两者界面一致
+                    // 覆盖层模式（小部件开锁，mode == 1）：窗口按内容自适应大小（小窗），
+                    // 背景透明，仅中央显示紧凑小卡片；正常主界面（mode == 2）铺满全屏。
+                    modifier = if (mode == 1) Modifier.wrapContentSize(Alignment.Center)
+                    else Modifier.fillMaxSize(),
                     color = if (mode == 1) Color.Transparent else MaterialTheme.colorScheme.background
                 ) {
                     if (mode == 0) {
