@@ -7,16 +7,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.slideIn
 import androidx.compose.animation.slideOut
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.IntOffset
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -57,11 +49,6 @@ class MainActivity : ComponentActivity() {
 
         super.onCreate(savedInstanceState)
 
-        // 小部件冷启动：与透明主题双保险，清空窗口背景，让解锁浮层透出桌面
-        if (isWidgetLaunch) {
-            window.setBackgroundDrawable(null)
-        }
-
         ConfigManager.init(this)
         UnlockRecordManager.init(this)
 
@@ -70,6 +57,7 @@ class MainActivity : ComponentActivity() {
         val doorId = resolveWidgetDoorId(intent)
         Log.d("MainActivity", "onCreate resolveWidgetDoorId=$doorId")
         if (doorId != null) {
+            // 轻量提示：半透明遮罩 + 居中“正在解锁”小卡片，与小部件/快捷方式共用同一组件，背景完全一致
             overlayDoorId.value = doorId
             finishOverlayOnClose = true
             uiMode.value = 1
@@ -78,34 +66,22 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            // 小部件开锁浮层（mode == 1）依赖 Theme.SafeBaiyun.Translucent + windowShowWallpaper
-            // 让“壁纸”图层透出作为半透明背景；正常主界面（mode == 2）保持不透明。
             SafeBaiyunTheme {
                 val mode = uiMode.value
-                Surface(
-                    // 覆盖层模式（小部件开锁，mode == 1）：窗口按内容自适应大小（小窗），
-                    // 背景透明，仅中央显示紧凑小卡片；正常主界面（mode == 2）铺满全屏。
-                    modifier = if (mode == 1) Modifier.wrapContentSize(Alignment.Center)
-                    else Modifier.fillMaxSize(),
-                    color = if (mode == 1) Color.Transparent else MaterialTheme.colorScheme.background
-                ) {
-                    if (mode == 0) {
-                        Box(Modifier.fillMaxSize())
-                    } else if (mode == 1) {
-                        UnlockLightweight(
-                            doorId = overlayDoorId.value,
-                            onFinish = {
-                                if (finishOverlayOnClose) {
-                                    finish()
-                                } else {
-                                    uiMode.value = 2
-                                }
-                            },
-                            requirePermission = true
-                        )
-                    } else {
-                        MainNavContent()
-                    }
+                if (mode == 1) {
+                    UnlockLightweight(
+                        doorId = overlayDoorId.value,
+                        requirePermission = true,
+                        onFinish = {
+                            if (finishOverlayOnClose) {
+                                finish()
+                            } else {
+                                uiMode.value = 2
+                            }
+                        }
+                    )
+                } else {
+                    MainNavContent()
                 }
             }
         }
@@ -123,9 +99,6 @@ class MainActivity : ComponentActivity() {
             overlayDoorId.value = doorId
             finishOverlayOnClose = false
             uiMode.value = 1
-            // App 已在前台时由小部件再次拉起：当前窗口是按不透明主题创建的，
-            // 这里清空窗口背景，浮层才会透出 App 主界面（而非不透明黑窗）
-            window.setBackgroundDrawable(null)
         }
     }
 

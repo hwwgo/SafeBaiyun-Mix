@@ -25,7 +25,7 @@ import kotlinx.coroutines.launch
  *
  * ✅ 优先从 WidgetUnlockBus 读取 doorId（跨 Activity 传递），
  *    其次从 Intent extra 读取（正常启动路径）。
- * 解锁流程与进度 UI 统一交给 UnlockOverlay.kt 处理（UI 用轻量提示 UnlockLightweight）。
+ * 解锁流程与进度 UI 统一交给 UnlockLightweight 处理（轻量提示）。
  */
 class ShortcutActivity : ComponentActivity() {
 
@@ -61,8 +61,6 @@ class ShortcutActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // 与透明主题双保险：直接清空窗口背景（而非设透明色），确保解锁浮层真正透出桌面（而非不透明黑窗）
-        window.setBackgroundDrawable(null)
         Log.d(TAG, "onCreate, action=${intent.action}")
 
         // ✅ 优先从 WidgetUnlockBus 读取（跨 MainActivity/ShortcutActivity 传递）
@@ -102,9 +100,10 @@ class ShortcutActivity : ComponentActivity() {
     }
 
     private fun showUnlockOverlay() {
+        // 轻量提示：半透明遮罩 + 居中紧凑的“正在解锁”小卡片，
+        // 桌面快捷方式与小部件共用同一组件、同一主题，背景完全一致。
         setContent {
             SafeBaiyunTheme {
-                // 轻量提示：透明浮动窗口 + 居中紧凑小卡片，半透明背景透出壁纸
                 UnlockLightweight(
                     doorId = resolvedDoorId,
                     onFinish = { finish() }
