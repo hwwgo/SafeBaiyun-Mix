@@ -1,25 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
+    <!-- 应用唯一主题。
+         开锁不再走独立提示界面：桌面小部件 / 快捷方式都直接进 MainActivity 主界面，
+         开锁过程在主界面里显示，因此不需要任何透明 / 对话框主题。
+         ShortcutActivity 作为无界面中转，直接使用系统的 @android:style/Theme.NoDisplay。 -->
     <style name="Theme.SafeBaiyun" parent="android:Theme.Material.Light.NoActionBar" />
-
-    <!-- 开锁提示用的统一半透明主题：桌面快捷方式与小部件开锁共用，保证两者提示界面完全一致。
-         关键点（让解锁提示背景是“半透明”而非纯黑/纯白）：
-           · windowIsTranslucent=true —— 窗口半透明；
-           · windowShowWallpaper=true —— 让系统把“壁纸”图层画在窗口之后，
-             若系统支持即可透出桌面/壁纸（用户原意：“能看到后面的颜色”）；
-           · windowBackground=@android:color/transparent —— 窗口自身透明，才能看到后面的壁纸；
-           · colorBackgroundCacheHint=@null / backgroundDimEnabled=false —— 不缓存底色、不压暗。
-         实际可视层由 UnlockLightweight 的半透明遮罩（约 50% 黑）承载，
-         使背景既非纯黑也非纯白，中央仅显示紧凑的“正在解锁”小卡片。 -->
-    <style name="Theme.SafeBaiyun.Translucent" parent="Theme.SafeBaiyun">
-        <item name="android:windowIsTranslucent">true</item>
-        <item name="android:windowShowWallpaper">true</item>
-        <item name="android:windowBackground">@android:color/transparent</item>
-        <item name="android:colorBackgroundCacheHint">@null</item>
-        <item name="android:windowNoTitle">true</item>
-        <item name="android:windowContentOverlay">@null</item>
-        <item name="android:backgroundDimEnabled">false</item>
-    </style>
 
 </resources>
