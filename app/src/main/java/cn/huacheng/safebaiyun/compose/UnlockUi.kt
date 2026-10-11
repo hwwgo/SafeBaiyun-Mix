@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cn.huacheng.safebaiyun.ShortcutActivity
 import cn.huacheng.safebaiyun.theme.ColorOSError
+import cn.huacheng.safebaiyun.theme.ColorOSScrim
 import cn.huacheng.safebaiyun.theme.ColorOSSuccess
 import cn.huacheng.safebaiyun.unlock.DataRepo
 import cn.huacheng.safebaiyun.unlock.DoorDevice
@@ -182,11 +183,12 @@ fun UnlockLightweight(
         performUnlock(doorId, onFinish)
     }
 
-    // 外层 Box：半透明遮罩（统一桌面小部件与快捷方式的背景），仅中央显示紧凑小卡片
+    // 外层 Box：半透明遮罩（ColorOSScrim，约 30% 黑），桌面快捷方式与小部件共用，
+    // 保证两者背景一致：既不是纯白也不是纯黑，桌面/壁纸可透过约 70%，中央仅显示紧凑小卡片。
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0x66000000)),
+            .background(ColorOSScrim),
         contentAlignment = Alignment.Center
     ) {
         Box(
