@@ -641,6 +641,33 @@ object WidgetUnlockBus {
 
         return if (valid) id else null
     }
+
+    /**
+     * 仅读取待解锁的门禁 ID，不消费（不清除）。
+     * 用于在 MainActivity.onCreate 早期判断是否由小部件拉起，以便切换透明主题；
+     * 实际消费仍由 [consume] 完成。
+     */
+    @Synchronized
+    fun peek(context: Context): String? {
+        val prefs = context.applicationContext
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+        val persistedId = prefs.getString(KEY_DOOR_ID, null)
+        val persistedTimestamp = prefs.getLong(KEY_TIMESTAMP, 0L)
+
+        val id = persistedId ?: pendingDoorId
+        val timestamp = if (persistedTimestamp != 0L) {
+            persistedTimestamp
+        } else {
+            pendingTimestamp
+        }
+
+        val valid = id != null &&
+                timestamp > 0L &&
+                System.currentTimeMillis() - timestamp in 0L..MAX_AGE_MS
+
+        return if (valid) id else null
+    }
 }
 
 // ============================================================
