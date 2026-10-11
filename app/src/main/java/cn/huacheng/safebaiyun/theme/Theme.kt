@@ -199,9 +199,6 @@ private val ColorOSDarkColorScheme = darkColorScheme(
 fun SafeBaiyunTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
-    // 解锁浮层（桌面快捷方式 / 小部件）为 true：状态栏与导航栏也设为透明，
-    // 整屏透出桌面，避免出现不透明的黑色/白色顶底块，保证两种入口背景一致。
-    transparentSystemBars: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -217,12 +214,7 @@ fun SafeBaiyunTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            if (transparentSystemBars) {
-                // 解锁浮层：状态栏/导航栏也透明，整屏透出桌面，
-                // 避免顶/底出现不透明的黑色或白色块导致两种入口背景不一致。
-                window.statusBarColor = Color.Transparent.toArgb()
-                window.navigationBarColor = Color.Transparent.toArgb()
-            } else if (darkTheme) {
+            if (darkTheme) {
                 window.statusBarColor = ColorOSBackgroundDark.toArgb()
                 window.navigationBarColor = ColorOSBackgroundDark.toArgb()
             } else {
