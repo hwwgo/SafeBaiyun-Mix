@@ -19,11 +19,10 @@ import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
-import androidx.glance.appwidget.action.actionStartActivity
+import androidx.glance.appwidget.action.actionSendBroadcast
 import androidx.glance.appwidget.components.CircleIconButton
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
-import androidx.glance.appwidget.updateAll
 import androidx.glance.background
 import androidx.glance.color.ColorProvider
 import androidx.glance.currentState
@@ -54,8 +53,6 @@ import cn.huacheng.safebaiyun.unlock.DataRepo
 // 合并自 WidgetClickReceiver.kt / WidgetUnlockBus.kt / WidgetHelper.kt（同包，类名不变）
 import android.content.BroadcastReceiver
 import android.content.ComponentName
-import android.content.SharedPreferences
-import android.os.Build
 import android.util.Log
 import android.provider.Settings
 import androidx.core.content.pm.ShortcutInfoCompat
@@ -63,10 +60,6 @@ import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
 import cn.huacheng.safebaiyun.MainActivity
 import cn.huacheng.safebaiyun.util.ContextHolder
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
 
 // ============================================================
 //  桌面部件 ColorOS 配色
@@ -109,30 +102,20 @@ val WidgetOnSurfaceVariant = ColorProvider(
 )
 
 // ============================================================
-//  公共：构造「点击开锁」的 Intent（指向 ShortcutActivity 中转页）。
+//  公共：构造“点击解锁”的广播 Intent。
 //
-//  历史上小部件点击走的是「发广播 → WidgetClickReceiver → 拉起 MainActivity」，
-//  冷启动时该路径不可靠：广播可能不被送达；即使送达，中转链路里 App 已无前台
-//  Activity，startActivity 会撞上 Android 10+ 的后台活动启动限制（BAL），
-//  表现为「冷启动只打开 App 主界面、不解锁」（与桌面快捷方式曾遇到的问题相同）。
-//
-//  现在统一改为：桌面小部件点击直接拉起 ShortcutActivity 中转页（用户手势拉起
-//  Activity 永远被 BAL 放行），由中转页落盘门禁 ID 并拉起 MainActivity。
-//  该路径已在小部件/快捷方式两条链路上实测冷、热启动均稳定。
-//  （WidgetClickReceiver 广播路径保留，仅用于兼容旧版本创建的小部件。）
+//  通过桌面 PendingIntent 启动 Activity 在 ColorOS 冷启动时会丢失
+//  extra，因此小部件改为发广播（广播 extra 可靠送达），由
+//  WidgetClickReceiver 落盘并拉起 MainActivity。
 //
 //  @param doorId  要开的门禁 ID（"" 表示开第一个门）
 //  @param data    可选，用于让同一个 widget 内多个按钮的 PendingIntent
 //                 互不覆盖（四门禁 widget 用门禁 ID 作 data）。
 // ============================================================
 private fun unlockIntent(doorId: String, data: String? = null): Intent =
-    Intent().apply {
-        component = ComponentName(
-            "cn.huacheng.safebaiyun",
-            "cn.huacheng.safebaiyun.ShortcutActivity"
-        )
-        action = ShortcutActivity.ACTION_PINNED_UNLOCK
-        putExtra(ShortcutActivity.EXTRA_DOOR_ID, doorId)
+    Intent(WidgetClickReceiver.ACTION).apply {
+        component = WidgetClickReceiver.componentName()
+        putExtra(WidgetClickReceiver.EXTRA_DOOR_ID, doorId)
         if (data != null) this.data = Uri.fromParts("widget", data, null)
     }
 
@@ -176,7 +159,7 @@ object SmallWidget : GlanceAppWidget() {
                 contentDescription = "开门",
                 backgroundColor = WidgetPrimary,
                 contentColor = WidgetOnPrimary,
-                onClick = actionStartActivity(unlockIntent(doorId ?: ""))
+                onClick = actionSendBroadcast(unlockIntent(doorId ?: ""))
             )
         }
     }
@@ -248,7 +231,7 @@ object MediumWidget : GlanceAppWidget() {
                 contentDescription = "开门",
                 backgroundColor = WidgetPrimary,
                 contentColor = WidgetOnPrimary,
-                onClick = actionStartActivity(unlockIntent(doorId ?: ""))
+                onClick = actionSendBroadcast(unlockIntent(doorId ?: ""))
             )
         }
     }
@@ -315,7 +298,7 @@ object LargeWidget : GlanceAppWidget() {
                         contentDescription = "开门",
                         backgroundColor = WidgetPrimary,
                         contentColor = WidgetOnPrimary,
-                        onClick = actionStartActivity(unlockIntent(doorId ?: ""))
+                        onClick = actionSendBroadcast(unlockIntent(doorId ?: ""))
                     )
                 }
             }
@@ -430,7 +413,7 @@ object ExtraLargeWidget : GlanceAppWidget() {
                     contentDescription = "解锁$name",
                     backgroundColor = if (hasConfig) WidgetPrimary else WidgetSurfaceVariant,
                     contentColor = if (hasConfig) WidgetOnPrimary else WidgetOnSurfaceVariant,
-                    onClick = actionStartActivity(unlockIntent(doorId))
+                    onClick = actionSendBroadcast(unlockIntent(doorId))
                 )
             }
 
@@ -523,7 +506,7 @@ object FourDoorWidget : GlanceAppWidget() {
                     .size(34.dp)
                     .cornerRadius(17.dp)
                     .background(if (hasConfig) WidgetPrimary else WidgetSurfaceVariant)
-                    .clickable(actionStartActivity(unlockIntent(doorId, doorId))),
+                    .clickable(actionSendBroadcast(unlockIntent(doorId, doorId))),
                 contentAlignment = Alignment.Center
             ) {
                 Image(
@@ -554,12 +537,9 @@ object FourDoorWidget : GlanceAppWidget() {
 // ============================================================
 //  桌面小部件点击广播桥（合并自 WidgetClickReceiver.kt）
 //
-//  【兼容通道】仅用于接收旧版本 App 创建的小部件遗留的广播 PendingIntent。
-//  新版小部件点击已改为直接拉起 ShortcutActivity 中转页（见 unlockIntent），
-//  不再走本接收器 —— 广播链路在冷启动下不可靠：广播可能不被送达；即使送达，
-//  收到广播时 App 往往已无前台 Activity，startActivity 会被系统后台活动
-//  启动限制（BAL）拦截，表现为「冷启动只打开 App 主界面、不解锁」。
-//  类名不变，Manifest 仍按类名引用，故保留。
+//  为什么需要它：通过桌面 PendingIntent 直接启动 Activity，在 ColorOS
+//  等 ROM 冷启动时会丢失 extra，因此小部件改发广播，由本接收器落盘并
+//  拉起 MainActivity。类名不变，Manifest 仍按类名引用。
 // ============================================================
 class WidgetClickReceiver : BroadcastReceiver() {
 
@@ -712,39 +692,5 @@ object WidgetHelper {
             IconCompat.createWithResource(context, R.mipmap.ic_launcher)
         ).setShortLabel("开门").setLongLabel("解锁门禁").setIntent(intent).build()
         ShortcutManagerCompat.requestPinShortcut(context, shortcut, null)
-    }
-
-    /**
-     * App 升级后刷新一次所有小部件（每个版本只做一次）。
-     *
-     * 旧版本小部件的点击走「发广播 → WidgetClickReceiver」，冷启动不可靠
-     * （请求丢失 / startActivity 被后台启动限制拦截）；新版本改为点击直拉
-     * ShortcutActivity 中转页。已放在桌面上的旧小部件持有旧的广播 PendingIntent，
-     * 必须等小部件刷新才会换成新路径 —— 这里在升级后首次启动时主动刷新，
-     * 保证老部件立即切换到冷、热启动均可靠的链路。
-     */
-    fun refreshAllAfterUpgrade(context: Context) {
-        val appContext = context.applicationContext
-        val prefs = appContext.getSharedPreferences("app_meta", Context.MODE_PRIVATE)
-        val currentVersion = runCatching {
-            val info = appContext.packageManager.getPackageInfo(appContext.packageName, 0)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                info.longVersionCode.toInt()
-            } else {
-                @Suppress("DEPRECATION") info.versionCode
-            }
-        }.getOrDefault(0)
-        if (prefs.getInt("last_widget_refresh_version", -1) == currentVersion) return
-        prefs.edit().putInt("last_widget_refresh_version", currentVersion).apply()
-
-        CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
-            runCatching {
-                SmallWidget.updateAll(appContext)
-                MediumWidget.updateAll(appContext)
-                LargeWidget.updateAll(appContext)
-                ExtraLargeWidget.updateAll(appContext)
-                FourDoorWidget.updateAll(appContext)
-            }
-        }
     }
 }
