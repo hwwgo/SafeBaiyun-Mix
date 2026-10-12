@@ -91,6 +91,11 @@ class MainActivity : ComponentActivity() {
         //   · onNewIntent / onCreate 已消费过 → bus 为空，此处直接返回，不会重复解锁；
         //   · 请求被 ROM 丢掉 → 此处兜底拿到，正常触发。
         // bus 内请求 15 秒自动过期，日常打开 App 时这里永远为空，无副作用。
+        // 如果当前 Intent 已明确携带本次快捷方式请求，交由 onCreate/onNewIntent
+        // 处理，避免 onResume 抢先消费 bus 后，onNewIntent 再写入相同 ID，
+        // 导致 Compose 的 LaunchedEffect 不重新执行（热启动只显示主界面）。
+        if (intent?.hasExtra(EXTRA_WIDGET_DOOR_ID) == true) return
+
         val doorId = WidgetUnlockBus.consume(this) ?: return
 
         navController?.let { nav ->
@@ -122,8 +127,14 @@ class MainActivity : ComponentActivity() {
      *  2) Intent extra —— 热启动（onNewIntent）/ 进程已活时的兜底。
      */
     private fun resolveUnlockDoorId(intent: Intent): String? {
-        val busId = WidgetUnlockBus.consume(this)
-        return busId ?: intent.getStringExtra(EXTRA_WIDGET_DOOR_ID)
+        // 当前启动/新 Intent 的 extra 属于本次点击，优先级高于持久化 bus。
+        // 先读 extra 可避免热启动时 onResume 与 onNewIntent 竞争消费同一请求。
+        val intentId = intent.getStringExtra(EXTRA_WIDGET_DOOR_ID)
+        if (intentId != null) {
+            WidgetUnlockBus.consume(this) // 清理对应的持久化副本，避免稍后重复执行
+            return intentId
+        }
+        return WidgetUnlockBus.consume(this)
     }
 
     /** Activity 重建时恢复开锁请求；首次创建时正常解析。 */
