@@ -413,7 +413,8 @@ private fun ShortcutCreatorCard() {
                             onClick = {
                                 ShortcutPin.pinShortcut(context, door.id, door.name)
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = ColorOSTertiary)
+                            // 与门禁「开锁」按钮、主界面「一键开锁」按钮统一为 ColorOSPrimary（蓝紫）
+                            colors = ButtonDefaults.buttonColors(containerColor = ColorOSPrimary)
                         ) {
                             Text("创建")
                         }

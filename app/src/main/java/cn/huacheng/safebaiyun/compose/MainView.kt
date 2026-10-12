@@ -615,8 +615,10 @@ private fun CompactPollButton(
                         )
                     )
                 } else {
+                    // 空闲态背景与门禁卡片「开锁」按钮（CompactUnlockButton）保持完全一致：
+                    // ColorOSPrimary → ColorOSPrimary.copy(alpha = 0.8f)
                     Brush.horizontalGradient(
-                        colors = listOf(ColorOSGradientStart, ColorOSGradientEnd)
+                        colors = listOf(ColorOSPrimary, ColorOSPrimary.copy(alpha = 0.8f))
                     )
                 }
             )
