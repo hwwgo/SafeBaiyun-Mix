@@ -98,20 +98,7 @@ object UnlockRepo {
                     private var writeChar: BluetoothGattCharacteristic? = null
 
                     private fun sendCommand(g: BluetoothGatt, value: ByteArray) {
-                        // 挑战码过短时加密会越界（协议要求至少 6 字节），
-                        // 且本方法运行在 BLE 回调线程，异常会直接闪退，必须先校验。
-                        if (value.size < 6) {
-                            onEvent("挑战码数据长度不足(${value.size})")
-                            finish(ProbeOutcome.UNLOCK_FAILED)
-                            return
-                        }
-                        val command = try {
-                            Crypto.encryptData(value, Crypto.hexToByteArray(mac), key)
-                        } catch (e: Exception) {
-                            onEvent("指令加密失败: ${e.javaClass.simpleName}")
-                            finish(ProbeOutcome.UNLOCK_FAILED)
-                            return
-                        }
+                        val command = Crypto.encryptData(value, Crypto.hexToByteArray(mac), key)
                         val wc = writeChar
                         if (wc == null) {
                             onEvent("未找到写特征")
