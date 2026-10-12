@@ -7,4 +7,13 @@
          ShortcutActivity 作为无界面中转，直接使用系统的 @android:style/Theme.NoDisplay。 -->
     <style name="Theme.SafeBaiyun" parent="android:Theme.Material.Light.NoActionBar" />
 
+    <!-- 透明快捷方式中转主题：避免 Theme.NoDisplay 在冷启动时触发 onResume 崩溃。 -->
+    <style name="Theme.ShortcutTrampoline" parent="Theme.SafeBaiyun">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
 </resources>
