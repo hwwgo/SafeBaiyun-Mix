@@ -584,7 +584,7 @@ private fun CompactIconButton(
         Icon(
             icon,
             contentDescription = contentDesc,
-            tint = MaterialTheme.colorScheme.primary,
+            tint = Color.White,
             modifier = Modifier.size(20.dp)
         )
     }
@@ -723,7 +723,7 @@ private fun CompactOutlineButton(
         modifier = modifier.height(40.dp),
         shape = RoundedCornerShape(12.dp),
         colors = ButtonDefaults.outlinedButtonColors(
-            contentColor = MaterialTheme.colorScheme.primary
+            contentColor = Color.White
         ),
         border = androidx.compose.foundation.BorderStroke(
             1.dp,

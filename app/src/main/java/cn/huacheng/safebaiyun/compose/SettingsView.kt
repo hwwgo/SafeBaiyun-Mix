@@ -291,7 +291,7 @@ private fun SettingsTopBar(
                 Icon(
                     Icons.Default.ArrowBack,
                     contentDescription = "返回",
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = Color.White,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -299,11 +299,18 @@ private fun SettingsTopBar(
         actions = {
             TextButton(
                 onClick = onSave,
-                enabled = hasChanges
+                enabled = hasChanges,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = Color.White,
+                    disabledContentColor = Color.White.copy(alpha = 0.45f)
+                ),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
             ) {
                 Text(
                     "保存",
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = if (hasChanges) Color.White else Color.White.copy(alpha = 0.45f)
                 )
             }
 
@@ -314,7 +321,7 @@ private fun SettingsTopBar(
                 Icon(
                     Icons.Default.Restore,
                     contentDescription = "恢复默认",
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = Color.White,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -373,12 +380,17 @@ private fun ShortcutCreatorCard() {
                 onClick = {
                     ShortcutPin.pinShortcut(context, ShortcutActivity.ALL_DOORS_ID, "一键开锁")
                 },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = ColorOSPrimary)
+                modifier = Modifier.fillMaxWidth().height(40.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ColorOSPrimary,
+                    contentColor = Color.White
+                ),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
             ) {
-                Icon(Icons.Default.LockOpen, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.LockOpen, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("创建「一键开锁」快捷方式")
+                Text("创建「一键开锁」快捷方式", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
             }
 
             if (doors.isNotEmpty()) {
@@ -414,9 +426,15 @@ private fun ShortcutCreatorCard() {
                                 ShortcutPin.pinShortcut(context, door.id, door.name)
                             },
                             // 与门禁「开锁」按钮、主界面「一键开锁」按钮统一为 ColorOSPrimary（蓝紫）
-                            colors = ButtonDefaults.buttonColors(containerColor = ColorOSPrimary)
+                            modifier = Modifier.height(36.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = ColorOSPrimary,
+                                contentColor = Color.White
+                            ),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                         ) {
-                            Text("创建")
+                            Text("创建", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                         }
                     }
                 }
