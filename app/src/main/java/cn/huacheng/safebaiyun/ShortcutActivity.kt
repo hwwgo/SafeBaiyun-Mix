@@ -3,17 +3,23 @@ package cn.huacheng.safebaiyun
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import cn.huacheng.safebaiyun.widget.WidgetUnlockBus
+import cn.huacheng.safebaiyun.widget.WidgetClickReceiver
 
 /**
  * 快捷开门「中转」Activity（无任何界面）。
  *
  * 目标：桌面快捷方式点一下，效果与用户自己打开 App、再点对应门禁的「开锁」
  * 完全一致 —— 直接进主界面、在主界面里显示开锁过程，开完主界面依然在。
- * 所以这里**不显示任何提示/弹窗**，只做三件事：
+ * 这里**不显示任何提示/弹窗**，只做两件事：
  *   1) 读取快捷方式携带的门禁 ID；
- *   2) 落盘到 [WidgetUnlockBus]（ColorOS 冷启动会丢 Intent extra，落盘才可靠）；
- *   3) 立即拉起 [MainActivity] 并 finish 自己。
+ *   2) 转发给 [WidgetClickReceiver]（发一条广播），由它落盘并拉起 MainActivity。
+ *
+ * 为什么转发而不是直接 start MainActivity：
+ *   之前直接 start 在 ColorOS 上「热启动」（App 已在前台/后台运行）时，由于本 Activity
+ *   与 MainActivity 分属不同 task 且随后 finish()，onNewIntent 经常收不到、无法触发开锁，
+ *   表现为「纯打开 App 界面、不解锁」。而桌面小部件走的正好是
+ *   「广播 → WidgetClickReceiver → 拉起 MainActivity」这条路，冷/热启动都已验证稳定，
+ *   因此快捷方式复用同一路径即可彻底规避该问题，行为与小部件完全一致。
  *
  * 主题为 Theme.NoDisplay（窗口不入屏）+ 无转场动画，因此用户看不到它的存在。
  *
@@ -37,19 +43,14 @@ class ShortcutActivity : ComponentActivity() {
 
         val doorId = intent.getStringExtra(EXTRA_DOOR_ID) ?: ""
 
-        // 落盘，保证 MainActivity 冷启动也能拿到本次请求
-        WidgetUnlockBus.requestUnlock(this, doorId)
-
-        startActivity(
-            Intent(this, MainActivity::class.java).apply {
-                // 与 WidgetClickReceiver 保持一致（NEW_TASK | SINGLE_TOP）。
-                // 不要加 CLEAR_TOP：热启动时本 Activity 就压在 MainActivity 之上，
-                // CLEAR_TOP 会把「正在 finish 的自己」也纳入清理流程，
-                // 在 ColorOS 等 ROM 上会中断 intent 分发，导致 onNewIntent 收不到、热启动不解锁。
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                putExtra(MainActivity.EXTRA_WIDGET_DOOR_ID, doorId)
-            }
-        )
+        // 复用桌面小部件已验证稳定（冷热启动均可）的路径：
+        // 发广播给 WidgetClickReceiver，由它落盘 WidgetUnlockBus 并拉起 MainActivity。
+        // 采用显式组件广播，绕过 intent-filter 的 data 匹配，确保一定送达。
+        val broadcast = Intent(WidgetClickReceiver.ACTION).apply {
+            component = WidgetClickReceiver.componentName()
+            putExtra(WidgetClickReceiver.EXTRA_DOOR_ID, doorId)
+        }
+        sendBroadcast(broadcast)
 
         finish()
         // 去掉转场动画，避免中转窗口闪一下
