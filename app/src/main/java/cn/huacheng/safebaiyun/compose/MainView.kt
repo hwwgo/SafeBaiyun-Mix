@@ -607,20 +607,12 @@ private fun CompactPollButton(
             .height(48.dp)
             .clip(RoundedCornerShape(14.dp))
             .background(
-                brush = if (isBusy) {
-                    Brush.horizontalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.secondaryContainer,
-                            MaterialTheme.colorScheme.secondaryContainer
-                        )
-                    )
-                } else {
-                    // 空闲态背景与门禁卡片「开锁」按钮（CompactUnlockButton）保持完全一致：
-                    // ColorOSPrimary → ColorOSPrimary.copy(alpha = 0.8f)
-                    Brush.horizontalGradient(
-                        colors = listOf(ColorOSPrimary, ColorOSPrimary.copy(alpha = 0.8f))
-                    )
-                }
+                // 无论空闲还是探测/开锁进行中，都与门禁卡片「开锁」按钮（CompactUnlockButton）
+                // 保持完全一致的蓝紫色：ColorOSPrimary → ColorOSPrimary.copy(alpha = 0.8f)
+                // （进行中原先用 secondaryContainer，深色模式下是纯蓝 #1565C0，与开锁按钮的蓝紫不一致）
+                brush = Brush.horizontalGradient(
+                    colors = listOf(ColorOSPrimary, ColorOSPrimary.copy(alpha = 0.8f))
+                )
             )
             .clickable(enabled = !isBusy && hasDoors) { onPollStart() },
         contentAlignment = Alignment.Center
@@ -632,7 +624,7 @@ private fun CompactPollButton(
             ) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(18.dp),
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    color = Color.White,
                     strokeWidth = 2.dp
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -640,7 +632,7 @@ private fun CompactPollButton(
                     text = pollingProgress,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                    color = Color.White
                 )
             }
         } else {
