@@ -140,11 +140,11 @@ private val ColorOSLightColorScheme = lightColorScheme(
     tertiaryContainer = Color(0xFFE8F5E9),
     onTertiaryContainer = Color(0xFF2E7D32),
     background = ColorOSBackgroundLight,
-    onBackground = ColorOSTextPrimaryLight,
+    onBackground = Color.White,
     surface = ColorOSSurfaceLight,
-    onSurface = ColorOSTextPrimaryLight,
+    onSurface = Color.White,
     surfaceVariant = ColorOSSurfaceVariantLight,
-    onSurfaceVariant = ColorOSTextSecondaryLight,
+    onSurfaceVariant = Color.White,
     outline = Color(0xFFC4C6D0),
     outlineVariant = Color(0xFFE0E1E6),
     error = ColorOSError,
@@ -172,11 +172,11 @@ private val ColorOSDarkColorScheme = darkColorScheme(
     tertiaryContainer = Color(0xFF2E7D32),
     onTertiaryContainer = Color.White,
     background = ColorOSBackgroundDark,
-    onBackground = ColorOSTextPrimaryDark,
+    onBackground = Color.White,
     surface = ColorOSSurfaceDark,
-    onSurface = ColorOSTextPrimaryDark,
+    onSurface = Color.White,
     surfaceVariant = ColorOSSurfaceVariantDark,
-    onSurfaceVariant = ColorOSTextSecondaryDark,
+    onSurfaceVariant = Color.White,
     outline = Color(0xFF5A5C66),
     outlineVariant = Color(0xFF3A3B42),
     error = Color(0xFFEF9A9A),
@@ -192,7 +192,7 @@ private val ColorOSDarkColorScheme = darkColorScheme(
 
 @Composable
 fun SafeBaiyunTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = true,
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
