@@ -46,8 +46,11 @@ class MainActivity : ComponentActivity() {
         ConfigManager.init(this)
         UnlockRecordManager.init(this)
 
-        // 桌面小部件 / 快捷方式拉起时解析出的门禁 ID，交给主界面自动执行开锁
-        pendingUnlockDoorId.value = resolveUnlockDoorId(intent)
+        // 桌面小部件 / 快捷方式拉起时解析出的门禁 ID，交给主界面自动执行开锁。
+        // Activity 被系统重建（如旋转屏幕）时优先恢复已保存的请求状态：
+        //   · 已保存（含 null）→ 用保存值，避免重复解析/重复触发开锁；
+        //   · 未保存（首次创建）→ 正常解析 Intent 与 WidgetUnlockBus。
+        pendingUnlockDoorId.value = restoreOrResolveUnlockDoorId(savedInstanceState, intent)
 
         setContent {
             SafeBaiyunTheme {
@@ -100,6 +103,17 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
+     * 保存「待执行的开锁请求」，供 Activity 重建时恢复：
+     *   · 重建时若请求仍在（开锁进行中被重建），恢复后继续执行，不丢请求；
+     *   · 重建时若请求已被消费（保存为 null），恢复后保持 null，
+     *     避免又被 Intent 里残留的 extra 重新触发一次开锁。
+     */
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString(EXTRA_WIDGET_DOOR_ID, pendingUnlockDoorId.value)
+    }
+
+    /**
      * 解析本次要执行的开锁门禁 ID；无请求返回 null。
      *
      * 优先级：
@@ -111,6 +125,14 @@ class MainActivity : ComponentActivity() {
         val busId = WidgetUnlockBus.consume(this)
         return busId ?: intent.getStringExtra(EXTRA_WIDGET_DOOR_ID)
     }
+
+    /** Activity 重建时恢复开锁请求；首次创建时正常解析。 */
+    private fun restoreOrResolveUnlockDoorId(savedInstanceState: Bundle?, intent: Intent): String? =
+        if (savedInstanceState != null && savedInstanceState.containsKey(EXTRA_WIDGET_DOOR_ID)) {
+            savedInstanceState.getString(EXTRA_WIDGET_DOOR_ID)
+        } else {
+            resolveUnlockDoorId(intent)
+        }
 
     @Composable
     private fun MainNavContent(
