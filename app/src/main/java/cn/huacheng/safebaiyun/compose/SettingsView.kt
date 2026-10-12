@@ -381,7 +381,7 @@ private fun ShortcutCreatorCard() {
                     ShortcutPin.pinShortcut(context, ShortcutActivity.ALL_DOORS_ID, "一键开锁")
                 },
                 modifier = Modifier.fillMaxWidth().height(40.dp),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(percent = 50),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = ColorOSPrimary,
                     contentColor = Color.White
@@ -427,7 +427,7 @@ private fun ShortcutCreatorCard() {
                             },
                             // 与门禁「开锁」按钮、主界面「一键开锁」按钮统一为 ColorOSPrimary（蓝紫）
                             modifier = Modifier.height(36.dp),
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(percent = 50),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = ColorOSPrimary,
                                 contentColor = Color.White
