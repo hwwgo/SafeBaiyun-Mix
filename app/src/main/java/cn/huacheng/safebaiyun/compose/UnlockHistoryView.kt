@@ -22,8 +22,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import cn.huacheng.safebaiyun.theme.ColorOSError
-import cn.huacheng.safebaiyun.theme.ColorOSGradientEnd
-import cn.huacheng.safebaiyun.theme.ColorOSGradientStart
 import cn.huacheng.safebaiyun.theme.ColorOSPrimary
 import cn.huacheng.safebaiyun.theme.ColorOSSuccess
 import cn.huacheng.safebaiyun.unlock.UnlockRecord

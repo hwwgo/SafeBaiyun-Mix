@@ -511,13 +511,13 @@ private fun LargeFontCard(
                     modifier = Modifier
                         .size(36.dp)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(ColorOSTertiary.copy(alpha = 0.1f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.FormatSize,
-                        contentDescription = null,
-                        tint = ColorOSTertiary,
+                        .background(ColorOSPrimary.copy(alpha = 0.1f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.FormatSize,
+                            contentDescription = null,
+                            tint = ColorOSPrimary,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -543,7 +543,8 @@ private fun LargeFontCard(
                 checked = largeFont,
                 onCheckedChange = onToggle,
                 colors = SwitchDefaults.colors(
-                    checkedTrackColor = ColorOSTertiary,
+                    // 与「开锁成功震动」开关统一为 ColorOSPrimary，避免同屏两个开关颜色不一致
+                    checkedTrackColor = ColorOSPrimary,
                     checkedThumbColor = Color.White
                 )
             )

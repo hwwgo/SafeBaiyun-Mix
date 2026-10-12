@@ -213,8 +213,10 @@ private fun CompactAddButton(onClick: () -> Unit) {
             .height(48.dp)
             .clip(RoundedCornerShape(14.dp))
             .background(
+                // 与门禁「开锁」按钮、主界面「一键开锁」按钮、设置页「创建」按钮统一：
+                // ColorOSPrimary → ColorOSPrimary.copy(alpha = 0.8f)
                 brush = Brush.horizontalGradient(
-                    colors = listOf(ColorOSGradientStart, ColorOSGradientEnd)
+                    colors = listOf(ColorOSPrimary, ColorOSPrimary.copy(alpha = 0.8f))
                 )
             )
             .clickable(onClick = onClick),
