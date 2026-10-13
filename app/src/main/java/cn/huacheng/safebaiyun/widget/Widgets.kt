@@ -601,6 +601,7 @@ class WidgetClickReceiver : BroadcastReceiver() {
 // ============================================================
 object WidgetUnlockBus {
 
+    private const val TAG = "WidgetUnlockBus"
     private const val PREFS_NAME = "widget_unlock_bus"
     private const val KEY_DOOR_ID = "pending_door_id"
     private const val KEY_TIMESTAMP = "pending_timestamp"
@@ -651,6 +652,7 @@ object WidgetUnlockBus {
             .putLong(KEY_TIMESTAMP, now)
             .commit()
 
+        Log.d(TAG, "requestUnlock doorId=$doorId")
         notifyRequestListeners()
     }
 
@@ -698,6 +700,7 @@ object WidgetUnlockBus {
         pendingDoorId = null
         pendingTimestamp = 0L
 
+        Log.d(TAG, "consume -> ${if (valid) id else "null(无效或已消费)"}")
         return if (valid) id else null
     }
 
@@ -743,10 +746,17 @@ object WidgetHelper {
         ContextHolder.get().startActivity(intent)
     }
 
+    /**
+     * 创建通用「开门」快捷方式（不带门禁 ID，主界面按 "" 即第一个门处理）。
+     *
+     * 与 [ShortcutPin.pinShortcut] 一致：直接指向 MainActivity，避免中转页在热启动时
+     * 被 ROM 跳过导致不开锁；action 用 ACTION_PINNED_UNLOCK，主界面据此识别为快捷方式。
+     */
     fun createShortcut() {
         val context = ContextHolder.get()
-        val intent = Intent(context, ShortcutActivity::class.java)
-        intent.setAction(Intent.ACTION_VIEW)
+        val intent = Intent(context, MainActivity::class.java).apply {
+            action = ShortcutActivity.ACTION_PINNED_UNLOCK
+        }
         val shortcut = ShortcutInfoCompat.Builder(context, "Unlock").setIcon(
             IconCompat.createWithResource(context, R.mipmap.ic_launcher)
         ).setShortLabel("开门").setLongLabel("解锁门禁").setIntent(intent).build()
