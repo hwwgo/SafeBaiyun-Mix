@@ -659,7 +659,6 @@ private fun CompactPollButton(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    // ✅ 改动一：文案简化
                     text = "一键开锁 (${selectedCount}/${doors.size})",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,

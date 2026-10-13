@@ -314,7 +314,6 @@ private fun CompactDoorEditItem(
                     overflow = TextOverflow.Ellipsis
                 )
 
-                // 修复：去掉背景色块，添加间距
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically

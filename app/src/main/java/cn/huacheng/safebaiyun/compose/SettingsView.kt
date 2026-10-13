@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
@@ -116,17 +117,23 @@ fun SettingsView(navController: NavController) {
 
                 InfoCard()
 
-                LargeFontCard(
-                    largeFont = largeFont,
-                    onToggle = {
+                SettingsSwitchCard(
+                    icon = Icons.Default.FormatSize,
+                    title = "大字体模式",
+                    description = "放大界面文字，方便阅读",
+                    checked = largeFont,
+                    onCheckedChange = {
                         largeFont = it
                         hasChanges = true
                     }
                 )
 
-                UnlockVibrationCard(
-                    enabled = unlockVibration,
-                    onToggle = {
+                SettingsSwitchCard(
+                    icon = Icons.Default.Vibration,
+                    title = "开锁成功震动",
+                    description = "开门成功后手机震动提示",
+                    checked = unlockVibration,
+                    onCheckedChange = {
                         unlockVibration = it
                         hasChanges = true
                     }
@@ -144,25 +151,34 @@ fun SettingsView(navController: NavController) {
                     unit = "毫秒"
                 )
 
-                UnlockRecordCard(
-                    enabled = unlockRecord,
-                    onToggle = {
+                SettingsSwitchCard(
+                    icon = Icons.Default.History,
+                    title = "开锁记录",
+                    description = "记录开锁成功、失败、时间和耗时",
+                    checked = unlockRecord,
+                    onCheckedChange = {
                         unlockRecord = it
                         hasChanges = true
                     }
                 )
 
-                AutoPollCard(
-                    autoPoll = autoPoll,
-                    onToggle = {
+                SettingsSwitchCard(
+                    icon = Icons.Default.Refresh,
+                    title = "打开软件自动开锁",
+                    description = "启动应用后自动执行一键开锁",
+                    checked = autoPoll,
+                    onCheckedChange = {
                         autoPoll = it
                         hasChanges = true
                     }
                 )
 
-                AutoScanCard(
-                    autoScan = autoScan,
-                    onToggle = {
+                SettingsSwitchCard(
+                    icon = Icons.Default.BluetoothSearching,
+                    title = "开锁前探测附近门禁",
+                    description = "开锁前按顺序探测已勾选的门禁，命中后优先开锁",
+                    checked = autoScan,
+                    onCheckedChange = {
                         autoScan = it
                         hasChanges = true
                     }
@@ -503,9 +519,12 @@ private fun InfoCard() {
 }
 
 @Composable
-private fun LargeFontCard(
-    largeFont: Boolean,
-    onToggle: (Boolean) -> Unit
+private fun SettingsSwitchCard(
+    icon: ImageVector,
+    title: String,
+    description: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -530,12 +549,12 @@ private fun LargeFontCard(
                         .size(36.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .background(ColorOSPrimary.copy(alpha = 0.1f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Default.FormatSize,
-                            contentDescription = null,
-                            tint = ColorOSPrimary,
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = ColorOSPrimary,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -544,13 +563,13 @@ private fun LargeFontCard(
 
                 Column {
                     Text(
-                        text = "大字体模式",
+                        text = title,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "放大界面文字，方便阅读",
+                        text = description,
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -558,274 +577,10 @@ private fun LargeFontCard(
             }
 
             Switch(
-                checked = largeFont,
-                onCheckedChange = onToggle,
+                checked = checked,
+                onCheckedChange = onCheckedChange,
                 colors = SwitchDefaults.colors(
                     // 与「开锁成功震动」开关统一为 ColorOSPrimary，避免同屏两个开关颜色不一致
-                    checkedTrackColor = ColorOSPrimary,
-                    checkedThumbColor = Color.White
-                )
-            )
-        }
-    }
-}
-
-@Composable
-private fun UnlockRecordCard(
-    enabled: Boolean,
-    onToggle: (Boolean) -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(ColorOSPrimary.copy(alpha = 0.1f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.History,
-                        contentDescription = null,
-                        tint = ColorOSPrimary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(10.dp))
-
-                Column {
-                    Text(
-                        text = "开锁记录",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "记录开锁成功、失败、时间和耗时",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Switch(
-                checked = enabled,
-                onCheckedChange = onToggle,
-                colors = SwitchDefaults.colors(
-                    checkedTrackColor = ColorOSPrimary,
-                    checkedThumbColor = Color.White
-                )
-            )
-        }
-    }
-}
-
-@Composable
-private fun UnlockVibrationCard(
-    enabled: Boolean,
-    onToggle: (Boolean) -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(ColorOSPrimary.copy(alpha = 0.1f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.Vibration,
-                        contentDescription = null,
-                        tint = ColorOSPrimary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(10.dp))
-
-                Column {
-                    Text(
-                        text = "开锁成功震动",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "开门成功后手机震动提示",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Switch(
-                checked = enabled,
-                onCheckedChange = onToggle,
-                colors = SwitchDefaults.colors(
-                    checkedTrackColor = ColorOSPrimary,
-                    checkedThumbColor = Color.White
-                )
-            )
-        }
-    }
-}
-
-@Composable
-private fun AutoPollCard(
-    autoPoll: Boolean,
-    onToggle: (Boolean) -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(ColorOSPrimary.copy(alpha = 0.1f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.Refresh,
-                        contentDescription = null,
-                        tint = ColorOSPrimary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(10.dp))
-
-                Column {
-                    Text(
-                        text = "打开软件自动开锁",   // ✅ 已修改
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "启动应用后自动执行一键开锁",   // ✅ 已修改
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Switch(
-                checked = autoPoll,
-                onCheckedChange = onToggle,
-                colors = SwitchDefaults.colors(
-                    checkedTrackColor = ColorOSPrimary,
-                    checkedThumbColor = Color.White
-                )
-            )
-        }
-    }
-}
-
-@Composable
-private fun AutoScanCard(
-    autoScan: Boolean,
-    onToggle: (Boolean) -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(ColorOSPrimary.copy(alpha = 0.1f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.BluetoothSearching,
-                        contentDescription = null,
-                        tint = ColorOSPrimary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(10.dp))
-
-                Column {
-                    Text(
-                        text = "开锁前探测附近门禁",   // ✅ 已修改
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "开锁前按顺序探测已勾选的门禁，命中后优先开锁",   // ✅ 已修改
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Switch(
-                checked = autoScan,
-                onCheckedChange = onToggle,
-                colors = SwitchDefaults.colors(
                     checkedTrackColor = ColorOSPrimary,
                     checkedThumbColor = Color.White
                 )
