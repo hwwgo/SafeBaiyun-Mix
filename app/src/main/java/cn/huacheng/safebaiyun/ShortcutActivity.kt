@@ -2,6 +2,7 @@ package cn.huacheng.safebaiyun
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import cn.huacheng.safebaiyun.widget.WidgetUnlockBus
 
@@ -39,13 +40,17 @@ import cn.huacheng.safebaiyun.widget.WidgetUnlockBus
  * 曾经在 launch Intent 上并行携带的 extra 已移除：属冗余投递，且在观察者
  * 模式下会经 onNewIntent 晚于总线到达，把同一次点击重复触发第二次开锁。
  *
- * 重要边界（热启动根投递）：本中转页**只保证在「没有已存在任务」时一定执行**。
+ * 重要边界（热启动）：本中转页**只保证在「没有已存在任务」时一定执行**。
  * App 已在运行时，快捷方式 Intent 带 FLAG_ACTIVITY_NEW_TASK |
  * FLAG_ACTIVITY_RESET_TASK_IF_NEEDED，系统按「前门（front door）」语义把已存在
  * 的任务重置到根 Activity，该 Intent 被直接投递给 MainActivity.onNewIntent ——
- * 本页根本不会被创建、总线也不会被写入。那种场景由 MainActivity 直接解析本条
- * Intent 的 door_id extra 完成开锁（见 MainActivity.takeShortcutDoorId）。
+ * 本页根本不会被创建、总线也不会被写入；个别 ROM 还会改写投递 Intent 的
+ * component / 剥掉 action。那种场景由 MainActivity 直接解析本条 Intent 的
+ * door_id extra 完成开锁（见 MainActivity.takeShortcutDoorId）。
  * 冷启动没有已存在的任务，本页正常执行，所以冷启动的解锁一直没问题。
+ *
+ * 现状定位：**新钉的快捷方式已直接指向 MainActivity**（见 ShortcutPin），本页
+ * 只为兼容历史上已经钉在桌面上的旧快捷方式（其冷启动仍走「中转页 + 总线」）。
  *
  * 主题为 Theme.NoDisplay（窗口不入屏）+ 无转场动画，因此用户看不到它的存在。
  *
@@ -54,6 +59,8 @@ import cn.huacheng.safebaiyun.widget.WidgetUnlockBus
 class ShortcutActivity : ComponentActivity() {
 
     companion object {
+        private const val TAG = "ShortcutActivity"
+
         /** Intent extra：快捷方式携带的目标门禁 ID */
         const val EXTRA_DOOR_ID = "door_id"
 
@@ -68,6 +75,7 @@ class ShortcutActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val doorId = intent.getStringExtra(EXTRA_DOOR_ID) ?: ""
+        Log.d(TAG, "onCreate action=${intent.action} doorId=$doorId extras=${intent.extras}")
 
         // 1) 先把开锁请求落盘（commit() 同步写，确保拉起主界面前已持久化）。
         //    ColorOS 冷启动偶发丢弃 Intent extra，bus 是可靠来源；
