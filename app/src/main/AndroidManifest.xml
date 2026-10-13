@@ -69,12 +69,14 @@
         </receiver>
 
         <!-- 桌面快捷方式的中转入口：不显示任何界面（Theme.NoDisplay），
-             只把门禁 ID 落盘后拉起 MainActivity，由主界面完成开锁。 -->
+             只把门禁 ID 落盘后拉起 MainActivity，由主界面完成开锁。
+             注意：新版本钉的快捷方式（ShortcutPin）已直接指向 MainActivity，
+             本页仅用于兼容旧快捷方式的冷启动；不再设置 noHistory /
+             excludeFromRecents（中转页会自行 finish()，这两个属性冗余，
+             且可能触发个别 ROM 对「瞬时 Activity」的特殊处理而跳过启动）。 -->
         <activity
             android:name=".ShortcutActivity"
             android:exported="true"
-            android:excludeFromRecents="true"
-            android:noHistory="true"
             android:theme="@style/Theme.ShortcutTrampoline" />
 
         <activity
