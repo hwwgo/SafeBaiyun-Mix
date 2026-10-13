@@ -74,9 +74,6 @@ val doorIdKey = stringPreferencesKey("widget_door_id")
 // -------- 品牌色（深浅模式一致） --------
 val WidgetPrimary = ColorProvider(day = ColorOSPrimary, night = ColorOSPrimary)
 val WidgetOnPrimary = ColorProvider(day = Color.White, night = Color.White)
-val WidgetSecondary = ColorProvider(day = ColorOSSecondary, night = ColorOSSecondary)
-val WidgetTertiary = ColorProvider(day = ColorOSTertiary, night = ColorOSTertiary)
-val WidgetError = ColorProvider(day = ColorOSError, night = ColorOSError)
 
 // -------- 表面与文字（深浅模式区分） --------
 // 卡片背景
