@@ -34,23 +34,10 @@ object UnlockRepo {
 
     private const val TAG = "UnlockRepo"
     private const val MAGIC_SERVICE = "14839ac4-7d7e-415c-9a42-167340cf2339"
-    private const val MAX_LOG_LINES = 200
 
     // ---------- 状态流 ----------
-    private val _logFlow = MutableStateFlow<List<String>>(emptyList())
-    val logFlow: StateFlow<List<String>> = _logFlow
-
     private val _unlockStep = MutableStateFlow("")
     val unlockStep: StateFlow<String> = _unlockStep
-
-    fun resetUnlockStep() {
-        _unlockStep.value = ""
-    }
-
-    /** 供外部（如 Widget 覆盖层的一键开锁流程）直接更新进度文案 */
-    fun setUnlockStep(text: String) {
-        _unlockStep.value = text
-    }
 
     // ---------- 轮询控制 ----------
     private var pollJob: Job? = null
@@ -493,16 +480,10 @@ object UnlockRepo {
     }
 
     // ============================================================
-    //  日志工具（上限 200 条，环形截断）
+    //  日志工具
     // ============================================================
 
     private fun log(msg: String) {
         Log.d(TAG, msg)
-        val current = _logFlow.value
-        _logFlow.value = if (current.size >= MAX_LOG_LINES) {
-            current.drop(current.size - MAX_LOG_LINES + 1) + msg
-        } else {
-            current + msg
-        }
     }
 }

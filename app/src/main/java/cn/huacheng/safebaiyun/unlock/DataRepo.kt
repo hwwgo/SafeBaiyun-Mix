@@ -77,17 +77,6 @@ object DataRepo {
 
     private fun MutableList<DoorDevice>.indexOfId(id: String) = indexOfFirst { it.id == id }
 
-    fun addDoor(door: DoorDevice) = mutateDoors { it.add(door) }
-
-    fun updateDoor(door: DoorDevice) = mutateDoors { list ->
-        val index = list.indexOfId(door.id)
-        if (index >= 0) list[index] = door
-    }
-
-    fun deleteDoor(id: String) = mutateDoors { list ->
-        list.removeAll { it.id == id }
-    }
-
     // ---------- 切换选中状态 ----------
     fun toggleSelected(id: String) = mutateDoors { list ->
         val index = list.indexOfId(id)
