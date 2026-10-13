@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import cn.huacheng.safebaiyun.ShortcutActivity
+import cn.huacheng.safebaiyun.UnlockRequest
 import cn.huacheng.safebaiyun.theme.*
 import cn.huacheng.safebaiyun.unlock.DataRepo
 import cn.huacheng.safebaiyun.unlock.DoorDevice
@@ -54,20 +55,22 @@ private enum class PollingState {
 /**
  * 主界面。
  *
- * 桌面小部件 / 桌面快捷方式的开锁请求也在这里执行 —— 通过 [autoUnlockDoorId]
+ * 桌面小部件 / 桌面快捷方式的开锁请求也在这里执行 —— 通过 [autoUnlockRequest]
  * 传入要开的门禁，主界面照常显示后自动触发，动作与用户手动点击完全一致：
  *   · [ShortcutActivity.ALL_DOORS_ID] → 走「一键开锁」（等同点顶部大按钮）
  *   · 具体门禁 id                    → 走单门开锁（等同点该门禁卡片右侧「开锁」）
  * 开锁结束（成功或失败）后主界面保持显示，不自动关闭。
  *
- * @param autoUnlockDoorId     待自动执行的开锁请求；null 表示无请求
+ * @param autoUnlockRequest     待自动执行的开锁请求；null 表示无请求。
+ *                              同一个门禁连续两次请求时 doorId 相同，靠 [UnlockRequest.nonce]
+ *                              让每一次请求都成为新的 effect key，保证重新触发。
  * @param onAutoUnlockConsumed 请求已被消费（已发起开锁）时回调，供上层清空状态避免重复触发
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainView(
     navController: NavHostController,
-    autoUnlockDoorId: String? = null,
+    autoUnlockRequest: UnlockRequest? = null,
     onAutoUnlockConsumed: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -269,11 +272,18 @@ fun MainView(
      * 等权限检查完成、门禁列表就绪后自动执行，等价于用户手动点击：
      *   · ALL_DOORS_ID → 一键开锁
      *   · 具体 id      → 对应门禁开锁（找不到时退化为第一个可用门禁）
-     * 发起后立即消费请求，避免重复触发；开锁结束后主界面保持显示。
+     *
+     * 请求在**真正发起开锁之后**才消费：LaunchedEffect 的 key 就是请求对象本身，
+     * 一旦提前清空请求，key 随之变化 → 本协程被取消 → 后面还没执行的开锁会整个丢失。
+     * 开锁动作跑在 MainView 自己的 scope（unlockSingleDoor / startPollingFlow）里，
+     * 不受本 effect 结束或取消影响，消费时机放在最后才是安全的。
      */
-    LaunchedEffect(autoUnlockDoorId, permissionChecked) {
-        val requested = autoUnlockDoorId ?: return@LaunchedEffect
+    LaunchedEffect(autoUnlockRequest, permissionChecked) {
+        val request = autoUnlockRequest ?: return@LaunchedEffect
+        // 权限检查还没跑完（冷启动首帧）时保留请求，等它就绪后本 effect 会重新执行。
         if (!permissionChecked) return@LaunchedEffect
+
+        val requested = request.doorId
 
         if (!hasPermission.value) {
             showToast("请先授予蓝牙权限，再使用快捷开锁")
@@ -306,7 +316,8 @@ fun MainView(
             }
         }
 
-        // 请求已发起，通知上层清空（此时开锁在独立协程里跑，不受本协程结束影响）
+        // 请求已发起：开锁跑在独立协程里，本 effect 结束与否都不影响它继续执行。
+        // 此时清空请求状态不会影响 key —— key 变化只会取消本协程，而开锁已完成调度。
         onAutoUnlockConsumed()
     }
 
