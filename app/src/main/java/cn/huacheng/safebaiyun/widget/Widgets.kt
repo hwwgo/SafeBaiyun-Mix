@@ -53,6 +53,8 @@ import cn.huacheng.safebaiyun.unlock.DataRepo
 // 合并自 WidgetClickReceiver.kt / WidgetUnlockBus.kt / WidgetHelper.kt（同包，类名不变）
 import android.content.BroadcastReceiver
 import android.content.ComponentName
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.provider.Settings
 import androidx.core.content.pm.ShortcutInfoCompat
@@ -60,6 +62,7 @@ import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
 import cn.huacheng.safebaiyun.MainActivity
 import cn.huacheng.safebaiyun.util.ContextHolder
+import java.util.concurrent.CopyOnWriteArrayList
 
 // ============================================================
 //  桌面部件 ColorOS 配色
@@ -569,9 +572,12 @@ class WidgetClickReceiver : BroadcastReceiver() {
         WidgetUnlockBus.requestUnlock(context, doorId)
 
         // 3) 在当前（已被系统拉起的）App 进程里启动 MainActivity。
+        //    请求只走 [WidgetUnlockBus] 一条路：它在上面已经 commit 落盘，
+        //    主界面通过 onCreate / onNewIntent / onResume / 总线观察者消费，
+        //    Intent extra 是冗余投递，还会在观察者消费之后经 onNewIntent 重复
+        //    触发一次开锁，故不再携带。
         val launch = Intent(context, MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            putExtra(EXTRA_DOOR_ID, doorId)
         }
         context.startActivity(launch)
     }
@@ -583,6 +589,15 @@ class WidgetClickReceiver : BroadcastReceiver() {
 //  ColorOS 冷启动时可能先启动 MainActivity，仅用内存字段不可靠，
 //  因此同时把请求持久化到 SharedPreferences。requestUnlock() 使用 commit()，
 //  确保 startActivity() 之前请求已落盘。
+//
+//  热启动兜底（观察者机制）：
+//  仅靠 MainActivity 的 onCreate / onNewIntent / onResume 三个生命周期钩子
+//  消费总线，在 ColorOS 热启动时会整体断掉：
+//    · 主界面已在前台（已 resumed）时，点快捷方式不会再回调 onResume；
+//    · 个别 ROM 又会丢掉 onNewIntent（ColorOS 已知坑）。
+//  三个钩子全部落空 → 总线里的请求永远没人取走，表现为「只弹主界面、不解锁」。
+//  因此 requestUnlock() 写入成功后立即通知已注册的观察者（通常是存活的主界面），
+//  由观察者当场消费，不再依赖任何生命周期回调是否发生。
 // ============================================================
 object WidgetUnlockBus {
 
@@ -597,6 +612,32 @@ object WidgetUnlockBus {
     @Volatile
     private var pendingTimestamp: Long = 0L
 
+    /**
+     * 开锁请求观察者列表。
+     *
+     * 写入新请求（[requestUnlock]）时同步回调；观察者通常立即调用 [consume]
+     * 取走请求。[consume] 是「取走即清空」语义，因此无论观察者、onCreate、
+     * onNewIntent 还是 onResume 谁先到，一次点击都只会被执行一次。
+     */
+    private val requestListeners = CopyOnWriteArrayList<() -> Unit>()
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    /**
+     * 注册开锁请求观察者。
+     *
+     * 调用方必须持有**稳定引用**（如 Activity 的字段）再传入，注销时传同一实例，
+     * 否则按实例比对会 add/remove 不匹配。
+     */
+    fun addRequestListener(listener: () -> Unit) {
+        requestListeners.addIfAbsent(listener)
+    }
+
+    /** 注销开锁请求观察者（传入与注册时同一实例）。 */
+    fun removeRequestListener(listener: () -> Unit) {
+        requestListeners.remove(listener)
+    }
+
     fun requestUnlock(context: Context, doorId: String) {
         val now = System.currentTimeMillis()
 
@@ -609,6 +650,24 @@ object WidgetUnlockBus {
             .putString(KEY_DOOR_ID, doorId)
             .putLong(KEY_TIMESTAMP, now)
             .commit()
+
+        notifyRequestListeners()
+    }
+
+    /**
+     * 通知观察者「有新的开锁请求写入」。
+     *
+     * [requestUnlock] 的调用方（ShortcutActivity.onCreate、WidgetClickReceiver.onReceive）
+     * 均为主线程，此时同步回调，主界面能以最快速度取走请求；万一日后被后台线程调用，
+     * 则切回主线程执行，保证观察者内的 UI 状态操作线程安全。
+     */
+    private fun notifyRequestListeners() {
+        if (requestListeners.isEmpty()) return
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            requestListeners.forEach { it() }
+        } else {
+            mainHandler.post { requestListeners.forEach { it() } }
+        }
     }
 
     @Synchronized
