@@ -45,21 +45,22 @@ data class UnlockRequest(val doorId: String, val nonce: Long)
  * 主界面照常显示，然后自动执行对应门禁的开锁，过程与用户手动点
  * 「开锁 / 一键开锁」按钮完全一致；开锁结束后主界面保持不动（不自动关闭）。
  *
- * 请求送达主界面共有四条路径，任何一条活着都必须能把请求取出来执行，
+ * 请求送达主界面共有五条路径，任何一条活着都必须能把请求取出来执行，
  * 但整次点击只能被执行一次（[collectUnlockRequest] 取走即清空）：
- *   1) 总线观察者   —— 请求写入 [WidgetUnlockBus] 的瞬间即回调（见下）；
- *   2) [onCreate]   —— 冷启动 / Activity 被回收后重建；
- *   3) [onNewIntent]—— App 已在运行时的标准热启动路径（singleTask）；
- *   4) [onResume]   —— 兜底：部分 ROM 会把这次点击的 Intent 丢掉、不回调 onNewIntent，
- *                     但只要主界面回到前台，onResume 一定会被调用。
+ *   1) 总线观察者     —— 请求写入 [WidgetUnlockBus] 的瞬间即回调；
+ *   2) [onCreate]     —— 冷启动 / Activity 被回收后重建；
+ *   3) [onNewIntent]  —— App 已在运行时的标准热启动路径（singleTask）；
+ *   4) [onResume]     —— 兜底：部分 ROM 丢 onNewIntent 时，任务回前台必触发；
+ *   5) 快捷方式 Intent 本体 —— 热启动「根投递」路径，见 [takeShortcutDoorId]。
  *
- * 为什么必须有第 1 条（热启动失效的修复）：
- * ColorOS 热启动时，若主界面**已在前台**（已 resumed），点快捷方式不会再回调
- * onResume；若 ROM 又丢掉 onNewIntent，则 2/3/4 三条钩子全部落空 ——
- * 中转页写进总线的请求永远没人取走，表现为「只弹主界面、不解锁」。
- * 注册总线观察者后，请求写入的瞬间就会通知存活的主界面立即消费，
- * 不再依赖任何生命周期回调是否发生；冷启动时主界面尚未创建，观察者不会
- * 提前触发，请求由 onCreate 正常取走，两条路径互不干扰、也不会重复。
+ * 为什么必须有第 5 条（热启动失效的真正原因）：
+ * App 已在运行时点桌面快捷方式，启动器发出的 Intent 带
+ * FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_RESET_TASK_IF_NEEDED，系统按「前门
+ * （front door）」语义把已存在的任务重置到根 Activity，该 Intent 被**直接投递给
+ * 本 Activity 的 onNewIntent**，ShortcutActivity 根本不会被创建、总线也不会被写入。
+ * 旧实现只认总线，于是热启动时取不到任何请求，表现为「只弹主界面、不解锁」。
+ * 冷启动没有已存在的任务，中转页正常执行、正常写总线，所以冷启动一直是好的。
+ * 两条路径互斥（一次点击要么走中转页、要么被根投递），不会重复执行。
  */
 class MainActivity : ComponentActivity() {
 
@@ -114,6 +115,10 @@ class MainActivity : ComponentActivity() {
     /**
      * App 已在运行（singleTask）时，小部件 / 快捷方式再次点击会把 Intent 送到这里，
      * 而不是 onCreate。必须处理，否则热启动不会触发开锁。
+     *
+     * 注意：App 已在运行时，**桌面快捷方式**的 Intent 会被系统按「前门」语义直接
+     * 根投递到这里（ShortcutActivity 被跳过、总线不会被写入），此时 Intent 上携带着
+     * 快捷方式的 door_id extra，由 [collectUnlockRequest] 的来源 2 解析。
      */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -147,22 +152,63 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * 取出本次点击的开锁请求。
+     * 取出本次点击的开锁请求；两个来源都是「取走即清空」，因此 onCreate /
+     * onNewIntent / onResume / 总线观察者无论谁先到，一次点击只会执行一次开锁。
      *
-     * 唯一来源是 [WidgetUnlockBus]（SharedPreferences 持久化）：发起方
-     * ShortcutActivity / WidgetClickReceiver 在拉起主界面**之前**就已 commit 落盘，
-     * 既不受 Intent extra 丢失影响，也不依赖 onNewIntent 是否被回调，是最可靠的来源。
+     * 来源 1 —— [WidgetUnlockBus]（SharedPreferences 持久化）：
+     *   中转页 / 小部件广播在拉起主界面**之前**就已 commit 落盘，既不受 Intent extra
+     *   丢失影响，也不依赖 onNewIntent 是否被回调。覆盖冷启动（onCreate 消费）与
+     *   「中转页确实被执行」的热启动（观察者即时消费）。
      *
-     * 「取走即清空」语义：onCreate / onNewIntent / onResume / 总线观察者无论谁先到，
-     * 都只有一个人能取到请求，因此一次点击只会执行一次开锁。
-     *
-     * 历史上曾并行保留 Intent extra 作为兜底，现已移除：extra 是冗余投递，
-     * 且在观察者模式下它往往经 onNewIntent **晚于**总线到达，会把同一次点击
-     * 重复触发第二次开锁；总线本身已持久化，不存在 extra 能用而总线不能用的场景。
+     * 来源 2 —— 桌面快捷方式的 Intent 本体（[takeShortcutDoorId]）：
+     *   **热启动失效的真正原因**：App 已在运行时，快捷方式 Intent 带
+     *   FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_RESET_TASK_IF_NEEDED，系统按
+     *   「前门（front door）」语义把已存在的任务重置到根 Activity，该 Intent 被直接
+     *   投递给 MainActivity.onNewIntent —— ShortcutActivity 根本不会被创建，总线
+     *   也不会被写入。此时唯一能拿到门禁 ID 的地方就是这条 Intent 自身。
+     *   （冷启动没有已存在的任务，中转页正常执行，所以冷启动一直是好的。）
      */
     private fun collectUnlockRequest(): UnlockRequest? {
-        val busDoorId = WidgetUnlockBus.consume(this) ?: return null
-        return UnlockRequest(busDoorId, ++nonceSeq)
+        val busDoorId = WidgetUnlockBus.consume(this)
+        if (busDoorId != null) {
+            // 总线已命中：同一次点击在 Intent 上的副本已无意义，清掉防止被再次读到
+            clearShortcutExtra()
+            return UnlockRequest(busDoorId, ++nonceSeq)
+        }
+
+        val shortcutDoorId = takeShortcutDoorId()
+        if (shortcutDoorId != null) {
+            return UnlockRequest(shortcutDoorId, ++nonceSeq)
+        }
+
+        return null
+    }
+
+    /**
+     * 读取「桌面快捷方式」投递到主界面的门禁 ID（热启动根投递路径）。
+     *
+     * 被根投递的 Intent 就是桌面快捷方式最初的那一条：component 仍指向
+     * [ShortcutActivity]（个别 ROM 改写 component 时退而判断 action），
+     * extra 是 [ShortcutActivity.EXTRA_DOOR_ID]。
+     * 正常从桌面图标打开（component = MainActivity、action = MAIN）、
+     * 以及中转页转发过来的 Intent 都不满足判定，不会误触发开锁。
+     *
+     * 读取后立即移除 extra，保证一次点击只执行一次（后续 onResume 再取时为 null）。
+     */
+    private fun takeShortcutDoorId(): String? {
+        val current = intent ?: return null
+        val fromShortcut = current.component?.className == ShortcutActivity::class.java.name ||
+                current.action == ShortcutActivity.ACTION_PINNED_UNLOCK
+        if (!fromShortcut) return null
+
+        val doorId = current.getStringExtra(ShortcutActivity.EXTRA_DOOR_ID) ?: ""
+        current.removeExtra(ShortcutActivity.EXTRA_DOOR_ID)
+        return doorId
+    }
+
+    /** 清除当前 Intent 上桌面快捷方式的 extra（总线已命中时调用，避免同一次点击重复执行）。 */
+    private fun clearShortcutExtra() {
+        intent?.removeExtra(ShortcutActivity.EXTRA_DOOR_ID)
     }
 
     /**

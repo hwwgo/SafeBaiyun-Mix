@@ -39,6 +39,14 @@ import cn.huacheng.safebaiyun.widget.WidgetUnlockBus
  * 曾经在 launch Intent 上并行携带的 extra 已移除：属冗余投递，且在观察者
  * 模式下会经 onNewIntent 晚于总线到达，把同一次点击重复触发第二次开锁。
  *
+ * 重要边界（热启动根投递）：本中转页**只保证在「没有已存在任务」时一定执行**。
+ * App 已在运行时，快捷方式 Intent 带 FLAG_ACTIVITY_NEW_TASK |
+ * FLAG_ACTIVITY_RESET_TASK_IF_NEEDED，系统按「前门（front door）」语义把已存在
+ * 的任务重置到根 Activity，该 Intent 被直接投递给 MainActivity.onNewIntent ——
+ * 本页根本不会被创建、总线也不会被写入。那种场景由 MainActivity 直接解析本条
+ * Intent 的 door_id extra 完成开锁（见 MainActivity.takeShortcutDoorId）。
+ * 冷启动没有已存在的任务，本页正常执行，所以冷启动的解锁一直没问题。
+ *
  * 主题为 Theme.NoDisplay（窗口不入屏）+ 无转场动画，因此用户看不到它的存在。
  *
  * 门禁 ID 取值：具体门禁 id / [ALL_DOORS_ID]（一键开锁）/ ""（开第一个门）。
