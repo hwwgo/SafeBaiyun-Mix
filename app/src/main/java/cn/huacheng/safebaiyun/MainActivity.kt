@@ -45,12 +45,21 @@ data class UnlockRequest(val doorId: String, val nonce: Long)
  * 主界面照常显示，然后自动执行对应门禁的开锁，过程与用户手动点
  * 「开锁 / 一键开锁」按钮完全一致；开锁结束后主界面保持不动（不自动关闭）。
  *
- * 请求送达主界面共有三条路径，任何一条活着都必须能把请求取出来执行，
- * 但整次点击只能被执行一次（参见 [collectUnlockRequest]）：
- *   1) [onCreate]     —— 冷启动 / Activity 被回收后重建；
- *   2) [onNewIntent]  —— App 已在运行时的标准热启动路径（singleTask）；
- *   3) [onResume]     —— 兜底：部分 ROM 会把这次点击的 Intent 丢掉、不回调 onNewIntent，
- *                        但只要主界面回到前台，onResume 一定会被调用。
+ * 请求送达主界面共有四条路径，任何一条活着都必须能把请求取出来执行，
+ * 但整次点击只能被执行一次（[collectUnlockRequest] 取走即清空）：
+ *   1) 总线观察者   —— 请求写入 [WidgetUnlockBus] 的瞬间即回调（见下）；
+ *   2) [onCreate]   —— 冷启动 / Activity 被回收后重建；
+ *   3) [onNewIntent]—— App 已在运行时的标准热启动路径（singleTask）；
+ *   4) [onResume]   —— 兜底：部分 ROM 会把这次点击的 Intent 丢掉、不回调 onNewIntent，
+ *                     但只要主界面回到前台，onResume 一定会被调用。
+ *
+ * 为什么必须有第 1 条（热启动失效的修复）：
+ * ColorOS 热启动时，若主界面**已在前台**（已 resumed），点快捷方式不会再回调
+ * onResume；若 ROM 又丢掉 onNewIntent，则 2/3/4 三条钩子全部落空 ——
+ * 中转页写进总线的请求永远没人取走，表现为「只弹主界面、不解锁」。
+ * 注册总线观察者后，请求写入的瞬间就会通知存活的主界面立即消费，
+ * 不再依赖任何生命周期回调是否发生；冷启动时主界面尚未创建，观察者不会
+ * 提前触发，请求由 onCreate 正常取走，两条路径互不干扰、也不会重复。
  */
 class MainActivity : ComponentActivity() {
 
@@ -63,11 +72,24 @@ class MainActivity : ComponentActivity() {
     /** 请求序号生成器，保证每一次请求的 [UnlockRequest.nonce] 都独一无二 */
     private var nonceSeq = 0L
 
+    /**
+     * 开锁请求观察者（见 [WidgetUnlockBus.addRequestListener]）。
+     *
+     * 必须是字段而非 lambda 字面量：注册 / 注销按实例比对，只有持有同一稳定
+     * 引用才能保证 onDestroy 时能正确移除，避免 Activity 泄漏。
+     */
+    private val unlockRequestListener: () -> Unit = { deliverUnlockRequest() }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         ConfigManager.init(this)
         UnlockRecordManager.init(this)
+
+        // 注册开锁请求观察者：此后任何时候（含热启动、主界面已在前台）收到新请求
+        // 都会立即送达主界面。冷启动时请求在下方已被取走，consume 的「取走即清空」
+        // 语义保证观察者不会把同一次点击重复执行。
+        WidgetUnlockBus.addRequestListener(unlockRequestListener)
 
         // 先取「本次点击」的请求；没有的话再考虑 Activity 重建前遗留的请求。
         // 顺序不能反：重建往往正是由一次新的点击触发的，此时新请求才是最新的。
@@ -84,6 +106,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onDestroy() {
+        WidgetUnlockBus.removeRequestListener(unlockRequestListener)
+        super.onDestroy()
+    }
+
     /**
      * App 已在运行（singleTask）时，小部件 / 快捷方式再次点击会把 Intent 送到这里，
      * 而不是 onCreate。必须处理，否则热启动不会触发开锁。
@@ -96,10 +123,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // 兜底：ColorOS 等 ROM 上，经「无界面中转 Activity」拉起时 Intent 可能被丢弃、
-        // onNewIntent 不被回调（此时 getIntent() 仍是上一次的旧 Intent），
-        // 表现为「热启动只打开主界面、不解锁」。
-        // 只要主界面回到前台，onResume 一定会被调用，所以在这里再取一次请求。
+        // 兜底路径之一：ColorOS 等 ROM 上，经「无界面中转 Activity」拉起时可能不回调
+        // onNewIntent；只要主界面回到前台，onResume 一定会被调用，所以在这里再取一次请求。
+        // 注意：主界面**已在前台**时该钩子不会再触发，那种场景由总线观察者兜底
+        // （见 [unlockRequestListener]），两者互补覆盖全部热启动形态。
         // 请求一旦被取走，持久化总线即被清空，后续再 onResume 不会再有任何重复触发。
         deliverUnlockRequest()
     }
@@ -120,43 +147,22 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * 取出本次点击的开锁请求；三种来源互斥且都具备「取走即清空」语义，
-     * 因此 onCreate / onNewIntent / onResume 无论谁先到，都不会重复执行一次点击。
+     * 取出本次点击的开锁请求。
      *
-     * 优先级：
-     *  1) [WidgetUnlockBus]（SharedPreferences 持久化）—— 发起方 ShortcutActivity /
-     *     WidgetClickReceiver 在拉起主界面**之前**就已 commit 落盘，既不受 Intent extra
-     *     丢失影响，也不依赖 onNewIntent 是否被回调，是最可靠的来源。
-     *  2) Intent extra —— 标准 onNewIntent 路径下的兜底补充。读取后立即 removeExtra，
-     *     避免 extra 长期滞留在 Intent 里干扰后续判断（旧实现正是被残留的 extra
-     *     永久关闭了 onResume 兜底分支）。
+     * 唯一来源是 [WidgetUnlockBus]（SharedPreferences 持久化）：发起方
+     * ShortcutActivity / WidgetClickReceiver 在拉起主界面**之前**就已 commit 落盘，
+     * 既不受 Intent extra 丢失影响，也不依赖 onNewIntent 是否被回调，是最可靠的来源。
+     *
+     * 「取走即清空」语义：onCreate / onNewIntent / onResume / 总线观察者无论谁先到，
+     * 都只有一个人能取到请求，因此一次点击只会执行一次开锁。
+     *
+     * 历史上曾并行保留 Intent extra 作为兜底，现已移除：extra 是冗余投递，
+     * 且在观察者模式下它往往经 onNewIntent **晚于**总线到达，会把同一次点击
+     * 重复触发第二次开锁；总线本身已持久化，不存在 extra 能用而总线不能用的场景。
      */
     private fun collectUnlockRequest(): UnlockRequest? {
-        val busDoorId = WidgetUnlockBus.consume(this)
-        if (busDoorId != null) {
-            clearIntentExtra() // 同一次点击的 extra 副本已无意义，清掉防止被再次读到
-            return UnlockRequest(busDoorId, ++nonceSeq)
-        }
-
-        val extraDoorId = takeIntentExtra()
-        if (extraDoorId != null) {
-            WidgetUnlockBus.consume(this) // 清掉总线里同一点击的副本，避免稍后再执行一次
-            return UnlockRequest(extraDoorId, ++nonceSeq)
-        }
-
-        return null
-    }
-
-    /** 读取并清除 Intent 上的开锁请求 extra，确保一次 extra 只会被消费一次。 */
-    private fun takeIntentExtra(): String? {
-        val current = intent ?: return null
-        val doorId = current.getStringExtra(EXTRA_WIDGET_DOOR_ID)
-        current.removeExtra(EXTRA_WIDGET_DOOR_ID)
-        return doorId
-    }
-
-    private fun clearIntentExtra() {
-        intent?.removeExtra(EXTRA_WIDGET_DOOR_ID)
+        val busDoorId = WidgetUnlockBus.consume(this) ?: return null
+        return UnlockRequest(busDoorId, ++nonceSeq)
     }
 
     /**
@@ -262,8 +268,12 @@ class MainActivity : ComponentActivity() {
     }
 
     companion object {
-        /** 桌面小部件 / 快捷方式通过该 extra 传递要开的门禁 ID；
-         *  取值为具体门禁 ID、[ShortcutActivity.ALL_DOORS_ID]（一键开锁）或 ""（开第一个门） */
+        /**
+         * 门禁 ID 传递键，现仅用于桌面小部件 → WidgetClickReceiver 的**广播 extra**
+         * （WidgetClickReceiver.EXTRA_DOOR_ID 即引用此常量）；
+         * 取值为具体门禁 ID、[ShortcutActivity.ALL_DOORS_ID]（一键开锁）或 ""（开第一个门）。
+         * 主界面侧的开锁请求投递已统一走 [WidgetUnlockBus]，不再读取 Activity Intent extra。
+         */
         const val EXTRA_WIDGET_DOOR_ID = "widget_door_id"
 
         /** 实例状态键：保存「尚未执行完」的开锁请求门禁 ID；无请求时**不写**该键 */

@@ -14,7 +14,8 @@ import cn.huacheng.safebaiyun.widget.WidgetUnlockBus
  *   1) 读取快捷方式携带的门禁 ID；
  *   2) 先把门禁 ID 落盘到 [WidgetUnlockBus]（ColorOS 冷启动可能丢弃 Intent
  *      extra，落盘才是最可靠的来源，且必须在拉起主界面前完成）；
- *   3) **在本 Activity 还活着时**直接拉起 [MainActivity]，把 extra 一并带上。
+ *   3) **在本 Activity 还活着时**直接拉起 [MainActivity]（请求经总线送达，
+ *     不需要在 Intent 上携带 extra）。
  *
  * 为什么必须是「直接拉起」而不是「发广播让 WidgetClickReceiver 拉起」：
  *   冷启动（进程不在、Recents 无任务）时，本中转页 finish() 之后 App 进程内
@@ -27,10 +28,16 @@ import cn.huacheng.safebaiyun.widget.WidgetUnlockBus
  *     App 临时白名单，冷启动同样可靠，两条路径互不影响。）
  *
  * 为什么不再直接 startActivity 也不会丢开锁请求（历史上的 ColorOS 坑）：
- *   · 冷启动：MainActivity.onCreate 先消费 [WidgetUnlockBus] 再读 extra；
- *   · 热启动：singleTask 走 onNewIntent，同样先消费 bus；
- *   · 个别 ROM 丢 onNewIntent 时：任务回到前台会触发 onResume，其兜底逻辑
- *     再次消费 bus。三层兜底保证请求不丢、不重复。
+ * 请求唯一走 [WidgetUnlockBus]（本页先 commit 落盘，再拉起主界面）：
+ *   · 冷启动：MainActivity.onCreate 消费总线；
+ *   · 热启动：总线写入的瞬间即通过观察者通知存活的主界面消费，不依赖
+ *     onNewIntent / onResume 是否被 ROM 回调（ColorOS 热启动既可能丢
+ *     onNewIntent，主界面已在前台时又不会回调 onResume，旧实现的纯生命周期
+ *     兜底在这种情况下会整体落空，表现为「只弹主界面、不解锁」）；
+ *   · singleTask 的 onNewIntent、任务回前台的 onResume 作为双保险仍会
+ *     再取一次（consume 取走即清空，不会重复执行）。
+ * 曾经在 launch Intent 上并行携带的 extra 已移除：属冗余投递，且在观察者
+ * 模式下会经 onNewIntent 晚于总线到达，把同一次点击重复触发第二次开锁。
  *
  * 主题为 Theme.NoDisplay（窗口不入屏）+ 无转场动画，因此用户看不到它的存在。
  *
@@ -56,16 +63,17 @@ class ShortcutActivity : ComponentActivity() {
 
         // 1) 先把开锁请求落盘（commit() 同步写，确保拉起主界面前已持久化）。
         //    ColorOS 冷启动偶发丢弃 Intent extra，bus 是可靠来源；
-        //    热启动时 onNewIntent / onResume 也会优先消费 bus。
+        //    写入瞬间即通知已注册的总线观察者（存活的主界面），热启动不依赖
+        //    onNewIntent / onResume 兜底。
         WidgetUnlockBus.requestUnlock(this, doorId)
 
         // 2) 趁本中转页仍是前台 Activity，直接拉起主界面。
         //    若改成「先 finish 再让广播接收器拉起」，冷启动时 App 已无前台
         //    Activity 且无 Recents 任务，startActivity 会被系统后台启动限制
         //    （BAL）静默拦截，导致点了快捷方式没有任何反应。
+        //    门禁 ID 只经总线传递，不再往 Intent 上放 extra（冗余且会导致重复开锁）。
         val launch = Intent(this, MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            putExtra(MainActivity.EXTRA_WIDGET_DOOR_ID, doorId)
         }
         startActivity(launch)
 
