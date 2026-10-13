@@ -20,12 +20,11 @@ import cn.huacheng.safebaiyun.ShortcutActivity
  *   - 传入 [ShortcutActivity.ALL_DOORS_ID] → 一键开锁全部门
  *   - 传入具体门 id → 仅开该门
  *
- * 为什么直接指向 MainActivity 而不经过 [ShortcutActivity] 中转（热启动修复）：
- * App 已在运行时，指向中转页的快捷方式 Intent 会被系统按「前门（front door）」
- * 语义处理——任务重置到根 Activity（MainActivity），中转页根本不创建，部分 ROM
- * 还会改写投递 Intent 的 component / 剥掉 action，导致开锁请求从未产生，
- * 表现为「热启动只弹主界面、不解锁」。直接指向 MainActivity（singleTask 的根
- * Activity）则冷启动走 onCreate、热启动走 onNewIntent，两条路都是系统标准行为。
+ * 为什么直接指向 MainActivity 而不经过 [ShortcutActivity] 中转：App 已在运行时，
+ * 指向中转页的 Intent 会被系统按「前门（front door）」语义处理——任务重置到根
+ * Activity（MainActivity），中转页根本不创建，部分 ROM 还会改写投递 Intent 的
+ * component / 剥掉 action，导致开锁请求从未产生，表现为「热启动只弹主界面、不解锁」。
+ * 直接指向根 Activity 则冷启动走 onCreate、热启动走 onNewIntent，都是系统标准行为。
  *
  * 兼容：旧版本钉出去的快捷方式仍指向 [ShortcutActivity]，冷启动走「中转页 + 总线」，
  * 热启动若 Intent 被根投递到主界面，由 MainActivity 解析 door_id extra，同样能开锁。
