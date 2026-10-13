@@ -26,19 +26,42 @@ import cn.huacheng.safebaiyun.util.ConfigManager
 import cn.huacheng.safebaiyun.widget.WidgetUnlockBus
 
 /**
+ * 一次待执行的开锁请求。
+ *
+ * @property doorId 目标门禁 ID：具体门禁 ID / [ShortcutActivity.ALL_DOORS_ID]（一键开锁）/ ""（开第一个门）
+ * @property nonce  单调递增的请求序号。
+ *
+ * 为什么需要 [nonce]：状态用的是 `mutableStateOf`，连续两次点击同一扇门时 doorId 完全相同，
+ * State 认为「值没变」→ 不会重组 → 观察该值的 LaunchedEffect 不会重新执行，
+ * 表现为「第二次点快捷方式只弹出主界面、不开锁」。加上每次都递增的 nonce 后，
+ * 任何一次新请求的状态值都一定不同，效果键（key）随之变化，开锁必然重新触发。
+ */
+data class UnlockRequest(val doorId: String, val nonce: Long)
+
+/**
  * 应用主界面，也是**唯一的开锁入口**。
  *
  * 桌面小部件与桌面快捷方式都不再弹独立提示，而是直接进这里：
  * 主界面照常显示，然后自动执行对应门禁的开锁，过程与用户手动点
  * 「开锁 / 一键开锁」按钮完全一致；开锁结束后主界面保持不动（不自动关闭）。
+ *
+ * 请求送达主界面共有三条路径，任何一条活着都必须能把请求取出来执行，
+ * 但整次点击只能被执行一次（参见 [collectUnlockRequest]）：
+ *   1) [onCreate]     —— 冷启动 / Activity 被回收后重建；
+ *   2) [onNewIntent]  —— App 已在运行时的标准热启动路径（singleTask）；
+ *   3) [onResume]     —— 兜底：部分 ROM 会把这次点击的 Intent 丢掉、不回调 onNewIntent，
+ *                        但只要主界面回到前台，onResume 一定会被调用。
  */
 class MainActivity : ComponentActivity() {
 
     /** 待执行的开锁请求（桌面小部件 / 桌面快捷方式携带的门禁 ID）；null 表示无请求 */
-    private val pendingUnlockDoorId = mutableStateOf<String?>(null)
+    private val pendingUnlock = mutableStateOf<UnlockRequest?>(null)
 
     /** 当前导航控制器：小部件在其它页面被点击时，需要先回到首页再展示开锁过程 */
     private var navController: NavHostController? = null
+
+    /** 请求序号生成器，保证每一次请求的 [UnlockRequest.nonce] 都独一无二 */
+    private var nonceSeq = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,17 +69,16 @@ class MainActivity : ComponentActivity() {
         ConfigManager.init(this)
         UnlockRecordManager.init(this)
 
-        // 桌面小部件 / 快捷方式拉起时解析出的门禁 ID，交给主界面自动执行开锁。
-        // Activity 被系统重建（如旋转屏幕）时优先恢复已保存的请求状态：
-        //   · 已保存（含 null）→ 用保存值，避免重复解析/重复触发开锁；
-        //   · 未保存（首次创建）→ 正常解析 Intent 与 WidgetUnlockBus。
-        pendingUnlockDoorId.value = restoreOrResolveUnlockDoorId(savedInstanceState, intent)
+        // 先取「本次点击」的请求；没有的话再考虑 Activity 重建前遗留的请求。
+        // 顺序不能反：重建往往正是由一次新的点击触发的，此时新请求才是最新的。
+        val request = collectUnlockRequest() ?: takeRestoredRequest(savedInstanceState)
+        pendingUnlock.value = request
 
         setContent {
             SafeBaiyunTheme {
                 MainNavContent(
-                    autoUnlockDoorId = pendingUnlockDoorId.value,
-                    onAutoUnlockConsumed = { pendingUnlockDoorId.value = null }
+                    autoUnlockRequest = pendingUnlock.value,
+                    onAutoUnlockConsumed = { pendingUnlock.value = null }
                 )
             }
         }
@@ -64,13 +86,27 @@ class MainActivity : ComponentActivity() {
 
     /**
      * App 已在运行（singleTask）时，小部件 / 快捷方式再次点击会把 Intent 送到这里，
-     * 而不是 onCreate。必须处理，否则重复点击不会触发开锁。
+     * 而不是 onCreate。必须处理，否则热启动不会触发开锁。
      */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        deliverUnlockRequest()
+    }
 
-        val doorId = resolveUnlockDoorId(intent) ?: return
+    override fun onResume() {
+        super.onResume()
+        // 兜底：ColorOS 等 ROM 上，经「无界面中转 Activity」拉起时 Intent 可能被丢弃、
+        // onNewIntent 不被回调（此时 getIntent() 仍是上一次的旧 Intent），
+        // 表现为「热启动只打开主界面、不解锁」。
+        // 只要主界面回到前台，onResume 一定会被调用，所以在这里再取一次请求。
+        // 请求一旦被取走，持久化总线即被清空，后续再 onResume 不会再有任何重复触发。
+        deliverUnlockRequest()
+    }
+
+    /** 取出待执行请求并派发给主界面；没有待处理请求时静默返回。 */
+    private fun deliverUnlockRequest() {
+        val request = collectUnlockRequest() ?: return
 
         // 若此刻停留在其它页面（设置、门禁管理等），先回到首页，
         // 这样用户才能看到和手动点击时一样的开锁过程。
@@ -80,74 +116,77 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        pendingUnlockDoorId.value = doorId
-    }
-
-    override fun onResume() {
-        super.onResume()
-        // 兜底：个别 ROM（如 ColorOS）上，经「无界面中转 Activity」拉起时
-        // onNewIntent 可能不被回调，导致热启动只打开界面、不触发开锁。
-        // 这里在回到前台时再检查一次待处理的开锁请求：
-        //   · onNewIntent / onCreate 已消费过 → bus 为空，此处直接返回，不会重复解锁；
-        //   · 请求被 ROM 丢掉 → 此处兜底拿到，正常触发。
-        // bus 内请求 15 秒自动过期，日常打开 App 时这里永远为空，无副作用。
-        // 如果当前 Intent 已明确携带本次快捷方式请求，交由 onCreate/onNewIntent
-        // 处理，避免 onResume 抢先消费 bus 后，onNewIntent 再写入相同 ID，
-        // 导致 Compose 的 LaunchedEffect 不重新执行（热启动只显示主界面）。
-        if (intent?.hasExtra(EXTRA_WIDGET_DOOR_ID) == true) return
-
-        val doorId = WidgetUnlockBus.consume(this) ?: return
-
-        navController?.let { nav ->
-            if (nav.currentDestination?.route != "main") {
-                nav.popBackStack("main", inclusive = false)
-            }
-        }
-
-        pendingUnlockDoorId.value = doorId
+        pendingUnlock.value = request
     }
 
     /**
-     * 保存「待执行的开锁请求」，供 Activity 重建时恢复：
-     *   · 重建时若请求仍在（开锁进行中被重建），恢复后继续执行，不丢请求；
-     *   · 重建时若请求已被消费（保存为 null），恢复后保持 null，
-     *     避免又被 Intent 里残留的 extra 重新触发一次开锁。
+     * 取出本次点击的开锁请求；三种来源互斥且都具备「取走即清空」语义，
+     * 因此 onCreate / onNewIntent / onResume 无论谁先到，都不会重复执行一次点击。
+     *
+     * 优先级：
+     *  1) [WidgetUnlockBus]（SharedPreferences 持久化）—— 发起方 ShortcutActivity /
+     *     WidgetClickReceiver 在拉起主界面**之前**就已 commit 落盘，既不受 Intent extra
+     *     丢失影响，也不依赖 onNewIntent 是否被回调，是最可靠的来源。
+     *  2) Intent extra —— 标准 onNewIntent 路径下的兜底补充。读取后立即 removeExtra，
+     *     避免 extra 长期滞留在 Intent 里干扰后续判断（旧实现正是被残留的 extra
+     *     永久关闭了 onResume 兜底分支）。
+     */
+    private fun collectUnlockRequest(): UnlockRequest? {
+        val busDoorId = WidgetUnlockBus.consume(this)
+        if (busDoorId != null) {
+            clearIntentExtra() // 同一次点击的 extra 副本已无意义，清掉防止被再次读到
+            return UnlockRequest(busDoorId, ++nonceSeq)
+        }
+
+        val extraDoorId = takeIntentExtra()
+        if (extraDoorId != null) {
+            WidgetUnlockBus.consume(this) // 清掉总线里同一点击的副本，避免稍后再执行一次
+            return UnlockRequest(extraDoorId, ++nonceSeq)
+        }
+
+        return null
+    }
+
+    /** 读取并清除 Intent 上的开锁请求 extra，确保一次 extra 只会被消费一次。 */
+    private fun takeIntentExtra(): String? {
+        val current = intent ?: return null
+        val doorId = current.getStringExtra(EXTRA_WIDGET_DOOR_ID)
+        current.removeExtra(EXTRA_WIDGET_DOOR_ID)
+        return doorId
+    }
+
+    private fun clearIntentExtra() {
+        intent?.removeExtra(EXTRA_WIDGET_DOOR_ID)
+    }
+
+    /**
+     * Activity 被系统回收后重建时，恢复「尚未执行完」的开锁请求。
+     *
+     * 这里用 `getString()` 是否为 null 判断有无请求，**不能用 containsKey()**：
+     * 旧实现在请求消费后仍会 `putString(key, null)`，而 Bundle 允许存 null 值，
+     * containsKey() 依旧返回 true —— 于是重建时被判定为「已保存过 → 已处理」，
+     * 直接跳过了 Intent / 总线里真正的本次请求，最终只显示主界面、完全不解锁。
+     * 现在 [onSaveInstanceState] 只在真的有待执行请求时才写入，语义不再有歧义。
+     */
+    private fun takeRestoredRequest(savedInstanceState: Bundle?): UnlockRequest? {
+        val doorId = savedInstanceState?.getString(STATE_PENDING_DOOR_ID) ?: return null
+        return UnlockRequest(doorId, ++nonceSeq)
+    }
+
+    /**
+     * 保存「待执行的开锁请求」，供 Activity 重建时恢复。
+     *
+     * 只在确实有待执行请求时写入；写 null 会让 key 存在但值为空，
+     * 重建时会被误判成「已处理」而丢弃本次点击（见 [takeRestoredRequest]）。
      */
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putString(EXTRA_WIDGET_DOOR_ID, pendingUnlockDoorId.value)
+        pendingUnlock.value?.let { outState.putString(STATE_PENDING_DOOR_ID, it.doorId) }
     }
-
-    /**
-     * 解析本次要执行的开锁门禁 ID；无请求返回 null。
-     *
-     * 优先级：
-     *  1) [WidgetUnlockBus]（SharedPreferences 持久化）—— ColorOS 等 ROM 冷启动会
-     *     丢弃 Intent extra，落盘才是可靠来源；小部件与快捷方式都会先落盘。
-     *  2) Intent extra —— 热启动（onNewIntent）/ 进程已活时的兜底。
-     */
-    private fun resolveUnlockDoorId(intent: Intent): String? {
-        // 当前启动/新 Intent 的 extra 属于本次点击，优先级高于持久化 bus。
-        // 先读 extra 可避免热启动时 onResume 与 onNewIntent 竞争消费同一请求。
-        val intentId = intent.getStringExtra(EXTRA_WIDGET_DOOR_ID)
-        if (intentId != null) {
-            WidgetUnlockBus.consume(this) // 清理对应的持久化副本，避免稍后重复执行
-            return intentId
-        }
-        return WidgetUnlockBus.consume(this)
-    }
-
-    /** Activity 重建时恢复开锁请求；首次创建时正常解析。 */
-    private fun restoreOrResolveUnlockDoorId(savedInstanceState: Bundle?, intent: Intent): String? =
-        if (savedInstanceState != null && savedInstanceState.containsKey(EXTRA_WIDGET_DOOR_ID)) {
-            savedInstanceState.getString(EXTRA_WIDGET_DOOR_ID)
-        } else {
-            resolveUnlockDoorId(intent)
-        }
 
     @Composable
     private fun MainNavContent(
-        autoUnlockDoorId: String?,
+        autoUnlockRequest: UnlockRequest?,
         onAutoUnlockConsumed: () -> Unit
     ) {
         val nav = rememberNavController()
@@ -164,7 +203,7 @@ class MainActivity : ComponentActivity() {
             ) {
                 MainView(
                     navController = nav,
-                    autoUnlockDoorId = autoUnlockDoorId,
+                    autoUnlockRequest = autoUnlockRequest,
                     onAutoUnlockConsumed = onAutoUnlockConsumed
                 )
             }
@@ -226,5 +265,8 @@ class MainActivity : ComponentActivity() {
         /** 桌面小部件 / 快捷方式通过该 extra 传递要开的门禁 ID；
          *  取值为具体门禁 ID、[ShortcutActivity.ALL_DOORS_ID]（一键开锁）或 ""（开第一个门） */
         const val EXTRA_WIDGET_DOOR_ID = "widget_door_id"
+
+        /** 实例状态键：保存「尚未执行完」的开锁请求门禁 ID；无请求时**不写**该键 */
+        private const val STATE_PENDING_DOOR_ID = "pending_unlock_door_id"
     }
 }
