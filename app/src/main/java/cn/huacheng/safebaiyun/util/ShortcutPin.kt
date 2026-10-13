@@ -6,6 +6,7 @@ import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
 import android.graphics.drawable.Icon
 import android.os.Build
+import cn.huacheng.safebaiyun.MainActivity
 import cn.huacheng.safebaiyun.R
 import cn.huacheng.safebaiyun.ShortcutActivity
 
@@ -15,17 +16,26 @@ import cn.huacheng.safebaiyun.ShortcutActivity
  * - Android 8.0+：使用 [ShortcutManager.requestPinShortcut]，由系统弹出确认框。
  * - Android 7.1 及以下：发送 INSTALL_SHORTCUT 广播兜底（Manifest 已声明 INSTALL_SHORTCUT 权限）。
  *
- * 快捷方式点击后启动 [ShortcutActivity]，intent 携带 EXTRA_DOOR_ID：
+ * 快捷方式点击后直接启动 [MainActivity]，intent 携带 EXTRA_DOOR_ID：
  *   - 传入 [ShortcutActivity.ALL_DOORS_ID] → 一键开锁全部门
  *   - 传入具体门 id → 仅开该门
  *
- * 注意 intent 使用 [ShortcutActivity.ACTION_PINNED_UNLOCK]，避免误入 ShortcutActivity 的旧创建流程。
+ * 为什么直接指向 MainActivity 而不经过 [ShortcutActivity] 中转（热启动修复）：
+ * App 已在运行时，指向中转页的快捷方式 Intent 会被系统按「前门（front door）」
+ * 语义处理——任务重置到根 Activity（MainActivity），中转页根本不创建，部分 ROM
+ * 还会改写投递 Intent 的 component / 剥掉 action，导致开锁请求从未产生，
+ * 表现为「热启动只弹主界面、不解锁」。直接指向 MainActivity（singleTask 的根
+ * Activity）则冷启动走 onCreate、热启动走 onNewIntent，两条路都是系统标准行为。
+ *
+ * 兼容：旧版本钉出去的快捷方式仍指向 [ShortcutActivity]，冷启动走「中转页 + 总线」，
+ * 热启动若 Intent 被根投递到主界面，由 MainActivity 解析 door_id extra，同样能开锁。
+ *
  * 每个 doorId 对应唯一 shortcutId，重复钉会更新已有快捷方式而非新建。
  */
 object ShortcutPin {
 
     fun pinShortcut(context: Context, doorId: String, name: String) {
-        val launchIntent = Intent(context, ShortcutActivity::class.java).apply {
+        val launchIntent = Intent(context, MainActivity::class.java).apply {
             action = ShortcutActivity.ACTION_PINNED_UNLOCK
             putExtra(ShortcutActivity.EXTRA_DOOR_ID, doorId)
         }
