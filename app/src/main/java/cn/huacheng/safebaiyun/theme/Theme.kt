@@ -2,6 +2,7 @@ package cn.huacheng.safebaiyun.theme
 
 import android.app.Activity
 import android.os.Build
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
@@ -11,7 +12,10 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
@@ -99,6 +103,40 @@ fun ApplyFontScale(content: @Composable () -> Unit) {
 }
 
 // ============================================================
+//  背景明暗模式（设置页可切换：跟随系统 / 浅色 / 深色）
+// ============================================================
+
+/** 背景明暗模式；ordinal 同时作为 ConfigManager 的持久化值，新增模式只能追加在末尾 */
+enum class ThemeMode { SYSTEM, LIGHT, DARK }
+
+/**
+ * 全局可观察的主题模式。
+ *
+ * 设置页切换时 [select] 先更新状态（Compose 立即重组，全应用即时换肤），
+ * 再写入 SharedPreferences；进程启动时由 [init] 从持久化配置恢复。
+ */
+object ThemeModeState {
+
+    var mode: ThemeMode by mutableStateOf(ThemeMode.DARK)
+        private set
+
+    /** 从持久化配置恢复模式（BaiYunApplication.onCreate 中调用，先于任何界面） */
+    fun init() = load(ConfigManager.getThemeMode())
+
+    /** 恢复默认模式并落盘（设置页「恢复默认」调用） */
+    fun resetToDefault() = select(load(ConfigManager.getDefaultThemeMode()))
+
+    private fun load(stored: Int): ThemeMode =
+        ThemeMode.values().getOrElse(stored) { ThemeMode.DARK }
+
+    /** 选择新模式：状态即时生效并落盘 */
+    fun select(mode: ThemeMode) {
+        this.mode = mode
+        ConfigManager.setThemeMode(mode.ordinal)
+    }
+}
+
+// ============================================================
 //  Material 3 ColorScheme + 主题入口
 // ============================================================
 private val ColorOSLightColorScheme = lightColorScheme(
@@ -167,10 +205,16 @@ private val ColorOSDarkColorScheme = darkColorScheme(
 
 @Composable
 fun SafeBaiyunTheme(
-    darkTheme: Boolean = true,
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
+    // 读取 ThemeModeState.mode 订阅其变化：设置页切换后本函数立即重组，实现即时换肤
+    val darkTheme = when (ThemeModeState.mode) {
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+    }
+
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
