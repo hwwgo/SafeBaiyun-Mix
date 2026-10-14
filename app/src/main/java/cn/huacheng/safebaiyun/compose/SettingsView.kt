@@ -314,7 +314,7 @@ private fun SettingsTopBar(
                 Icon(
                     Icons.Default.ArrowBack,
                     contentDescription = "返回",
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -324,8 +324,8 @@ private fun SettingsTopBar(
                 onClick = onSave,
                 enabled = hasChanges,
                 colors = ButtonDefaults.textButtonColors(
-                    contentColor = Color.White,
-                    disabledContentColor = Color.White.copy(alpha = 0.45f)
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                    disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                 ),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
             ) {
@@ -333,7 +333,8 @@ private fun SettingsTopBar(
                     "保存",
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
-                    color = if (hasChanges) Color.White else Color.White.copy(alpha = 0.45f)
+                    color = if (hasChanges) MaterialTheme.colorScheme.onSurface
+                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                 )
             }
 
@@ -344,7 +345,7 @@ private fun SettingsTopBar(
                 Icon(
                     Icons.Default.Restore,
                     contentDescription = "恢复默认",
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(20.dp)
                 )
             }
