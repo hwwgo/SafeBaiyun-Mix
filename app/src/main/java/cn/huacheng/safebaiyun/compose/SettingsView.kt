@@ -1,6 +1,7 @@
 package cn.huacheng.safebaiyun.compose
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -99,6 +100,7 @@ fun SettingsView(navController: NavController) {
                     unlockVibration = ConfigManager.getDefaultUnlockVibrationEnabled()
                     unlockVibrationDuration = ConfigManager.getDefaultUnlockVibrationDuration().toString()
                     unlockRecord = ConfigManager.getDefaultUnlockRecordEnabled()
+                    ThemeModeState.resetToDefault()
                     hasChanges = false
                     showToast("已恢复默认设置")
                 }
@@ -116,6 +118,11 @@ fun SettingsView(navController: NavController) {
                 ShortcutCreatorCard()
 
                 InfoCard()
+
+                ThemeModeCard(
+                    current = ThemeModeState.mode,
+                    onSelect = { ThemeModeState.select(it) }
+                )
 
                 SettingsSwitchCard(
                     icon = Icons.Default.FormatSize,
@@ -677,5 +684,118 @@ private fun ConfigItem(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ThemeModeCard(
+    current: ThemeMode,
+    onSelect: (ThemeMode) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(12.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(ColorOSPrimary.copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Palette,
+                        contentDescription = null,
+                        tint = ColorOSPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Column {
+                    Text(
+                        text = "文字背景颜色",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "选择背景的明暗风格，切换后立即生效",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ThemeModeOption(
+                    icon = Icons.Default.BrightnessAuto,
+                    label = "跟随系统",
+                    selected = current == ThemeMode.SYSTEM,
+                    onClick = { onSelect(ThemeMode.SYSTEM) },
+                    modifier = Modifier.weight(1f)
+                )
+                ThemeModeOption(
+                    icon = Icons.Default.LightMode,
+                    label = "浅色",
+                    selected = current == ThemeMode.LIGHT,
+                    onClick = { onSelect(ThemeMode.LIGHT) },
+                    modifier = Modifier.weight(1f)
+                )
+                ThemeModeOption(
+                    icon = Icons.Default.DarkMode,
+                    label = "深色",
+                    selected = current == ThemeMode.DARK,
+                    onClick = { onSelect(ThemeMode.DARK) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThemeModeOption(
+    icon: ImageVector,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val containerColor = if (selected) ColorOSPrimary else MaterialTheme.colorScheme.surfaceVariant
+    val contentColor = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(containerColor)
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
+            color = contentColor
+        )
     }
 }
