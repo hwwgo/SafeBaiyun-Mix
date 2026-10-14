@@ -159,14 +159,6 @@ fun QRImportView(navController: NavHostController) {
                             }
                         }
                     }
-                    else -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            LoadingState()
-                        }
-                    }
                 }
             }
         }
@@ -308,58 +300,28 @@ private fun ScannerOverlay() {
 
         val cornerLength = 40.dp.toPx()
         val cornerWidth = 6.dp.toPx()
+        val right = left + overlaySize
+        val bottom = top + overlaySize
 
-        drawLine(
-            color = Color.White,
-            start = Offset(left, top + cornerLength),
-            end = Offset(left, top),
-            strokeWidth = cornerWidth
-        )
-        drawLine(
-            color = Color.White,
-            start = Offset(left, top),
-            end = Offset(left + cornerLength, top),
-            strokeWidth = cornerWidth
-        )
-
-        drawLine(
-            color = Color.White,
-            start = Offset(left + overlaySize - cornerLength, top),
-            end = Offset(left + overlaySize, top),
-            strokeWidth = cornerWidth
-        )
-        drawLine(
-            color = Color.White,
-            start = Offset(left + overlaySize, top),
-            end = Offset(left + overlaySize, top + cornerLength),
-            strokeWidth = cornerWidth
-        )
-
-        drawLine(
-            color = Color.White,
-            start = Offset(left, top + overlaySize - cornerLength),
-            end = Offset(left, top + overlaySize),
-            strokeWidth = cornerWidth
-        )
-        drawLine(
-            color = Color.White,
-            start = Offset(left, top + overlaySize),
-            end = Offset(left + cornerLength, top + overlaySize),
-            strokeWidth = cornerWidth
-        )
-
-        drawLine(
-            color = Color.White,
-            start = Offset(left + overlaySize - cornerLength, top + overlaySize),
-            end = Offset(left + overlaySize, top + overlaySize),
-            strokeWidth = cornerWidth
-        )
-        drawLine(
-            color = Color.White,
-            start = Offset(left + overlaySize, top + overlaySize - cornerLength),
-            end = Offset(left + overlaySize, top + overlaySize),
-            strokeWidth = cornerWidth
-        )
+        // 四个角的 L 形装饰线：sx/sy 取 ±1，枚举左上、右上、左下、右下
+        for (sx in listOf(1f, -1f)) {
+            for (sy in listOf(1f, -1f)) {
+                val cornerX = if (sx > 0) left else right
+                val cornerY = if (sy > 0) top else bottom
+                drawLine(
+                    color = Color.White,
+                    start = Offset(cornerX, cornerY),
+                    end = Offset(cornerX, cornerY + sy * cornerLength),
+                    strokeWidth = cornerWidth
+                )
+                drawLine(
+                    color = Color.White,
+                    start = Offset(cornerX, cornerY),
+                    end = Offset(cornerX + sx * cornerLength, cornerY),
+                    strokeWidth = cornerWidth
+                )
+            }
+        }
     }
 }
 
@@ -535,25 +497,6 @@ private fun RadioOption(
                 MaterialTheme.colorScheme.onSurface 
             else 
                 MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-private fun LoadingState() {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        CircularProgressIndicator(
-            color = ColorOSPrimary,
-            modifier = Modifier.size(40.dp)
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(
-            text = "正在处理...",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }

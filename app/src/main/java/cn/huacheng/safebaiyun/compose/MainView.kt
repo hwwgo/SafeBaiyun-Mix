@@ -377,19 +377,7 @@ fun MainView(
 
                 if (!hasAllBlePermissions(context)) {
                     if (scanPermissionResult == null) {
-                        val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                            arrayOf(
-                                Manifest.permission.BLUETOOTH_CONNECT,
-                                Manifest.permission.BLUETOOTH_SCAN
-                            )
-                        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                            arrayOf(
-                                Manifest.permission.BLUETOOTH,
-                                Manifest.permission.ACCESS_FINE_LOCATION
-                            )
-                        } else {
-                            emptyArray()
-                        }
+                        val permissions = blePermissions()
 
                         if (permissions.isNotEmpty()) {
                             pollingProgress = "需要蓝牙权限..."
@@ -447,19 +435,7 @@ fun MainView(
                                 if (!hasAllBlePermissions(context)) {
                                     pendingManualPoll = true
                                     scanPermissionResult = null
-                                    val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                        arrayOf(
-                                            Manifest.permission.BLUETOOTH_CONNECT,
-                                            Manifest.permission.BLUETOOTH_SCAN
-                                        )
-                                    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                        arrayOf(
-                                            Manifest.permission.BLUETOOTH,
-                                            Manifest.permission.ACCESS_FINE_LOCATION
-                                        )
-                                    } else {
-                                        emptyArray()
-                                    }
+                                    val permissions = blePermissions()
 
                                     if (permissions.isNotEmpty()) {
                                         scanPermissionLauncher.launch(permissions)
@@ -1039,6 +1015,19 @@ private suspend fun waitForBluetoothWithin(timeoutMs: Long): Boolean {
     }
 }
 
+/** 按系统版本返回所需的蓝牙权限：API 31+ 用 CONNECT/SCAN，23-30 用 BLUETOOTH/定位，更低版本无需权限 */
+private fun blePermissions(): Array<String> = when {
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> arrayOf(
+        Manifest.permission.BLUETOOTH_CONNECT,
+        Manifest.permission.BLUETOOTH_SCAN
+    )
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> arrayOf(
+        Manifest.permission.BLUETOOTH,
+        Manifest.permission.ACCESS_FINE_LOCATION
+    )
+    else -> emptyArray()
+}
+
 private fun hasAllBlePermissions(context: android.content.Context): Boolean {
     return when {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
@@ -1062,19 +1051,7 @@ private fun PermissionView(hasPermission: MutableState<Boolean>) {
         }
     }
 
-    val permissions = remember {
-        when {
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> arrayOf(
-                Manifest.permission.BLUETOOTH_CONNECT,
-                Manifest.permission.BLUETOOTH_SCAN
-            )
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> arrayOf(
-                Manifest.permission.BLUETOOTH,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            )
-            else -> emptyArray()
-        }
-    }
+    val permissions = remember { blePermissions() }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
