@@ -19,6 +19,7 @@ object ConfigManager {
     private const val KEY_UNLOCK_VIBRATION = "unlock_vibration"
     private const val KEY_UNLOCK_VIBRATION_DURATION = "unlock_vibration_duration"
     private const val KEY_UNLOCK_RECORD = "unlock_record"
+    private const val KEY_THEME_MODE = "theme_mode"
 
     // 默认值
     private const val DEFAULT_UNLOCK_TIMEOUT = 2000L
@@ -33,6 +34,7 @@ object ConfigManager {
     private const val DEFAULT_UNLOCK_VIBRATION = true
     private const val DEFAULT_UNLOCK_VIBRATION_DURATION = 150L
     private const val DEFAULT_UNLOCK_RECORD = true
+    private const val DEFAULT_THEME_MODE = 2   // 2 = 深色（ThemeMode.DARK.ordinal），保持历史行为
 
     fun init(context: Context) {
         prefs = context.getSharedPreferences("app_config", Context.MODE_PRIVATE)
@@ -97,6 +99,11 @@ object ConfigManager {
     fun setUnlockRecordEnabled(value: Boolean) = prefs.edit().putBoolean(KEY_UNLOCK_RECORD, value).apply()
     fun getDefaultUnlockRecordEnabled(): Boolean = DEFAULT_UNLOCK_RECORD
 
+    // ---------- 背景明暗模式（ThemeMode.ordinal：0=跟随系统 1=浅色 2=深色） ----------
+    fun getThemeMode(): Int = prefs.getInt(KEY_THEME_MODE, DEFAULT_THEME_MODE)
+    fun setThemeMode(value: Int) = prefs.edit().putInt(KEY_THEME_MODE, value).apply()
+    fun getDefaultThemeMode(): Int = DEFAULT_THEME_MODE
+
     // ---------- 恢复默认 ----------
     fun resetToDefaults() {
         prefs.edit()
@@ -112,6 +119,7 @@ object ConfigManager {
             .putBoolean(KEY_UNLOCK_VIBRATION, DEFAULT_UNLOCK_VIBRATION)
             .putLong(KEY_UNLOCK_VIBRATION_DURATION, DEFAULT_UNLOCK_VIBRATION_DURATION)
             .putBoolean(KEY_UNLOCK_RECORD, DEFAULT_UNLOCK_RECORD)
+            .putInt(KEY_THEME_MODE, DEFAULT_THEME_MODE)
             .apply()
     }
 }
