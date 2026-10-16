@@ -1,6 +1,7 @@
 package cn.huacheng.safebaiyun.compose
 
 import android.Manifest
+import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.content.pm.PackageManager
 import android.os.Build
@@ -59,7 +60,8 @@ private enum class PollingState {
  * 传入要开的门禁，主界面照常显示后自动触发，动作与用户手动点击完全一致：
  *   · [ShortcutActivity.ALL_DOORS_ID] → 走「一键开锁」（等同点顶部大按钮）
  *   · 具体门禁 id                    → 走单门开锁（等同点该门禁卡片右侧「开锁」）
- * 开锁结束（成功或失败）后主界面保持显示，不自动关闭。
+ * 开锁结束后主界面默认保持显示；若在设置中开启「开锁成功后自动退出」，
+ * 则开锁成功、结果提示展示完毕后自动关闭应用。
  *
  * @param autoUnlockRequest     待自动执行的开锁请求；null 表示无请求。
  *                              同一个门禁连续两次请求时 doorId 相同，靠 [UnlockRequest.nonce]
@@ -153,6 +155,7 @@ fun MainView(
                     scope.launch {
                         delay(1500)
                         showToast("用时 ${elapsed}ms")
+                        exitAppIfEnabled()
                     }
                     return
                 }
@@ -187,6 +190,7 @@ fun MainView(
                                 showToast("✅ 已成功开门！")
                                 delay(1500)
                                 showToast("用时 ${elapsed}ms")
+                                exitAppIfEnabled()
                             }
                         } else {
                             pollingProgress = "❌ 未找到可开门禁"
@@ -220,8 +224,9 @@ fun MainView(
      * 门禁卡片右侧「开锁」按钮与桌面快捷方式 / 小部件走的是同一个函数，
      * 因此两条路径的行为、进度文案、结果提示完全一致。
      *
-     * 进度写在 [unlockSteps] 里（由卡片内联展示），开锁结束后延迟清空回归空闲态，
-     * 主界面不会消失，用户可以接着操作。
+     * 进度写在 [unlockSteps] 里（由卡片内联展示），开锁结束后延迟清空回归空闲态；
+     * 默认主界面保持显示，用户可以接着操作。若开启了「开锁成功后自动退出」，
+     * 成功时会在结果提示展示完毕后自动关闭应用。
      */
     fun unlockSingleDoor(door: DoorDevice) {
         // 重新读取当前配置，避免列表状态更新后使用旧的 MAC/Key
@@ -258,11 +263,24 @@ fun MainView(
                     showToast("✅ 已成功开门！")
                     delay(1500)
                     showToast("用时 ${elapsed}ms")
+                    exitAppIfEnabled()
                 }
             }
 
             delay(ConfigManager.getResetDelay())
             unlockSteps.remove(currentDoor.id)
+        }
+    }
+
+    /**
+     * 开锁成功且用户在设置中开启了「开锁成功后自动退出」时，关闭当前界面。
+     *
+     * 从桌面快捷方式 / 小部件开门的场景下开完即走，无需手动返回；
+     * 未开启该设置时什么也不做，行为与此前版本完全一致。
+     */
+    fun exitAppIfEnabled() {
+        if (ConfigManager.isAutoExitEnabled()) {
+            (context as? Activity)?.finish()
         }
     }
 

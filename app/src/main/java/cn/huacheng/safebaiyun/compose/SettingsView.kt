@@ -43,6 +43,7 @@ fun SettingsView(navController: NavController) {
     var unlockVibration by remember { mutableStateOf(ConfigManager.isUnlockVibrationEnabled()) }
     var unlockVibrationDuration by remember { mutableStateOf(ConfigManager.getUnlockVibrationDuration().toString()) }
     var unlockRecord by remember { mutableStateOf(ConfigManager.isUnlockRecordEnabled()) }
+    var autoExit by remember { mutableStateOf(ConfigManager.isAutoExitEnabled()) }
     var hasChanges by remember { mutableStateOf(false) }
 
     Box(
@@ -80,6 +81,7 @@ fun SettingsView(navController: NavController) {
                         ConfigManager.setUnlockVibrationEnabled(unlockVibration)
                         ConfigManager.setUnlockVibrationDuration(vibrationDuration)
                         ConfigManager.setUnlockRecordEnabled(unlockRecord)
+                        ConfigManager.setAutoExitEnabled(autoExit)
                         hasChanges = false
                         showToast("✅ 设置已保存，重启应用后生效")
                     } catch (e: NumberFormatException) {
@@ -100,6 +102,7 @@ fun SettingsView(navController: NavController) {
                     unlockVibration = ConfigManager.getDefaultUnlockVibrationEnabled()
                     unlockVibrationDuration = ConfigManager.getDefaultUnlockVibrationDuration().toString()
                     unlockRecord = ConfigManager.getDefaultUnlockRecordEnabled()
+                    autoExit = ConfigManager.getDefaultAutoExitEnabled()
                     ThemeModeState.resetToDefault()
                     hasChanges = false
                     showToast("已恢复默认设置")
@@ -165,6 +168,17 @@ fun SettingsView(navController: NavController) {
                     checked = unlockRecord,
                     onCheckedChange = {
                         unlockRecord = it
+                        hasChanges = true
+                    }
+                )
+
+                SettingsSwitchCard(
+                    icon = Icons.Default.ExitToApp,
+                    title = "开锁成功后自动退出",
+                    description = "解锁成功后自动关闭应用，从快捷方式或小部件开门时无需手动返回",
+                    checked = autoExit,
+                    onCheckedChange = {
+                        autoExit = it
                         hasChanges = true
                     }
                 )
