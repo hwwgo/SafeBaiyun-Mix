@@ -78,6 +78,20 @@ fun MainView(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    /**
+     * 开锁成功且用户在设置中开启了「开锁成功后自动退出」时，关闭当前界面。
+     *
+     * 从桌面快捷方式 / 小Widget 开门的场景下开完即走，无需手动返回；
+     * 未开启该设置时什么也不做，行为与此前版本完全一致。
+     *
+     * 定义为局部函数、置于所有调用点之前：Kotlin 局部函数必须在使用前声明才能解析。
+     */
+    fun exitAppIfEnabled() {
+        if (ConfigManager.isAutoExitEnabled()) {
+            (context as? Activity)?.finish()
+        }
+    }
+
     val hasPermission = remember { mutableStateOf(false) }
     val doors = remember { mutableStateOf<List<DoorDevice>>(DataRepo.getDoors()) }
 
@@ -269,18 +283,6 @@ fun MainView(
 
             delay(ConfigManager.getResetDelay())
             unlockSteps.remove(currentDoor.id)
-        }
-    }
-
-    /**
-     * 开锁成功且用户在设置中开启了「开锁成功后自动退出」时，关闭当前界面。
-     *
-     * 从桌面快捷方式 / 小部件开门的场景下开完即走，无需手动返回；
-     * 未开启该设置时什么也不做，行为与此前版本完全一致。
-     */
-    fun exitAppIfEnabled() {
-        if (ConfigManager.isAutoExitEnabled()) {
-            (context as? Activity)?.finish()
         }
     }
 
